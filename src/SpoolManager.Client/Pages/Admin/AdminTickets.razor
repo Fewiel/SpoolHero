@@ -1,0 +1,200 @@
+@page "/admin/tickets"
+@implements IDisposable
+@inject AdminService Admin
+@inject AuthService Auth
+@inject LocalizationService L
+@inject NavigationManager Nav
+
+<PageTitle>@L["admin.tickets.title"] – @L["app.name"]</PageTitle>
+
+@if (Auth.CurrentUser?.IsPlatformAdmin != true)
+{
+    <div class="alert alert-danger mt-3">@L["common.access.denied"]</div>
+}
+else
+{
+    <div class="page-header">
+        <h1><i class="bi bi-ticket-perforated me-2"></i>@L["admin.tickets.title"]</h1>
+    </div>
+
+    <div class="d-flex flex-wrap gap-2 mb-3">
+        <button class="btn btn-sm @(_statusFilter == null ? "btn-primary" : "btn-outline-secondary")"
+                @onclick='() => SetFilter(null)'>
+            @L["spool.filter.all"]
+        </button>
+        <button class="btn btn-sm @(_statusFilter == "open" ? "btn-warning" : "btn-outline-secondary")"
+                @onclick='() => SetFilter("open")'>
+            @L["ticket.status.open"]
+        </button>
+        <button class="btn btn-sm @(_statusFilter == "in_progress" ? "btn-primary" : "btn-outline-secondary")"
+                @onclick='() => SetFilter("in_progress")'>
+            @L["ticket.status.in_progress"]
+        </button>
+        <button class="btn btn-sm @(_statusFilter == "answered" ? "btn-success" : "btn-outline-secondary")"
+                @onclick='() => SetFilter("answered")'>
+            @L["ticket.status.answered"]
+        </button>
+        <button class="btn btn-sm @(_statusFilter == "closed" ? "btn-secondary" : "btn-outline-secondary")"
+                @onclick='() => SetFilter("closed")'>
+            @L["ticket.status.closed"]
+        </button>
+    </div>
+
+    <div class="mb-3">
+        <input class="form-control" placeholder="@L["common.search"]..." value="@_search" @oninput="OnSearch" />
+    </div>
+
+    @if (_loading)
+    {
+        <div class="text-center py-5"><div class="spinner-border"></div></div>
+    }
+    else if (_tickets.Count == 0)
+    {
+        <div class="text-center py-5 text-muted">
+            <i class="bi bi-ticket-perforated fs-1"></i>
+            <p class="mt-2">@L["ticket.none"]</p>
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive-card">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th class="d-none d-md-table-cell">@L["common.created"]</th>
+                        <th>@L["auth.username"]</th>
+                        <th>@L["ticket.subject"]</th>
+                        <th>@L["ticket.status"]</th>
+                        <th>@L["ticket.assigned.to"]</th>
+                        <th>@L["common.actions"]</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var t in _tickets)
+                    {
+                        <tr style="cursor:pointer" @onclick='() => Nav.NavigateTo($"/admin/tickets/{t.Id}")'>
+                            <td class="d-none d-md-table-cell">
+                                <small>@t.CreatedAt.ToString("dd.MM.yy HH:mm")</small>
+                            </td>
+                            <td>@t.Username</td>
+                            <td>
+                                @t.Subject
+                                @if (t.CommentCount > 0)
+                                {
+                                    <span class="badge bg-light text-dark ms-1">@t.CommentCount</span>
+                                }
+                            </td>
+                            <td>
+                                <span class="badge @StatusBadgeClass(t.Status)">@StatusLabel(t.Status)</span>
+                            </td>
+                            <td>
+                                <small>@(t.AssignedToUsername ?? L["ticket.unassigned"])</small>
+                            </td>
+                            <td @onclick:stopPropagation>
+                                <div class="d-flex gap-1 flex-wrap">
+                                    <select class="form-select form-select-sm" style="width:auto"
+                                            value="@t.Status"
+                                            @onchange="e => SetStatusAsync(t, e.Value?.ToString() ?? t.Status)">
+                                        <option value="open">@L["ticket.status.open"]</option>
+                                        <option value="in_progress">@L["ticket.status.in_progress"]</option>
+                                        <option value="answered">@L["ticket.status.answered"]</option>
+                                        <option value="closed">@L["ticket.status.closed"]</option>
+                                    </select>
+                                    @if (t.AssignedToUserId == Auth.CurrentUser?.Id)
+                                    {
+                                        <button class="btn btn-sm btn-outline-secondary"
+                                                @onclick="() => UnassignAsync(t)">
+                                            @L["admin.tickets.unassign"]
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <button class="btn btn-sm btn-outline-primary"
+                                                @onclick="() => AssignMeAsync(t)">
+                                            @L["admin.tickets.assign.me"]
+                                        </button>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+}
+
+@code {
+    private bool _loading = true;
+    private List<SupportTicketDto> _tickets = [];
+    private string? _statusFilter;
+    private string _search = string.Empty;
+    private System.Timers.Timer? _searchTimer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Auth.CurrentUser?.IsPlatformAdmin != true) return;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _tickets = await Admin.GetTicketsAsync(
+            _statusFilter,
+            string.IsNullOrWhiteSpace(_search) ? null : _search) ?? [];
+        _loading = false;
+    }
+
+    private async Task SetFilter(string? status)
+    {
+        _statusFilter = status;
+        await LoadAsync();
+    }
+
+    private void OnSearch(ChangeEventArgs e)
+    {
+        _search = e.Value?.ToString() ?? string.Empty;
+        _searchTimer?.Stop();
+        _searchTimer = new System.Timers.Timer(300);
+        _searchTimer.Elapsed += async (_, _) => { _searchTimer?.Stop(); await InvokeAsync(LoadAsync); };
+        _searchTimer.Start();
+    }
+
+    private async Task SetStatusAsync(SupportTicketDto ticket, string status)
+    {
+        await Admin.SetTicketStatusAsync(ticket.Id, status);
+        await LoadAsync();
+    }
+
+    private async Task AssignMeAsync(SupportTicketDto ticket)
+    {
+        if (Auth.CurrentUser == null) return;
+        await Admin.AssignTicketAsync(ticket.Id, Auth.CurrentUser.Id);
+        await LoadAsync();
+    }
+
+    private async Task UnassignAsync(SupportTicketDto ticket)
+    {
+        await Admin.AssignTicketAsync(ticket.Id, null);
+        await LoadAsync();
+    }
+
+    private static string StatusBadgeClass(string status) => status switch
+    {
+        "in_progress" => "bg-primary",
+        "answered"    => "bg-success",
+        "closed"      => "bg-secondary",
+        _             => "bg-warning text-dark"
+    };
+
+    private string StatusLabel(string status) => status switch
+    {
+        "in_progress" => L["ticket.status.in_progress"],
+        "answered"    => L["ticket.status.answered"],
+        "closed"      => L["ticket.status.closed"],
+        _             => L["ticket.status.open"]
+    };
+
+    public void Dispose() => _searchTimer?.Dispose();
+}

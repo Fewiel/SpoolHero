@@ -1,0 +1,63 @@
+@page "/projects/new"
+@inject ProjectService Project
+@inject LocalizationService L
+@inject NavigationManager Nav
+
+<PageTitle>@L["project.create"] – @L["app.name"]</PageTitle>
+
+<div class="page-header">
+    <h1><i class="bi bi-diagram-3 me-2"></i>@L["project.create"]</h1>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-12 col-lg-6">
+        <div class="card">
+            <div class="card-body">
+                @if (_error != null) { <div class="alert alert-danger">@_error</div> }
+
+                <div class="mb-3">
+                    <label class="form-label">@L["project.name"] *</label>
+                    <input class="form-control" @bind="_form.Name" placeholder="Meine Printfarm" />
+                </div>
+                <div class="mb-4">
+                    <label class="form-label">@L["project.description"] @L["common.optional"]</label>
+                    <textarea class="form-control" rows="3" @bind="_form.Description" placeholder="Beschreibung des Projekts"></textarea>
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button class="btn btn-primary" @onclick="SaveAsync" disabled="@_saving">
+                        @if (_saving) { <span class="spinner-border spinner-border-sm me-2"></span> }
+                        @L["project.create"]
+                    </button>
+                    <a href="/projects" class="btn btn-secondary">@L["common.cancel"]</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private CreateProjectRequest _form = new();
+    private bool _saving;
+    private string? _error;
+
+    private async Task SaveAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_form.Name)) { _error = "Name erforderlich."; return; }
+        _saving = true;
+        _error = null;
+        var resp = await Project.CreateAsync(_form);
+        _saving = false;
+        if (resp.IsSuccessStatusCode)
+        {
+            var projects = await Project.GetMyProjectsAsync() ?? [];
+            var created = projects.LastOrDefault(p => p.Name == _form.Name);
+            if (created != null) await Project.SwitchProjectAsync(created);
+            Nav.NavigateTo("/");
+        }
+        else
+        {
+            _error = await resp.Content.ReadAsStringAsync();
+        }
+    }
+}

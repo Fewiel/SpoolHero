@@ -1,0 +1,185 @@
+@page "/admin/users"
+@inject AdminService Admin
+@inject AuthService Auth
+@inject LocalizationService L
+
+<PageTitle>@L["admin.users.title"] – @L["app.name"]</PageTitle>
+
+@if (Auth.CurrentUser?.IsPlatformAdmin != true)
+{
+    <div class="alert alert-danger mt-3">@L["common.access.denied"]</div>
+}
+else
+{
+    <div class="page-header">
+        <h1><i class="bi bi-people me-2"></i>@L["admin.users.title"]</h1>
+    </div>
+
+    @if (_loading)
+    {
+        <div class="text-center py-5"><div class="spinner-border"></div></div>
+    }
+    else if (_users.Count == 0)
+    {
+        <div class="text-center py-5 text-muted">
+            <i class="bi bi-people fs-1"></i>
+            <p class="mt-2">@L["common.none"]</p>
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive-card">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>@L["auth.username"]</th>
+                        <th>@L["auth.email"]</th>
+                        <th class="d-none d-md-table-cell">@L["common.created"]</th>
+                        <th class="d-none d-md-table-cell">@L["admin.users.last.active"]</th>
+                        <th>@L["common.actions"]</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var u in _users)
+                    {
+                        <tr>
+                            <td>
+                                @u.Username
+                                @if (u.IsSuperAdmin)
+                                {
+                                    <span class="badge bg-dark ms-1"><i class="bi bi-star-fill me-1"></i>Hauptadmin</span>
+                                }
+                                else if (u.IsPlatformAdmin)
+                                {
+                                    <span class="badge bg-danger ms-1">Admin</span>
+                                }
+                                @if (!u.EmailVerified)
+                                {
+                                    <span class="badge bg-warning text-dark ms-1"><i class="bi bi-envelope-exclamation me-1"></i>@L["admin.users.unverified"]</span>
+                                }
+                            </td>
+                            <td><small>@u.Email</small></td>
+                            <td class="d-none d-md-table-cell">
+                                <small>@u.CreatedAt.ToString("dd.MM.yyyy")</small>
+                            </td>
+                            <td class="d-none d-md-table-cell">
+                                <small>
+                                    @if (u.LastActiveAt.HasValue)
+                                    { @u.LastActiveAt.Value.ToString("dd.MM.yyyy HH:mm") }
+                                    else
+                                    { @L["admin.users.never"] }
+                                </small>
+                            </td>
+                            <td>
+                                @if (u.Id == Auth.CurrentUser?.Id)
+                                {
+                                    <span class="text-muted small">@L["admin.users.yourself"]</span>
+                                }
+                                else if (u.IsSuperAdmin)
+                                {
+                                    <span class="text-muted small"><i class="bi bi-shield-lock me-1"></i>@L["admin.users.protected"]</span>
+                                }
+                                else
+                                {
+                                    <div class="d-flex gap-1 flex-wrap">
+                                        @if (u.IsPlatformAdmin)
+                                        {
+                                            <button class="btn btn-sm btn-outline-danger" @onclick="() => RequestToggle(u)">
+                                                <i class="bi bi-shield-x me-1"></i>@L["admin.users.remove.admin"]
+                                            </button>
+                                        }
+                                        else
+                                        {
+                                            <button class="btn btn-sm btn-outline-success" @onclick="() => RequestToggle(u)">
+                                                <i class="bi bi-shield-check me-1"></i>@L["admin.users.make.admin"]
+                                            </button>
+                                        }
+                                        <button class="btn btn-sm btn-outline-danger" @onclick="() => RequestDelete(u)">
+                                            <i class="bi bi-trash me-1"></i>@L["common.delete"]
+                                        </button>
+                                    </div>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+
+    @if (_toggleTarget != null)
+    {
+        <div class="modal-backdrop-custom" @onclick="() => _toggleTarget = null">
+            <div class="modal-box" @onclick:stopPropagation>
+                <h5>@(_toggleTarget.IsPlatformAdmin ? L["admin.users.confirm.demote"] : L["admin.users.confirm.promote"])</h5>
+                <p><strong>@_toggleTarget.Username</strong></p>
+                <p class="text-muted small"><i class="bi bi-info-circle me-1"></i>@L["admin.users.relogin.hint"]</p>
+                <div class="d-flex gap-2 justify-content-end">
+                    <button class="btn btn-secondary" @onclick="() => _toggleTarget = null">@L["common.cancel"]</button>
+                    <button class="btn @(_toggleTarget.IsPlatformAdmin ? "btn-danger" : "btn-success")"
+                            @onclick="ConfirmToggleAsync">
+                        @L["common.confirm"]
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (_deleteTarget != null)
+    {
+        <div class="modal-backdrop-custom" @onclick="() => _deleteTarget = null">
+            <div class="modal-box" @onclick:stopPropagation>
+                <h5>@L["admin.users.delete.confirm.title"]</h5>
+                <p>@L["admin.users.delete.confirm"] <strong>@_deleteTarget.Username</strong>?</p>
+                <p class="text-danger small"><i class="bi bi-exclamation-triangle me-1"></i>@L["admin.users.delete.warning"]</p>
+                <div class="d-flex gap-2 justify-content-end">
+                    <button class="btn btn-secondary" @onclick="() => _deleteTarget = null">@L["common.cancel"]</button>
+                    <button class="btn btn-danger" @onclick="ConfirmDeleteAsync">
+                        <i class="bi bi-trash me-1"></i>@L["common.delete"]
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+@code {
+    private bool _loading = true;
+    private List<AdminUserDto> _users = [];
+    private AdminUserDto? _toggleTarget;
+    private AdminUserDto? _deleteTarget;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Auth.CurrentUser?.IsPlatformAdmin != true) return;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _users = await Admin.GetUsersAsync() ?? [];
+        _loading = false;
+    }
+
+    private void RequestToggle(AdminUserDto user) => _toggleTarget = user;
+    private void RequestDelete(AdminUserDto user) => _deleteTarget = user;
+
+    private async Task ConfirmToggleAsync()
+    {
+        if (_toggleTarget == null) return;
+        var target = _toggleTarget;
+        _toggleTarget = null;
+        await Admin.SetAdminAsync(target.Id, !target.IsPlatformAdmin);
+        await LoadAsync();
+    }
+
+    private async Task ConfirmDeleteAsync()
+    {
+        if (_deleteTarget == null) return;
+        var target = _deleteTarget;
+        _deleteTarget = null;
+        await Admin.DeleteUserAsync(target.Id);
+        await LoadAsync();
+    }
+}

@@ -1,0 +1,6 @@
+@SpoolManager.Server_HostAddress = http://localhost:5297
+
+GET {{SpoolManager.Server_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

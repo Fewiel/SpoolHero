@@ -1,0 +1,186 @@
+@page "/admin/audit"
+@implements IDisposable
+@inject AuditLogService AuditSvc
+@inject AuthService Auth
+@inject LocalizationService L
+
+<PageTitle>@L["admin.audit.title"] – @L["app.name"]</PageTitle>
+
+@if (Auth.CurrentUser?.IsPlatformAdmin != true)
+{
+    <div class="alert alert-danger mt-3">@L["common.access.denied"]</div>
+}
+else
+{
+    <div class="page-header">
+        <h1><i class="bi bi-journal-text me-2"></i>@L["admin.audit.title"]</h1>
+    </div>
+
+    <div class="row g-2 mb-3">
+        <div class="col-12 col-md-5">
+            <input class="form-control" placeholder="@L["admin.audit.filter.user"]"
+                   value="@_userFilter" @oninput="OnUserFilter" />
+        </div>
+        <div class="col-12 col-md-5">
+            <select class="form-select" @bind="_actionFilter" @bind:after="LoadAsync">
+                <option value="">@L["admin.audit.filter.action"] – @L["common.filter"]</option>
+                <option value="auth.">Auth</option>
+                <option value="auth.login.fail">@L["admin.audit.action.login.fail"]</option>
+                <option value="project.">Projects</option>
+                <option value="project.member">@L["admin.audit.action.member"]</option>
+                <option value="admin.material">@L["admin.audit.action.global.material"]</option>
+                <option value="material.">@L["material.title"]</option>
+                <option value="spool.">@L["spool.title"]</option>
+            </select>
+        </div>
+        <div class="col-12 col-md-2">
+            <button class="btn btn-outline-secondary w-100" @onclick="LoadAsync">
+                <i class="bi bi-arrow-clockwise me-1"></i>@L["common.search"]
+            </button>
+        </div>
+    </div>
+
+    @if (_loading)
+    {
+        <div class="text-center py-5"><div class="spinner-border"></div></div>
+    }
+    else if (_logs.Count == 0)
+    {
+        <div class="text-center py-5 text-muted">
+            <i class="bi bi-journal fs-1"></i>
+            <p class="mt-2">@L["admin.audit.no.entries"]</p>
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th style="white-space:nowrap">@L["admin.audit.timestamp"]</th>
+                        <th>@L["admin.audit.user"]</th>
+                        <th>@L["admin.audit.action"]</th>
+                        <th>@L["admin.audit.entity"]</th>
+                        <th class="d-none d-md-table-cell">@L["admin.audit.project"]</th>
+                        <th class="d-none d-lg-table-cell">IP</th>
+                        <th class="d-none d-lg-table-cell">@L["admin.audit.details"]</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var log in _logs)
+                    {
+                        <tr>
+                            <td style="white-space:nowrap">
+                                <small>@log.Timestamp.ToLocalTime().ToString("dd.MM. HH:mm:ss")</small>
+                            </td>
+                            <td>
+                                @if (log.Username != null)
+                                {
+                                    <span>@log.Username</span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">–</span>
+                                }
+                            </td>
+                            <td>
+                                <span class="badge @GetActionBadgeClass(log.Action)">@log.Action</span>
+                            </td>
+                            <td>
+                                @if (log.EntityName != null)
+                                {
+                                    <small>
+                                        @if (log.EntityType != null)
+                                        {
+                                            <span class="text-muted me-1">@log.EntityType</span>
+                                        }
+                                        @log.EntityName
+                                    </small>
+                                }
+                            </td>
+                            <td class="d-none d-md-table-cell">
+                                <small class="text-muted">@log.ProjectName</small>
+                            </td>
+                            <td class="d-none d-lg-table-cell">
+                                <small class="font-monospace text-muted">@log.IpAddress</small>
+                            </td>
+                            <td class="d-none d-lg-table-cell">
+                                <small class="text-muted">@log.Details</small>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <div class="d-flex align-items-center justify-content-between mt-3">
+            <small class="text-muted">@(_offset + 1)–@(_offset + _logs.Count) / @_total</small>
+            <div class="btn-group btn-group-sm">
+                <button class="btn btn-outline-secondary" @onclick="PrevPage" disabled="@(_offset == 0)">
+                    <i class="bi bi-chevron-left"></i>
+                </button>
+                <button class="btn btn-outline-secondary" @onclick="NextPage" disabled="@(_offset + _logs.Count >= _total)">
+                    <i class="bi bi-chevron-right"></i>
+                </button>
+            </div>
+        </div>
+    }
+}
+
+@code {
+    private bool _loading = true;
+    private List<SpoolManager.Shared.DTOs.Admin.AuditLogDto> _logs = [];
+    private int _total;
+    private int _offset;
+    private const int PageSize = 50;
+    private string _actionFilter = string.Empty;
+    private string _userFilter = string.Empty;
+    private System.Timers.Timer? _debounce;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        StateHasChanged();
+        var resp = await AuditSvc.GetAuditLogAsync(PageSize, _offset,
+            string.IsNullOrWhiteSpace(_actionFilter) ? null : _actionFilter,
+            string.IsNullOrWhiteSpace(_userFilter) ? null : _userFilter);
+        _logs = resp?.Logs ?? [];
+        _total = resp?.Total ?? 0;
+        _loading = false;
+    }
+
+    private void OnUserFilter(ChangeEventArgs e)
+    {
+        _userFilter = e.Value?.ToString() ?? string.Empty;
+        _offset = 0;
+        _debounce?.Stop();
+        _debounce = new System.Timers.Timer(400);
+        _debounce.Elapsed += async (_, _) => { _debounce?.Stop(); await InvokeAsync(LoadAsync); };
+        _debounce.Start();
+    }
+
+    private async Task PrevPage()
+    {
+        _offset = Math.Max(0, _offset - PageSize);
+        await LoadAsync();
+    }
+
+    private async Task NextPage()
+    {
+        _offset += PageSize;
+        await LoadAsync();
+    }
+
+    private static string GetActionBadgeClass(string action) => action switch
+    {
+        var a when a.Contains("fail") || a.Contains("delete") => "bg-danger",
+        var a when a.StartsWith("auth.") => "bg-primary",
+        var a when a.Contains("admin.") => "bg-warning text-dark",
+        var a when a.Contains("project.") => "bg-info text-dark",
+        _ => "bg-secondary"
+    };
+
+    public void Dispose() => _debounce?.Dispose();
+}

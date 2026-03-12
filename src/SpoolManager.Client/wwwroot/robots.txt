@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+Allow: /privacy
+Allow: /imprint
+
+Disallow: /admin/
+Disallow: /api/
+Disallow: /settings/
+
+Sitemap: https://spoolmanager.app/sitemap.xml

@@ -1,0 +1,173 @@
+@page "/projects"
+@inject ProjectService Project
+@inject InvitationService Invitations
+@inject LocalizationService L
+@inject NavigationManager Nav
+
+<PageTitle>@L["project.title"] – @L["app.name"]</PageTitle>
+
+<div class="page-header">
+    <h1><i class="bi bi-diagram-3 me-2"></i>@L["project.title"]</h1>
+    <a href="/projects/new" class="btn btn-primary">
+        <i class="bi bi-plus-lg me-1"></i>@L["project.create"]
+    </a>
+</div>
+
+@if (_loading)
+{
+    <div class="text-center py-5"><div class="spinner-border"></div></div>
+}
+else
+{
+    <div class="row g-4">
+        <div class="col-12 col-lg-8">
+            @if (_projects.Count == 0)
+            {
+                <div class="text-center py-5 text-muted">
+                    <i class="bi bi-diagram-3 fs-1"></i>
+                    <p class="mt-2">@L["project.no.project"]</p>
+                    <a href="/projects/new" class="btn btn-primary mt-2">
+                        <i class="bi bi-plus-lg me-1"></i>@L["project.create"]
+                    </a>
+                </div>
+            }
+            else
+            {
+                <div class="row g-3">
+                    @foreach (var p in _projects)
+                    {
+                        <div class="col-12 col-md-6">
+                            <div class="card h-100 @(p.Id == Project.CurrentProject?.Id ? "border-primary" : "")">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-start justify-content-between gap-2">
+                                        <div>
+                                            <h5 class="card-title mb-1">
+                                                @p.Name
+                                                @if (p.Id == Project.CurrentProject?.Id)
+                                                {
+                                                    <span class="badge bg-primary ms-2 small">Aktiv</span>
+                                                }
+                                            </h5>
+                                            @if (p.Description != null)
+                                            {
+                                                <p class="text-muted small mb-2">@p.Description</p>
+                                            }
+                                            <small class="text-muted">
+                                                <i class="bi bi-person me-1"></i>@L[$"project.role.{p.MyRole}"]
+                                            </small>
+                                        </div>
+                                        <div class="d-flex gap-1 flex-shrink-0">
+                                            @if (p.Id != Project.CurrentProject?.Id)
+                                            {
+                                                <button class="btn btn-sm btn-primary" @onclick="() => SwitchAsync(p)">
+                                                    <i class="bi bi-box-arrow-in-right"></i>
+                                                </button>
+                                            }
+                                            @if (p.MyRole == "admin" || p.MyRole == "manager")
+                                            {
+                                                <a href="/projects/@p.Id/settings" class="btn btn-sm btn-outline-secondary">
+                                                    <i class="bi bi-gear"></i>
+                                                </a>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+
+        <div class="col-12 col-lg-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="bi bi-envelope-open me-2"></i>@L["project.invite.join"]</h5>
+                    <p class="text-muted small">@L["project.invite.join.hint"]</p>
+                    @if (_joinError != null)
+                    {
+                        <div class="alert alert-danger py-2">@_joinError</div>
+                    }
+                    @if (_joinInfo != null)
+                    {
+                        <div class="alert alert-info py-2 mb-2">
+                            <strong>@_joinInfo.ProjectName</strong><br />
+                            <small>@L["project.role"]: @L[$"project.role.{_joinInfo.Role}"]</small><br />
+                            <small>@L["project.invite.by"]: @_joinInfo.InvitedByUsername</small>
+                        </div>
+                        <button class="btn btn-success w-100" @onclick="AcceptInviteAsync" disabled="@_joining">
+                            @if (_joining) { <span class="spinner-border spinner-border-sm me-2"></span> }
+                            @L["project.invite.accept"]
+                        </button>
+                    }
+                    else
+                    {
+                        <div class="input-group">
+                            <input class="form-control" placeholder="@L["project.invite.code"]" @bind="_token" @bind:event="oninput" />
+                            <button class="btn btn-outline-primary" @onclick="LookupTokenAsync" disabled="@(string.IsNullOrWhiteSpace(_token))">
+                                <i class="bi bi-search"></i>
+                            </button>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private bool _loading = true;
+    private List<ProjectDto> _projects = [];
+    private string _token = string.Empty;
+    private InvitationInfoDto? _joinInfo;
+    private string? _joinError;
+    private bool _joining;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _projects = await Project.GetMyProjectsAsync() ?? [];
+        _loading = false;
+    }
+
+    private async Task SwitchAsync(ProjectDto p)
+    {
+        await Project.SwitchProjectAsync(p);
+        Nav.NavigateTo("/");
+    }
+
+    private async Task LookupTokenAsync()
+    {
+        _joinError = null;
+        _joinInfo = null;
+        var info = await Invitations.GetInfoAsync(_token.Trim());
+        if (info == null || !info.IsValid)
+            _joinError = info?.ErrorMessage ?? L["project.invite.invalid"];
+        else
+            _joinInfo = info;
+    }
+
+    private async Task AcceptInviteAsync()
+    {
+        _joining = true;
+        _joinError = null;
+        var joinedName = _joinInfo?.ProjectName;
+        var resp = await Invitations.AcceptAsync(_token.Trim());
+        _joining = false;
+        if (resp.IsSuccessStatusCode)
+        {
+            _projects = await Project.GetMyProjectsAsync() ?? [];
+            _joinInfo = null;
+            _token = string.Empty;
+            var joined = _projects.FirstOrDefault(p => p.Name == joinedName) ?? _projects.LastOrDefault();
+            if (joined != null)
+            {
+                await Project.SwitchProjectAsync(joined);
+                Nav.NavigateTo("/");
+            }
+        }
+        else
+        {
+            _joinError = await resp.Content.ReadAsStringAsync();
+        }
+    }
+}

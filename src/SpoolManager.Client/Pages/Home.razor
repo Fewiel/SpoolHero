@@ -1,0 +1,161 @@
+@page "/"
+@implements IDisposable
+@inject SpoolService Spools
+@inject LocalizationService L
+@inject AuthService Auth
+@inject NavigationManager Nav
+
+@if (!Auth.IsAuthenticated)
+{
+    return;
+}
+
+<PageTitle>@L["nav.dashboard"] – @L["app.name"]</PageTitle>
+
+<div class="page-header">
+    <h1><i class="bi bi-speedometer2 me-2"></i>@L["dashboard.title"]</h1>
+</div>
+
+@if (_loading)
+{
+    <div class="text-center py-5"><div class="spinner-border"></div></div>
+}
+else
+{
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+            <div class="stat-card text-center">
+                <div class="stat-value text-primary">@_total</div>
+                <div class="stat-label">@L["dashboard.total.spools"]</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card text-center">
+                <div class="stat-value text-success">@_active</div>
+                <div class="stat-label">@L["dashboard.active.spools"]</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card text-center">
+                <div class="stat-value text-warning">@_lowStock</div>
+                <div class="stat-label">@L["dashboard.low.stock"]</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card text-center">
+                <div class="stat-value text-secondary">@_consumed</div>
+                <div class="stat-label">@L["dashboard.consumed"]</div>
+            </div>
+        </div>
+    </div>
+
+    @if (_locationGroups.Count > 0)
+    {
+        <h5 class="mb-3"><i class="bi bi-grid me-2"></i>@L["dashboard.by.location"]</h5>
+        <div class="location-scroll mb-4">
+            @foreach (var group in _locationGroups)
+            {
+                <div class="location-item">
+                    <i class="bi @group.Icon text-@group.Color location-icon"></i>
+                    <div class="location-info">
+                        <span class="location-name">@group.Name</span>
+                        <span class="location-count">@group.SpoolCount @L["spool.title"].ToLower()</span>
+                    </div>
+                    <span class="location-badge">@group.SpoolCount</span>
+                </div>
+            }
+        </div>
+    }
+
+    <h5 class="mb-3">@L["dashboard.recent"]</h5>
+    <div class="row g-3">
+        @foreach (var spool in _recent)
+        {
+            <div class="col-12 col-md-6 col-xl-4">
+                <a href="/spools/@spool.Id" class="text-decoration-none">
+                    <div class="spool-card">
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            <div class="color-dot" style="background-color: #@spool.MaterialColorHex"></div>
+                            <div>
+                                <div class="fw-semibold text-body">@spool.MaterialBrand @spool.MaterialType</div>
+                                <small class="text-muted">@(spool.MaterialColorName ?? "#" + spool.MaterialColorHex)</small>
+                            </div>
+                        </div>
+                        <div class="remaining-bar mb-1">
+                            <div class="remaining-bar-fill @GetBarClass(spool.RemainingPercent)" style="width: @((int)spool.RemainingPercent)%"></div>
+                        </div>
+                        <small class="text-muted">@spool.RemainingWeightGrams g (@spool.RemainingPercent%)</small>
+                    </div>
+                </a>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private bool _loading = true;
+    private int _total, _active, _lowStock, _consumed;
+    private List<SpoolDto> _recent = [];
+    private List<LocationGroup> _locationGroups = [];
+
+    [Inject] private ProjectService Project { get; set; } = default!;
+
+    private record LocationGroup(string Name, string Icon, string Color, int SpoolCount);
+
+    protected override void OnInitialized()
+    {
+        Project.OnProjectChanged += OnProjectChanged;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Auth.IsAuthenticated) { Nav.NavigateTo("/login"); return; }
+        await LoadDataAsync();
+    }
+
+    private void OnProjectChanged()
+    {
+        _ = InvokeAsync(LoadDataAsync);
+    }
+
+    private async Task LoadDataAsync()
+    {
+        if (Project.CurrentProject == null) return;
+        _loading = true;
+        StateHasChanged();
+        var all = await Spools.GetAllAsync() ?? [];
+        _total = all.Count;
+        _active = all.Count(s => s.ConsumedAt == null);
+        _consumed = all.Count(s => s.ConsumedAt != null);
+        _lowStock = all.Count(s => s.ConsumedAt == null && s.RemainingPercent < 20);
+        _recent = [.. all.OrderByDescending(s => s.CreatedAt).Take(6)];
+
+        var activeSpools = all.Where(s => s.ConsumedAt == null).ToList();
+        var groups = new List<LocationGroup>();
+
+        foreach (var g in activeSpools.Where(s => s.PrinterName != null).GroupBy(s => s.PrinterName!))
+            groups.Add(new LocationGroup(g.Key, "bi-printer", "primary", g.Count()));
+
+        foreach (var g in activeSpools.Where(s => s.StorageLocationName != null && s.PrinterName == null).GroupBy(s => s.StorageLocationName!))
+            groups.Add(new LocationGroup(g.Key, "bi-box", "secondary", g.Count()));
+
+        foreach (var g in activeSpools.Where(s => s.DryerName != null && s.PrinterName == null && s.StorageLocationName == null).GroupBy(s => s.DryerName!))
+            groups.Add(new LocationGroup(g.Key, "bi-thermometer-half", "warning", g.Count()));
+
+        var noLocation = activeSpools.Count(s => s.PrinterName == null && s.StorageLocationName == null && s.DryerName == null);
+        if (noLocation > 0)
+            groups.Add(new LocationGroup(L["dashboard.no.location"], "bi-question-circle", "muted", noLocation));
+
+        _locationGroups = groups;
+        _loading = false;
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        Project.OnProjectChanged -= OnProjectChanged;
+    }
+
+    private static string GetBarClass(decimal percent) =>
+        percent >= 50 ? "high" : percent >= 20 ? "medium" : "low";
+}

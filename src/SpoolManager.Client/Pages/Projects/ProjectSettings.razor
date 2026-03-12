@@ -1,0 +1,204 @@
+@page "/projects/{Id:guid}/settings"
+@inject ProjectService Project
+@inject InvitationService Invitations
+@inject AuthService Auth
+@inject LocalizationService L
+@inject NavigationManager Nav
+
+<PageTitle>@L["project.settings"] – @L["app.name"]</PageTitle>
+
+@if (_loading) { <div class="text-center py-5"><div class="spinner-border"></div></div> }
+else
+{
+    <div class="page-header">
+        <h1><i class="bi bi-gear me-2"></i>@(_project?.Name ?? L["project.settings"])</h1>
+        <a href="/projects" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>@L["common.cancel"]
+        </a>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-12 col-lg-7">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="bi bi-people me-2"></i>@L["project.members"]</h5>
+                    @if (_members.Count == 0)
+                    {
+                        <p class="text-muted">@L["common.none"]</p>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-sm mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>@L["auth.username"]</th>
+                                        <th>@L["project.role"]</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var m in _members)
+                                    {
+                                        <tr>
+                                            <td>
+                                                @m.Username
+                                                <small class="text-muted d-block">@m.Email</small>
+                                            </td>
+                                            <td>
+                                                @if (_myRole == "admin" && m.UserId != _myUserId)
+                                                {
+                                                    <select class="form-select form-select-sm" style="width:auto"
+                                                            value="@m.Role"
+                                                            @onchange="e => ChangeRoleAsync(m, e.Value?.ToString() ?? m.Role)">
+                                                        <option value="admin">@L["project.role.admin"]</option>
+                                                        <option value="manager">@L["project.role.manager"]</option>
+                                                        <option value="member">@L["project.role.member"]</option>
+                                                    </select>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-secondary">@L[$"project.role.{m.Role}"]</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                @if (_myRole == "admin" && m.UserId != _myUserId)
+                                                {
+                                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => _removeTarget = m">
+                                                        <i class="bi bi-person-dash"></i>
+                                                    </button>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        @if (_myRole == "admin" || _myRole == "manager")
+        {
+            <div class="col-12 col-lg-5">
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h5 class="card-title"><i class="bi bi-link-45deg me-2"></i>@L["project.invite.create"]</h5>
+                        <div class="mb-3">
+                            <label class="form-label">@L["project.invite.role"]</label>
+                            <select class="form-select" @bind="_inviteRole">
+                                <option value="member">@L["project.role.member"]</option>
+                                <option value="manager">@L["project.role.manager"]</option>
+                                @if (_myRole == "admin")
+                                {
+                                    <option value="admin">@L["project.role.admin"]</option>
+                                }
+                            </select>
+                        </div>
+                        <button class="btn btn-primary w-100" @onclick="CreateInviteAsync" disabled="@_creatingInvite">
+                            @if (_creatingInvite) { <span class="spinner-border spinner-border-sm me-2"></span> }
+                            @L["project.invite.create"]
+                        </button>
+                    </div>
+                </div>
+
+                @if (_invitations.Count > 0)
+                {
+                    <div class="card">
+                        <div class="card-body">
+                            <h6 class="card-title">@L["project.invite.link"]</h6>
+                            <div class="d-flex flex-column gap-2">
+                                @foreach (var inv in _invitations.Where(i => !i.IsUsed && i.ExpiresAt > DateTime.UtcNow))
+                                {
+                                    <div class="input-group input-group-sm">
+                                        <input class="form-control font-monospace" readonly value="@inv.Token" />
+                                        <button class="btn btn-outline-secondary" @onclick="() => CopyToken(inv.Token)">
+                                            <i class="bi bi-clipboard"></i>
+                                        </button>
+                                    </div>
+                                    <small class="text-muted">@L[$"project.role.{inv.Role}"] · gültig bis @inv.ExpiresAt.ToLocalTime().ToString("d")</small>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+}
+
+@if (_removeTarget != null)
+{
+    <div class="modal-backdrop-custom" @onclick="() => _removeTarget = null">
+        <div class="modal-box" @onclick:stopPropagation>
+            <h5>@L["project.member.remove"]</h5>
+            <p>@L["project.member.remove.confirm"]</p>
+            <p><strong>@_removeTarget.Username</strong></p>
+            <div class="d-flex gap-2 justify-content-end">
+                <button class="btn btn-secondary" @onclick="() => _removeTarget = null">@L["common.cancel"]</button>
+                <button class="btn btn-danger" @onclick="RemoveMemberAsync">@L["common.delete"]</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+    [Inject] private IJSRuntime JSRuntime { get; set; } = default!;
+
+    private bool _loading = true;
+    private ProjectDto? _project;
+    private List<ProjectMemberDto> _members = [];
+    private List<InvitationDto> _invitations = [];
+    private string _myRole = "member";
+    private Guid _myUserId;
+    private string _inviteRole = "member";
+    private bool _creatingInvite;
+    private ProjectMemberDto? _removeTarget;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _myUserId = Auth.CurrentUser?.Id ?? Guid.Empty;
+        var projects = await Project.GetMyProjectsAsync() ?? [];
+        _project = projects.FirstOrDefault(p => p.Id == Id);
+        if (_project == null) { Nav.NavigateTo("/projects"); return; }
+        _myRole = _project.MyRole;
+
+        var mt = Project.GetMembersAsync(Id);
+        var it = Invitations.GetByProjectAsync(Id);
+        await Task.WhenAll(mt, it);
+        _members = await mt ?? [];
+        _invitations = await it ?? [];
+
+        _loading = false;
+    }
+
+    private async Task CreateInviteAsync()
+    {
+        _creatingInvite = true;
+        var resp = await Invitations.CreateAsync(Id, new CreateInvitationRequest { Role = _inviteRole });
+        if (resp.IsSuccessStatusCode)
+            _invitations = await Invitations.GetByProjectAsync(Id) ?? [];
+        _creatingInvite = false;
+    }
+
+    private async Task ChangeRoleAsync(ProjectMemberDto m, string role)
+    {
+        await Project.UpdateMemberRoleAsync(Id, m.UserId, new UpdateMemberRoleRequest { Role = role });
+        _members = await Project.GetMembersAsync(Id) ?? [];
+    }
+
+    private async Task RemoveMemberAsync()
+    {
+        if (_removeTarget == null) return;
+        await Project.RemoveMemberAsync(Id, _removeTarget.UserId);
+        _removeTarget = null;
+        _members = await Project.GetMembersAsync(Id) ?? [];
+    }
+
+    private async Task CopyToken(string token)
+    {
+        try { await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", token); } catch { }
+    }
+}

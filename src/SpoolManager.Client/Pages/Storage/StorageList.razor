@@ -1,0 +1,283 @@
+@page "/storage"
+@inject StorageService Storage
+@inject TagService Tags
+@inject NfcService Nfc
+@inject LocalizationService L
+@inject ProjectService Project
+
+<PageTitle>@L["storage.title"] – @L["app.name"]</PageTitle>
+
+<div class="page-header">
+    <h1><i class="bi bi-box me-2"></i>@L["storage.title"]</h1>
+    <button class="btn btn-primary" @onclick="ShowAdd">
+        <i class="bi bi-plus-lg me-1"></i>@L["storage.add"]
+    </button>
+</div>
+
+@if (_loading)
+{
+    <div class="text-center py-5"><div class="spinner-border"></div></div>
+}
+else if (_locations.Count == 0 && _form == null)
+{
+    <div class="text-center py-5 text-muted">
+        <i class="bi bi-box fs-1"></i>
+        <p class="mt-2">@L["common.none"]</p>
+    </div>
+}
+else
+{
+    <div class="row g-3">
+        @if (_form != null && _editId == null)
+        {
+            <div class="col-12 col-md-6 col-lg-4">
+                @RenderForm()
+            </div>
+        }
+
+        @foreach (var loc in _locations)
+        {
+            <div class="col-12 col-md-6 col-lg-4">
+                @if (_editId == loc.Id && _form != null)
+                {
+                    @RenderForm()
+                }
+                else
+                {
+                    <div class="card h-100">
+                        @if (loc.ImageBase64 != null)
+                        {
+                            <img src="data:@loc.ImageContentType;base64,@loc.ImageBase64"
+                                 class="card-img-top"
+                                 style="height:120px; object-fit:cover;" />
+                        }
+                        <div class="card-body">
+                            <h6 class="card-title mb-1">@loc.Name</h6>
+                            @if (loc.Description != null)
+                            {
+                                <p class="text-muted small mb-2">@loc.Description</p>
+                            }
+                            @if (loc.RfidTagUid != null)
+                            {
+                                <p class="small mb-2">
+                                    <i class="bi bi-broadcast me-1 text-success"></i>
+                                    <span class="text-muted font-monospace">@loc.RfidTagUid[..Math.Min(16, loc.RfidTagUid.Length)]…</span>
+                                </p>
+                            }
+                            @if (_imageError != null && _imageTargetId == loc.Id)
+                            {
+                                <div class="alert alert-danger py-1 mb-2 small">@_imageError</div>
+                            }
+                            @if (_imageSuccess && _imageTargetId == loc.Id)
+                            {
+                                <div class="alert alert-success py-1 mb-2 small">@L["common.image.upload.success"]</div>
+                            }
+                            <div class="d-flex gap-2 mt-2 flex-wrap">
+                                <button class="btn btn-sm btn-outline-secondary" @onclick="() => ShowEdit(loc)">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-primary" @onclick="() => WriteTagAsync(loc)" title="@L["tag.write"]">
+                                    <i class="bi bi-broadcast"></i>
+                                </button>
+                                <label class="btn btn-sm btn-outline-secondary mb-0" title="@L["common.image.upload"]" style="cursor:pointer">
+                                    <i class="bi bi-image"></i>
+                                    <InputFile accept="image/*" style="display:none" OnChange="e => UploadImageAsync(loc.Id, e)" />
+                                </label>
+                                @if (loc.ImageBase64 != null)
+                                {
+                                    <button class="btn btn-sm btn-outline-secondary" title="@L["common.image.delete"]" @onclick="() => DeleteImageAsync(loc.Id)">
+                                        <i class="bi bi-image-x"></i>
+                                    </button>
+                                }
+                                <button class="btn btn-sm btn-outline-danger" @onclick="() => _deleteTarget = loc">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                            @if (_tagMessage != null && _tagLocationId == loc.Id)
+                            {
+                                <div class="alert @(_tagSuccess ? "alert-success" : "alert-danger") alert-sm py-1 mt-2 mb-0 small">@_tagMessage</div>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+}
+
+@if (_deleteTarget != null)
+{
+    <div class="modal-backdrop-custom" @onclick="() => _deleteTarget = null">
+        <div class="modal-box" @onclick:stopPropagation>
+            <h5>@L["storage.delete"]</h5>
+            <p>@L["storage.delete.confirm"]</p>
+            <p><strong>@_deleteTarget.Name</strong></p>
+            <div class="d-flex gap-2 justify-content-end">
+                <button class="btn btn-secondary" @onclick="() => _deleteTarget = null">@L["common.cancel"]</button>
+                <button class="btn btn-danger" @onclick="DeleteAsync">@L["common.delete"]</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private bool _loading = true;
+    private List<StorageLocationDto> _locations = [];
+    private StorageLocationDto? _deleteTarget;
+    private CreateStorageLocationRequest? _form;
+    private Guid? _editId;
+    private string? _error;
+    private string? _tagMessage;
+    private bool _tagSuccess;
+    private Guid? _tagLocationId;
+    private string? _imageError;
+    private bool _imageSuccess;
+    private Guid? _imageTargetId;
+
+    [JSInvokable]
+    public void OnWriteSuccess()
+    {
+        _tagMessage = L["tag.write.success"];
+        _tagSuccess = true;
+        StateHasChanged();
+    }
+
+    [JSInvokable]
+    public void OnWriteError(string message)
+    {
+        _tagMessage = message;
+        _tagSuccess = false;
+        StateHasChanged();
+    }
+
+    [JSInvokable]
+    public void OnScanStarted() { }
+
+    [JSInvokable]
+    public void OnTagRead(string json, string serialNumber) { }
+
+    [JSInvokable]
+    public void OnReadError(string message) { }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Project.CurrentProject == null) return;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _locations = await Storage.GetAllAsync() ?? [];
+        _loading = false;
+    }
+
+    private void ShowAdd()
+    {
+        _editId = null;
+        _form = new CreateStorageLocationRequest();
+        _error = null;
+    }
+
+    private void ShowEdit(StorageLocationDto loc)
+    {
+        _editId = loc.Id;
+        _form = new CreateStorageLocationRequest { Name = loc.Name, Description = loc.Description, RfidTagUid = loc.RfidTagUid };
+        _error = null;
+    }
+
+    private void Cancel()
+    {
+        _form = null;
+        _editId = null;
+        _error = null;
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_form == null) return;
+        HttpResponseMessage resp;
+        if (_editId.HasValue)
+            resp = await Storage.UpdateAsync(_editId.Value, new UpdateStorageLocationRequest { Name = _form.Name, Description = _form.Description, RfidTagUid = _form.RfidTagUid });
+        else
+            resp = await Storage.CreateAsync(_form);
+
+        if (resp.IsSuccessStatusCode) { Cancel(); await LoadAsync(); }
+        else _error = await resp.Content.ReadAsStringAsync();
+    }
+
+    private async Task DeleteAsync()
+    {
+        if (_deleteTarget == null) return;
+        await Storage.DeleteAsync(_deleteTarget.Id);
+        _deleteTarget = null;
+        await LoadAsync();
+    }
+
+    private async Task UploadImageAsync(Guid id, InputFileChangeEventArgs e)
+    {
+        _imageTargetId = id;
+        _imageError = null;
+        _imageSuccess = false;
+        var file = e.File;
+        if (file.Size > 8_388_608) { _imageError = L["common.image.too.large"]; return; }
+        using var ms = new MemoryStream();
+        await using var stream = file.OpenReadStream(8_388_608);
+        await stream.CopyToAsync(ms);
+        using var content = new MultipartFormDataContent();
+        content.Add(new ByteArrayContent(ms.ToArray()), "file", file.Name);
+        var resp = await Storage.UploadImageAsync(id, content);
+        if (resp.IsSuccessStatusCode) { _imageError = null; _imageSuccess = true; await LoadAsync(); }
+        else _imageError = L["common.error"];
+    }
+
+    private async Task DeleteImageAsync(Guid id)
+    {
+        await Storage.DeleteImageAsync(id);
+        await LoadAsync();
+    }
+
+    private async Task WriteTagAsync(StorageLocationDto loc)
+    {
+        _tagLocationId = loc.Id;
+        _tagMessage = null;
+        var supported = await Nfc.CheckSupportAsync();
+        if (!supported)
+        {
+            _tagMessage = L["tag.nfc.not.supported"];
+            _tagSuccess = false;
+            return;
+        }
+
+        var encoded = await Tags.EncodeEntityAsync(new TagEncodeEntityRequest { EntityType = "storage", EntityId = loc.Id });
+        if (encoded == null)
+        {
+            _tagMessage = L["common.error"];
+            _tagSuccess = false;
+            return;
+        }
+
+        await Nfc.WriteAsync(encoded.JsonPayload!, DotNetObjectReference.Create(this));
+    }
+
+    private RenderFragment RenderForm() => __builder =>
+    {
+        <div class="card h-100 border-primary">
+            <div class="card-body">
+                @if (_error != null) { <div class="alert alert-danger py-2 mb-2">@_error</div> }
+                <div class="mb-2">
+                    <label class="form-label">@L["storage.name"] *</label>
+                    <input class="form-control" @bind="_form!.Name" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">@L["storage.description"] @L["common.optional"]</label>
+                    <textarea class="form-control" rows="2" @bind="_form!.Description"></textarea>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-primary btn-sm" @onclick="SaveAsync">@L["common.save"]</button>
+                    <button class="btn btn-secondary btn-sm" @onclick="Cancel">@L["common.cancel"]</button>
+                </div>
+            </div>
+        </div>
+    };
+}

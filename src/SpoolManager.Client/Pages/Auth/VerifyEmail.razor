@@ -1,0 +1,50 @@
+@page "/verify-email"
+@inject HttpClient Http
+@inject LocalizationService L
+@inject NavigationManager Nav
+
+<div class="login-card">
+    <div class="text-center mb-4">
+        <i class="bi bi-envelope-check fs-1 text-primary"></i>
+        <h2 class="mt-2">@L["auth.verify.title"]</h2>
+    </div>
+
+    @if (_loading)
+    {
+        <div class="text-center py-4"><div class="spinner-border text-primary"></div></div>
+    }
+    else if (_success)
+    {
+        <div class="alert alert-success">
+            <i class="bi bi-check-circle me-2"></i>@L["auth.verify.success"]
+        </div>
+        <div class="text-center mt-3">
+            <a href="/login" class="btn btn-primary">@L["auth.login"]</a>
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-danger">
+            <i class="bi bi-x-circle me-2"></i>@L["auth.verify.error"]
+        </div>
+        <div class="text-center mt-3">
+            <a href="/login" class="btn btn-outline-secondary">@L["auth.login"]</a>
+        </div>
+    }
+</div>
+
+@code {
+    private bool _loading = true;
+    private bool _success;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var uri = new Uri(Nav.Uri);
+        var token = System.Web.HttpUtility.ParseQueryString(uri.Query)["token"];
+        if (string.IsNullOrEmpty(token)) { _loading = false; return; }
+
+        var resp = await Http.GetAsync($"api/auth/verify-email?token={Uri.EscapeDataString(token)}");
+        _success = resp.IsSuccessStatusCode;
+        _loading = false;
+    }
+}

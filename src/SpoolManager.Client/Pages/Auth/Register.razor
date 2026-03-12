@@ -1,0 +1,109 @@
+@page "/register"
+@inject HttpClient Http
+@inject LocalizationService L
+@inject NavigationManager Nav
+
+<div class="login-card">
+    <div class="text-center mb-4">
+        <i class="bi bi-layers-half fs-1 text-primary"></i>
+        <h2 class="mt-2">@L["auth.register"]</h2>
+    </div>
+
+    @if (_requiresVerification)
+    {
+        <div class="alert alert-info">
+            <i class="bi bi-envelope-check me-2"></i>@L["auth.register.verify.email"]
+        </div>
+        <div class="text-center mt-3">
+            <a href="/login" class="btn btn-primary">@L["auth.login"]</a>
+        </div>
+    }
+    else
+    {
+        @if (_success)
+        {
+            <div class="alert alert-success">@L["auth.register.success"]</div>
+        }
+        @if (_error != null)
+        {
+            <div class="alert alert-danger">@_error</div>
+        }
+
+        <EditForm Model="_model" OnValidSubmit="HandleRegister">
+            <div class="mb-3">
+                <label class="form-label">@L["auth.username"]</label>
+                <input class="form-control" @bind="_model.Username" required />
+            </div>
+            <div class="mb-3">
+                <label class="form-label">@L["auth.email"]</label>
+                <input class="form-control" type="email" @bind="_model.Email" required />
+            </div>
+            <div class="mb-3">
+                <label class="form-label">@L["auth.password"]</label>
+                <input class="form-control" type="password" @bind="_model.Password" required minlength="8" />
+            </div>
+
+            <div class="mb-2">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="acceptTerms" @bind="_termsAccepted" />
+                    <label class="form-check-label small" for="acceptTerms">
+                        @L["auth.terms.accept"] <a href="/terms" target="_blank">@L["legal.terms.title"]</a>
+                    </label>
+                </div>
+            </div>
+            <div class="mb-3">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="acceptPrivacy" @bind="_privacyAccepted" />
+                    <label class="form-check-label small" for="acceptPrivacy">
+                        @L["auth.privacy.accept"] <a href="/privacy" target="_blank">@L["legal.privacy.title"]</a>
+                    </label>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100" disabled="@(_loading || !_termsAccepted || !_privacyAccepted)">
+                @if (_loading) { <span class="spinner-border spinner-border-sm me-2"></span> }
+                @L["auth.register.submit"]
+            </button>
+        </EditForm>
+
+        <hr />
+        <div class="text-center">
+            <small>@L["auth.has.account"] <a href="/login">@L["auth.login"]</a></small>
+        </div>
+    }
+</div>
+
+@code {
+    private readonly RegisterRequest _model = new();
+    private bool _loading;
+    private bool _success;
+    private bool _requiresVerification;
+    private string? _error;
+    private bool _termsAccepted;
+    private bool _privacyAccepted;
+
+    private async Task HandleRegister()
+    {
+        if (!_termsAccepted || !_privacyAccepted)
+        {
+            _error = L["auth.terms.required"];
+            return;
+        }
+        _loading = true;
+        _error = null;
+        _success = false;
+        var resp = await Http.PostAsJsonAsync("api/auth/register", _model);
+        _loading = false;
+        if (resp.IsSuccessStatusCode)
+        {
+            var json = await resp.Content.ReadFromJsonAsync<RegisterResponse>();
+            if (json?.RequiresEmailVerification == true)
+                _requiresVerification = true;
+            else
+            { _success = true; await Task.Delay(1500); Nav.NavigateTo("/login"); }
+        }
+        else _error = await resp.Content.ReadAsStringAsync();
+    }
+
+    private record RegisterResponse(bool RequiresEmailVerification);
+}

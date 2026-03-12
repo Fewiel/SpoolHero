@@ -1,0 +1,33 @@
+@page "/tags"
+@inject LocalizationService L
+
+<PageTitle>@L["tag.title"] – @L["app.name"]</PageTitle>
+
+<div class="page-header">
+    <h1><i class="bi bi-upc me-2"></i>@L["tag.title"]</h1>
+</div>
+
+<div class="row g-4">
+    <div class="col-12 col-md-6">
+        <a href="/tags/write" class="text-decoration-none">
+            <div class="card h-100 tag-actions">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-broadcast fs-1 text-primary mb-3 d-block"></i>
+                    <h5>@L["tag.write"]</h5>
+                    <p class="text-muted">@L["tag.nfc.write"] / @L["tag.download.bin"]</p>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-12 col-md-6">
+        <a href="/tags/read" class="text-decoration-none">
+            <div class="card h-100 tag-actions">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-broadcast fs-1 text-success mb-3 d-block"></i>
+                    <h5>@L["tag.read"]</h5>
+                    <p class="text-muted">@L["tag.nfc.scan"] / @L["tag.upload.bin"]</p>
+                </div>
+            </div>
+        </a>
+    </div>
+</div>

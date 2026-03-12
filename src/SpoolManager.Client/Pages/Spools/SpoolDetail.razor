@@ -1,0 +1,306 @@
+@page "/spools/{Id:guid}"
+@implements IDisposable
+@inject SpoolService Spools
+@inject TagService Tags
+@inject NfcService Nfc
+@inject LocalizationService L
+@inject NavigationManager Nav
+@inject ProjectService Project
+@using System.Timers
+
+<PageTitle>@L["spool.title"] – @L["app.name"]</PageTitle>
+
+@if (_loading) { <div class="text-center py-5"><div class="spinner-border"></div></div> }
+else if (_spool == null) { <div class="alert alert-danger mt-3">@L["common.not.found"]</div> }
+else
+{
+    <div class="page-header">
+        <div class="d-flex align-items-center gap-2">
+            <div class="color-dot" style="background-color: #@_spool.MaterialColorHex"></div>
+            <h1>@_spool.MaterialBrand @_spool.MaterialType</h1>
+        </div>
+        <div class="action-btn-group">
+            <a href="/spools/@_spool.Id/edit" class="btn btn-outline-secondary">
+                <i class="bi bi-pencil me-1"></i>@L["common.edit"]
+            </a>
+            <a href="/spools" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-1"></i>@L["common.cancel"]
+            </a>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-12 col-md-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-3 text-muted">@L["spool.remaining"]</h6>
+                    <div class="remaining-bar mb-2">
+                        <div class="remaining-bar-fill @GetBarClass(_spool.RemainingPercent)"
+                             style="width: @((int)Math.Min(_spool.RemainingPercent, 100))%"></div>
+                    </div>
+                    <div class="mb-3">
+                        <span class="fs-4 fw-bold">@_spool.RemainingWeightGrams g</span>
+                        <span class="text-muted ms-2">(@_spool.RemainingPercent%)</span>
+                    </div>
+
+                    @if (!_showRemainingForm)
+                    {
+                        <button class="btn btn-sm btn-outline-primary" @onclick="() => _showRemainingForm = true">
+                            <i class="bi bi-pencil me-1"></i>@L["spool.update.remaining"]
+                        </button>
+                    }
+                    else
+                    {
+                        <div class="row g-2 align-items-end">
+                            <div class="col-6">
+                                <label class="form-label form-label-sm">@L["spool.remaining.grams"]</label>
+                                <input class="form-control form-control-sm" type="number" step="0.1" min="0" @bind="_remainingGrams" />
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label form-label-sm">@L["spool.remaining.percent"]</label>
+                                <input class="form-control form-control-sm" type="number" step="0.1" min="0" max="100" @bind="_remainingPct" />
+                            </div>
+                            <div class="col-12 d-flex gap-2 mt-1">
+                                <button class="btn btn-sm btn-primary" @onclick="UpdateRemainingAsync">@L["common.save"]</button>
+                                <button class="btn btn-sm btn-secondary" @onclick="() => _showRemainingForm = false">@L["common.cancel"]</button>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-md-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-3 text-muted">Lifecycle</h6>
+                    <div class="d-flex flex-column gap-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-box-seam text-primary fs-5" style="width:1.4em"></i>
+                            @if (_spool.OpenedAt.HasValue)
+                            {
+                                <span class="flex-grow-1">@L["spool.opened"]: <strong>@_spool.OpenedAt.Value.ToLocalTime().ToString("d")</strong></span>
+                            }
+                            else
+                            {
+                                <button class="btn btn-sm btn-outline-primary" @onclick="MarkOpenedAsync">@L["spool.mark.opened"]</button>
+                            }
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-thermometer-half text-warning fs-5" style="width:1.4em"></i>
+                            <span class="flex-grow-1 small">
+                                @L["spool.dried"]: <strong>@(_spool.DriedAt.HasValue ? _spool.DriedAt.Value.ToLocalTime().ToString("d") : "–")</strong>
+                            </span>
+                            <button class="btn btn-sm btn-outline-warning" @onclick="MarkDriedAsync">@L["spool.mark.dried"]</button>
+                        </div>
+                        @if (_spool.DryerId != null && _spool.DriedAt != null)
+                        {
+                            var (elapsed, total, done) = GetDryingState(_spool);
+                            var pct = total > 0 ? Math.Min(elapsed / total * 100, 100) : 100;
+                            <div class="ps-4 @(done ? "drying-done" : "")">
+                                <small class="text-muted">
+                                    @if (done)
+                                    {
+                                        <span class="text-success fw-semibold"><i class="bi bi-check-circle me-1"></i>@L["spool.drying.done"]</span>
+                                    }
+                                    else
+                                    {
+                                        <span>@elapsed.ToString("F1")h / @total h @L["spool.drying.remaining"]</span>
+                                    }
+                                </small>
+                                <div class="drying-bar">
+                                    <div class="drying-bar-fill @(done ? "done" : "")" style="width:@((int)pct)%"></div>
+                                </div>
+                            </div>
+                        }
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-box2 text-secondary fs-5" style="width:1.4em"></i>
+                            <span class="flex-grow-1 small">
+                                @L["spool.repackaged"]: <strong>@(_spool.RepackagedAt.HasValue ? _spool.RepackagedAt.Value.ToLocalTime().ToString("d") : "–")</strong>
+                            </span>
+                            <button class="btn btn-sm btn-outline-secondary" @onclick="MarkRepackagedAsync">@L["spool.mark.repackaged"]</button>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-arrow-counterclockwise text-info fs-5" style="width:1.4em"></i>
+                            <span class="flex-grow-1 small">
+                                @L["spool.reopened"]: <strong>@(_spool.ReopenedAt.HasValue ? _spool.ReopenedAt.Value.ToLocalTime().ToString("d") : "–")</strong>
+                            </span>
+                            <button class="btn btn-sm btn-outline-info" @onclick="MarkReopenedAsync">@L["spool.mark.reopened"]</button>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-check-circle text-success fs-5" style="width:1.4em"></i>
+                            @if (_spool.ConsumedAt.HasValue)
+                            {
+                                <span class="flex-grow-1">@L["spool.consumed.at"]: <strong>@_spool.ConsumedAt.Value.ToLocalTime().ToString("d")</strong></span>
+                            }
+                            else
+                            {
+                                <button class="btn btn-sm btn-outline-success" @onclick="MarkConsumedAsync">@L["spool.mark.consumed"]</button>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-3 text-muted">Details</h6>
+                    <div class="row g-2">
+                        <div class="col-6 col-md-3">
+                            <small class="text-muted d-block">@L["spool.printer"]</small>
+                            @(_spool.PrinterName ?? "–")
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <small class="text-muted d-block">@L["spool.storage"]</small>
+                            @(_spool.StorageLocationName ?? "–")
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <small class="text-muted d-block">@L["spool.dryer"]</small>
+                            @(_spool.DryerName ?? "–")
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <small class="text-muted d-block">@L["spool.purchased"]</small>
+                            @(_spool.PurchasedAt?.ToLocalTime().ToString("d") ?? "–")
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <small class="text-muted d-block">@L["spool.price"]</small>
+                            @(_spool.PurchasePrice?.ToString("C") ?? "–")
+                        </div>
+                        @if (_spool.RfidTagUid != null)
+                        {
+                            <div class="col-12">
+                                <small class="text-muted d-block">@L["spool.rfid"]</small>
+                                <code>@_spool.RfidTagUid</code>
+                            </div>
+                        }
+                        @if (_spool.ReorderUrl != null)
+                        {
+                            <div class="col-12">
+                                <small class="text-muted d-block">@L["spool.reorder"]</small>
+                                <a href="@_spool.ReorderUrl" target="_blank">@_spool.ReorderUrl</a>
+                            </div>
+                        }
+                        @if (_spool.Notes != null)
+                        {
+                            <div class="col-12">
+                                <small class="text-muted d-block">@L["spool.notes"]</small>
+                                @_spool.Notes
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-3 text-muted"><i class="bi bi-broadcast me-1"></i>@L["tag.write"]</h6>
+                    <div class="d-flex gap-2 flex-wrap align-items-center">
+                        @if (_nfcSupported)
+                        {
+                            <button class="btn btn-outline-primary" @onclick="WriteNfcAsync" disabled="@_writingNfc">
+                                @if (_writingNfc) { <span class="spinner-border spinner-border-sm me-2"></span> }
+                                <i class="bi bi-broadcast me-1"></i>@L["tag.nfc.write"]
+                            </button>
+                        }
+                        <a href="@Tags.GetDownloadUrl(Id)" class="btn btn-outline-secondary">
+                            <i class="bi bi-download me-1"></i>@L["tag.download.bin"]
+                        </a>
+                    </div>
+                    @if (_nfcMessage != null)
+                    {
+                        <div class="alert @(_nfcSuccess ? "alert-success" : "alert-danger") py-2 mt-2 mb-0 small">@_nfcMessage</div>
+                    }
+                    @if (_tagJson != null)
+                    {
+                        <pre class="small bg-light border rounded p-2 mt-2 mb-0" style="font-size:0.7rem;word-break:break-all;white-space:pre-wrap;">@_tagJson</pre>
+                    }
+                    @if (!_nfcSupported)
+                    {
+                        <p class="text-muted small mt-2 mb-0"><i class="bi bi-info-circle me-1"></i>@L["tag.nfc.not.supported"]</p>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private bool _loading = true;
+    private SpoolDto? _spool;
+    private bool _showRemainingForm;
+    private decimal _remainingGrams;
+    private decimal _remainingPct;
+    private bool _nfcSupported;
+    private bool _writingNfc;
+    private string? _nfcMessage;
+    private bool _nfcSuccess;
+    private string? _tagJson;
+    private Timer? _clockTimer;
+
+    [JSInvokable] public void OnWriteSuccess() { _nfcMessage = L["tag.write.success"]; _nfcSuccess = true; _writingNfc = false; StateHasChanged(); }
+    [JSInvokable] public void OnWriteError(string message) { _nfcMessage = message; _nfcSuccess = false; _writingNfc = false; StateHasChanged(); }
+    [JSInvokable] public void OnScanStarted() { }
+    [JSInvokable] public void OnTagRead(string json, string serialNumber) { }
+    [JSInvokable] public void OnReadError(string message) { }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Project.CurrentProject == null) return;
+        _spool = await Spools.GetByIdAsync(Id);
+        if (_spool != null) { _remainingGrams = _spool.RemainingWeightGrams; _remainingPct = _spool.RemainingPercent; }
+        _nfcSupported = await Nfc.CheckSupportAsync();
+        _loading = false;
+        _clockTimer = new Timer(60_000);
+        _clockTimer.Elapsed += (_, _) => InvokeAsync(StateHasChanged);
+        _clockTimer.Start();
+    }
+
+    private async Task UpdateRemainingAsync()
+    {
+        await Spools.UpdateRemainingAsync(Id, new UpdateRemainingRequest { RemainingWeightGrams = _remainingGrams, RemainingPercent = _remainingPct });
+        _spool = await Spools.GetByIdAsync(Id);
+        _showRemainingForm = false;
+    }
+
+    private async Task MarkOpenedAsync() { await Spools.MarkOpenedAsync(Id); _spool = await Spools.GetByIdAsync(Id); }
+    private async Task MarkDriedAsync() { await Spools.MarkDriedAsync(Id); _spool = await Spools.GetByIdAsync(Id); }
+    private async Task MarkRepackagedAsync() { await Spools.MarkRepackagedAsync(Id); _spool = await Spools.GetByIdAsync(Id); }
+    private async Task MarkReopenedAsync() { await Spools.MarkReopenedAsync(Id); _spool = await Spools.GetByIdAsync(Id); }
+    private async Task MarkConsumedAsync() { await Spools.MarkConsumedAsync(Id); _spool = await Spools.GetByIdAsync(Id); }
+
+    private async Task WriteNfcAsync()
+    {
+        _writingNfc = true;
+        _nfcMessage = null;
+        _tagJson = null;
+        var encoded = await Tags.EncodeAsync(new TagEncodeRequest { SpoolId = Id });
+        if (encoded?.JsonPayload == null)
+        {
+            _nfcMessage = L["common.error"];
+            _nfcSuccess = false;
+            _writingNfc = false;
+            return;
+        }
+        _tagJson = encoded.JsonPayload;
+        await Nfc.WriteAsync(encoded.JsonPayload, DotNetObjectReference.Create(this));
+    }
+
+    private static string GetBarClass(decimal p) => p >= 50 ? "high" : p >= 20 ? "medium" : "low";
+
+    private static (double elapsed, double total, bool done) GetDryingState(SpoolDto s)
+    {
+        if (s.DriedAt == null || !s.MaterialDryTimeHours.HasValue || s.MaterialDryTimeHours <= 0)
+            return (0, 0, false);
+        var elapsed = (DateTime.UtcNow - s.DriedAt.Value.ToUniversalTime()).TotalHours;
+        var total = (double)s.MaterialDryTimeHours.Value;
+        return (Math.Round(elapsed, 1), total, elapsed >= total);
+    }
+
+    public void Dispose() => _clockTimer?.Dispose();
+}

@@ -1,0 +1,392 @@
+@page "/spools/new"
+@page "/spools/{Id:guid}/edit"
+@inject SpoolService Spools
+@inject MaterialService Materials
+@inject PrinterService Printers
+@inject StorageService Storage
+@inject DryerService Dryers
+@inject NfcService Nfc
+@inject LocalizationService L
+@inject NavigationManager Nav
+@inject ProjectService Project
+@using SpoolManager.Shared.DTOs.Materials
+@using System.Text.Json
+
+<PageTitle>@(Id.HasValue ? L["spool.edit"] : L["spool.add"]) – @L["app.name"]</PageTitle>
+
+<div class="page-header">
+    <h1><i class="bi bi-archive me-2"></i>@(Id.HasValue ? L["spool.edit"] : L["spool.add"])</h1>
+</div>
+
+@if (_loading) { <div class="text-center py-5"><div class="spinner-border"></div></div> }
+else
+{
+    <div class="row justify-content-center">
+        <div class="col-12 col-lg-8">
+
+            @if (!Id.HasValue && _nfcAvailable)
+            {
+                <div class="card mb-3 border-info">
+                    <div class="card-body py-2">
+                        <div class="d-flex align-items-center gap-3 flex-wrap">
+                            <div class="flex-grow-1">
+                                <strong><i class="bi bi-broadcast me-1 text-info"></i>@L["spool.nfc.import.title"]</strong>
+                                <div class="text-muted small">@L["spool.nfc.import.hint"]</div>
+                            </div>
+                            @if (_nfcReading)
+                            {
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="spinner-border spinner-border-sm text-info"></div>
+                                    <span class="text-muted small">@L["spool.nfc.scanning"]</span>
+                                    <button class="btn btn-sm btn-outline-secondary" @onclick="StopNfcScanAsync">@L["common.cancel"]</button>
+                                </div>
+                            }
+                            else
+                            {
+                                <button class="btn btn-outline-info btn-sm" @onclick="StartNfcScanAsync">
+                                    <i class="bi bi-phone me-1"></i>@L["spool.nfc.import.scan"]
+                                </button>
+                            }
+                        </div>
+                        @if (_nfcImportError != null)
+                        {
+                            <div class="alert alert-warning py-1 mt-2 mb-0 small">@_nfcImportError</div>
+                        }
+                        @if (_nfcImportSuccess)
+                        {
+                            <div class="alert alert-success py-1 mt-2 mb-0 small">
+                                <i class="bi bi-check-circle me-1"></i>@L["spool.nfc.import.done"]
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+
+            <div class="card">
+                <div class="card-body">
+                    @if (_error != null) { <div class="alert alert-danger">@_error</div> }
+
+                    <div class="mb-3">
+                        <label class="form-label">@L["spool.material"] *</label>
+                        <select class="form-select" value="@_form.FilamentMaterialId"
+                                @onchange="OnMaterialChanged" required>
+                            <option value="">– @L["spool.material"] –</option>
+                            @foreach (var m in _materials)
+                            {
+                                <option value="@m.Id">@m.Brand @m.Type @(m.ColorName != null ? $"– {m.ColorName}" : $"– #{m.ColorHex}")</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-6">
+                            <label class="form-label">@L["spool.remaining.grams"] *</label>
+                            <input class="form-control" type="number" step="0.1" min="0"
+                                @bind:get="_form.RemainingWeightGrams"
+                                @bind:set="SetWeight"
+                                @bind:event="oninput" />
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">@L["spool.remaining.percent"] *</label>
+                            <input class="form-control" type="number" step="0.1" min="0" max="100"
+                                @bind:get="_form.RemainingPercent"
+                                @bind:set="SetPercent"
+                                @bind:event="oninput" />
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-12 col-md-4">
+                            <label class="form-label">@L["spool.printer"] @L["common.optional"]</label>
+                            <select class="form-select" value="@(_form.PrinterId?.ToString() ?? "")"
+                                    @onchange='e => OnLocationChange("printer", e.Value?.ToString())'>
+                                <option value="">@L["spool.no.printer"]</option>
+                                @foreach (var p in _printers)
+                                {
+                                    <option value="@p.Id">@p.Name</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label">@L["spool.storage"] @L["common.optional"]</label>
+                            <select class="form-select" value="@(_form.StorageLocationId?.ToString() ?? "")"
+                                    @onchange='e => OnLocationChange("storage", e.Value?.ToString())'>
+                                <option value="">@L["spool.no.storage"]</option>
+                                @foreach (var s in _storages)
+                                {
+                                    <option value="@s.Id">@s.Name</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label">@L["spool.dryer"] @L["common.optional"]</label>
+                            <select class="form-select" value="@(_form.DryerId?.ToString() ?? "")"
+                                    @onchange='e => OnLocationChange("dryer", e.Value?.ToString())'>
+                                <option value="">@L["spool.no.dryer"]</option>
+                                @foreach (var d in _dryerList)
+                                {
+                                    <option value="@d.Id">@d.Name</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label">@L["spool.purchased"] @L["common.optional"]</label>
+                            <input class="form-control" type="date" @bind="_form.PurchasedAt" />
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label">@L["spool.price"] @L["common.optional"]</label>
+                            <input class="form-control" type="number" step="0.01" min="0" @bind="_form.PurchasePrice" />
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">@L["spool.rfid"] @L["common.optional"]</label>
+                        <input class="form-control font-monospace" @bind="_form.RfidTagUid" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">@L["spool.reorder"] @L["common.optional"]</label>
+                        <input class="form-control" type="url" @bind="_form.ReorderUrl" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">@L["spool.notes"] @L["common.optional"]</label>
+                        <textarea class="form-control" rows="3" @bind="_form.Notes"></textarea>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-primary" @onclick="SaveAsync" disabled="@_saving">
+                            @if (_saving) { <span class="spinner-border spinner-border-sm me-2"></span> }
+                            @L["common.save"]
+                        </button>
+                        <a href="/spools" class="btn btn-secondary">@L["common.cancel"]</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public Guid? Id { get; set; }
+
+    private bool _loading = true;
+    private bool _saving;
+    private string? _error;
+    private CreateSpoolRequest _form = new() { RemainingPercent = 100 };
+    private List<FilamentMaterialDto> _materials = [];
+    private List<PrinterDto> _printers = [];
+    private List<StorageLocationDto> _storages = [];
+    private List<DryerDto> _dryerList = [];
+
+    private bool _nfcAvailable;
+    private bool _nfcReading;
+    private bool _nfcImportSuccess;
+    private string? _nfcImportError;
+    private DotNetObjectReference<SpoolForm>? _dotnetRef;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Project.CurrentProject == null) return;
+        var mt = Materials.GetAllAsync();
+        var pt = Printers.GetAllAsync();
+        var st = Storage.GetAllAsync();
+        var dt = Dryers.GetAllAsync();
+        await Task.WhenAll(mt, pt, st, dt);
+        _materials = await mt ?? [];
+        _printers = await pt ?? [];
+        _storages = await st ?? [];
+        _dryerList = await dt ?? [];
+
+        if (Id.HasValue)
+        {
+            var spool = await Spools.GetByIdAsync(Id.Value);
+            if (spool != null)
+            {
+                _form.FilamentMaterialId = spool.FilamentMaterialId;
+                _form.RemainingWeightGrams = spool.RemainingWeightGrams;
+                _form.RemainingPercent = spool.RemainingPercent;
+                _form.PrinterId = spool.PrinterId;
+                _form.StorageLocationId = spool.StorageLocationId;
+                _form.DryerId = spool.DryerId;
+                _form.PurchasedAt = spool.PurchasedAt;
+                _form.PurchasePrice = spool.PurchasePrice;
+                _form.RfidTagUid = spool.RfidTagUid;
+                _form.ReorderUrl = spool.ReorderUrl;
+                _form.Notes = spool.Notes;
+            }
+        }
+        else
+        {
+            _nfcAvailable = await Nfc.CheckSupportAsync();
+        }
+        _loading = false;
+    }
+
+    private async Task StartNfcScanAsync()
+    {
+        _nfcImportError = null;
+        _nfcImportSuccess = false;
+        _nfcReading = true;
+        _dotnetRef ??= DotNetObjectReference.Create(this);
+        try { await Nfc.StartReadAsync(_dotnetRef); }
+        catch { _nfcReading = false; _nfcImportError = L["spool.nfc.error"]; }
+    }
+
+    private async Task StopNfcScanAsync()
+    {
+        _nfcReading = false;
+        try { await Nfc.StopReadAsync(); } catch { }
+    }
+
+    [JSInvokable]
+    public void OnTagRead(string json)
+    {
+        _nfcReading = false;
+        _nfcImportError = null;
+        try
+        {
+            var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+
+            var brand = root.TryGetProperty("brand", out var b) ? b.GetString() : null;
+            var type = root.TryGetProperty("type", out var t) ? t.GetString() : null;
+            var colorHex = root.TryGetProperty("color_hex", out var c) ? c.GetString()?.TrimStart('#') : null;
+
+            if (!string.IsNullOrEmpty(brand) || !string.IsNullOrEmpty(type))
+            {
+                var match = _materials.FirstOrDefault(m =>
+                    string.Equals(m.Brand, brand, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(m.Type, type, StringComparison.OrdinalIgnoreCase) &&
+                    (colorHex == null || string.Equals(m.ColorHex, colorHex, StringComparison.OrdinalIgnoreCase)));
+
+                match ??= _materials.FirstOrDefault(m =>
+                    string.Equals(m.Brand, brand, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(m.Type, type, StringComparison.OrdinalIgnoreCase));
+
+                if (match != null)
+                {
+                    _form.FilamentMaterialId = match.Id;
+                    if (match.WeightGrams is > 0)
+                    {
+                        _form.RemainingWeightGrams = match.WeightGrams.Value;
+                        _form.RemainingPercent = 100;
+                    }
+                    if (string.IsNullOrEmpty(_form.ReorderUrl) && match.ReorderUrl != null)
+                        _form.ReorderUrl = match.ReorderUrl;
+                    _nfcImportSuccess = true;
+                }
+                else
+                {
+                    _nfcImportError = L["spool.nfc.import.no.match"]
+                        .Replace("{brand}", brand ?? "?")
+                        .Replace("{type}", type ?? "?");
+                }
+            }
+            else
+            {
+                _nfcImportError = L["spool.nfc.import.invalid"];
+            }
+        }
+        catch
+        {
+            _nfcImportError = L["spool.nfc.import.invalid"];
+        }
+        InvokeAsync(StateHasChanged);
+    }
+
+    [JSInvokable]
+    public void OnReadError(string error)
+    {
+        _nfcReading = false;
+        _nfcImportError = L["spool.nfc.error"];
+        InvokeAsync(StateHasChanged);
+    }
+
+    [JSInvokable]
+    public void OnScanStarted() => InvokeAsync(StateHasChanged);
+
+    [JSInvokable]
+    public void OnWriteSuccess() { }
+
+    [JSInvokable]
+    public void OnWriteError(string error) { }
+
+    private void OnMaterialChanged(ChangeEventArgs e)
+    {
+        if (!Guid.TryParse(e.Value?.ToString(), out var id)) return;
+        _form.FilamentMaterialId = id;
+        if (Id.HasValue) return;
+        var mat = _materials.FirstOrDefault(m => m.Id == id);
+        if (mat == null) return;
+        if (mat.WeightGrams is > 0)
+        {
+            _form.RemainingWeightGrams = mat.WeightGrams.Value;
+            _form.RemainingPercent = 100;
+        }
+        if (string.IsNullOrEmpty(_form.ReorderUrl) && mat.ReorderUrl != null)
+            _form.ReorderUrl = mat.ReorderUrl;
+    }
+
+    private void OnLocationChange(string type, string? value)
+    {
+        var parsed = Guid.TryParse(value, out var id) ? id : (Guid?)null;
+        _form.PrinterId = null;
+        _form.StorageLocationId = null;
+        _form.DryerId = null;
+        if (type == "printer") _form.PrinterId = parsed;
+        else if (type == "storage") _form.StorageLocationId = parsed;
+        else if (type == "dryer") _form.DryerId = parsed;
+    }
+
+    private void SetWeight(decimal value)
+    {
+        _form.RemainingWeightGrams = value;
+        var material = _materials.FirstOrDefault(m => m.Id == _form.FilamentMaterialId);
+        if (material?.WeightGrams is > 0)
+            _form.RemainingPercent = Math.Round(value / material.WeightGrams.Value * 100m, 1);
+    }
+
+    private void SetPercent(decimal value)
+    {
+        _form.RemainingPercent = value;
+        var material = _materials.FirstOrDefault(m => m.Id == _form.FilamentMaterialId);
+        if (material?.WeightGrams is > 0)
+            _form.RemainingWeightGrams = Math.Round(value / 100m * material.WeightGrams.Value, 1);
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_form.FilamentMaterialId == Guid.Empty) { _error = L["spool.material.required"]; return; }
+        _saving = true;
+        _error = null;
+
+        HttpResponseMessage resp;
+        if (Id.HasValue)
+        {
+            resp = await Spools.UpdateAsync(Id.Value, new UpdateSpoolRequest
+            {
+                FilamentMaterialId = _form.FilamentMaterialId,
+                RemainingWeightGrams = _form.RemainingWeightGrams,
+                RemainingPercent = _form.RemainingPercent,
+                RfidTagUid = _form.RfidTagUid,
+                PrinterId = _form.PrinterId,
+                StorageLocationId = _form.StorageLocationId,
+                DryerId = _form.DryerId,
+                PurchasedAt = _form.PurchasedAt,
+                PurchasePrice = _form.PurchasePrice,
+                ReorderUrl = _form.ReorderUrl,
+                Notes = _form.Notes
+            });
+        }
+        else
+        {
+            resp = await Spools.CreateAsync(_form);
+        }
+
+        _saving = false;
+        if (resp.IsSuccessStatusCode) Nav.NavigateTo("/spools");
+        else _error = await resp.Content.ReadAsStringAsync();
+    }
+}

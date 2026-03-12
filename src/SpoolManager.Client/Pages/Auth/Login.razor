@@ -1,0 +1,318 @@
+@page "/login"
+@inject AuthService Auth
+@inject LocalizationService L
+@inject NavigationManager Nav
+@inject BrandingService Branding
+
+<PageTitle>@L["app.name"] – @L["landing.tagline.short"]</PageTitle>
+
+@if (!Branding.LandingPageEnabled)
+{
+    <div class="d-flex justify-content-center align-items-center" style="min-height:100vh;padding:1rem">
+        <div style="width:100%;max-width:420px">
+            <div class="text-center mb-4">
+                @if (!string.IsNullOrEmpty(Branding.LogoDataUrl))
+                {
+                    <img src="@Branding.LogoDataUrl" class="logo-light" style="max-height:3rem;width:auto;object-fit:contain" alt="@L["app.name"]" />
+                    <img src="@(string.IsNullOrEmpty(Branding.LogoDarkDataUrl) ? Branding.LogoDataUrl : Branding.LogoDarkDataUrl)" class="logo-dark" style="max-height:3rem;width:auto;object-fit:contain" alt="@L["app.name"]" />
+                }
+                else
+                {
+                    <i class="bi bi-layers-half text-primary" style="font-size:2.5rem" aria-hidden="true"></i>
+                    <div class="fw-bold fs-4 mt-1">@L["app.name"]</div>
+                }
+            </div>
+            <div class="card shadow-sm">
+                <div class="card-body p-4">
+                    <h1 class="fs-5 fw-semibold mb-4">
+                        <i class="bi bi-person-circle me-2" aria-hidden="true"></i>@L["auth.login"]
+                    </h1>
+                    @if (_error != null)
+                    {
+                        <div class="alert alert-danger py-2" role="alert">
+                            <i class="bi bi-exclamation-circle me-1" aria-hidden="true"></i>@_error
+                        </div>
+                    }
+                    <EditForm Model="_model" OnValidSubmit="HandleLogin">
+                        <div class="mb-3">
+                            <label class="form-label" for="loginEmailSimple">@L["auth.email"]</label>
+                            <input id="loginEmailSimple" class="form-control" type="email" @bind="_model.Email"
+                                   required autocomplete="email" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="loginPasswordSimple">@L["auth.password"]</label>
+                            <input id="loginPasswordSimple" class="form-control" type="password" @bind="_model.Password"
+                                   required autocomplete="current-password" />
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100" disabled="@_loading">
+                            @if (_loading) { <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span> }
+                            @L["auth.login.submit"]
+                        </button>
+                    </EditForm>
+                    <hr />
+                    <div class="text-center">
+                        <small>@L["auth.no.account"] <a href="/register">@L["auth.register"]</a></small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+
+<div class="landing-page">
+
+    <header class="landing-hero" role="banner">
+        <div class="container py-5">
+            <div class="row align-items-center g-5">
+
+                <div class="col-lg-7">
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        @if (!string.IsNullOrEmpty(Branding.LogoDataUrl))
+                        {
+                            <img src="@Branding.LogoDataUrl"
+                                 class="logo-light"
+                                 style="height:2.5rem;width:auto;object-fit:contain"
+                                 alt="@L["app.name"]" />
+                            <img src="@(string.IsNullOrEmpty(Branding.LogoDarkDataUrl) ? Branding.LogoDataUrl : Branding.LogoDarkDataUrl)"
+                                 class="logo-dark"
+                                 style="height:2.5rem;width:auto;object-fit:contain"
+                                 alt="@L["app.name"]" />
+                        }
+                        else
+                        {
+                            <i class="bi bi-layers-half text-primary" style="font-size:2.5rem" aria-hidden="true"></i>
+                            <span class="fw-bold fs-3">@L["app.name"]</span>
+                        }
+                    </div>
+                    <h1 class="display-5 fw-bold mb-3">@L["landing.hero.headline"]</h1>
+                    <p class="lead text-muted mb-4">@L["landing.hero.subline"]</p>
+                    <div class="d-flex gap-2 flex-wrap">
+                        <a href="/register" class="btn btn-primary btn-lg px-4">
+                            <i class="bi bi-person-plus me-2" aria-hidden="true"></i>@L["auth.register"]
+                        </a>
+                        <a href="#login-form" class="btn btn-outline-secondary btn-lg px-4">
+                            <i class="bi bi-box-arrow-in-right me-2" aria-hidden="true"></i>@L["landing.cta.login"]
+                        </a>
+                    </div>
+                    <div class="mt-3">
+                        <p class="text-muted small mb-0">
+                            <i class="bi bi-gift-fill me-1 text-success" aria-hidden="true"></i>@L["landing.free.badge"]
+                        </p>
+                    </div>
+                </div>
+
+                <div class="col-lg-5" id="login-form">
+                    <div class="landing-login-card">
+                        <h2 class="fs-5 fw-semibold mb-4">
+                            <i class="bi bi-person-circle me-2" aria-hidden="true"></i>@L["auth.login"]
+                        </h2>
+
+                        @if (_error != null)
+                        {
+                            <div class="alert alert-danger py-2" role="alert">
+                                <i class="bi bi-exclamation-circle me-1" aria-hidden="true"></i>@_error
+                            </div>
+                        }
+
+                        <EditForm Model="_model" OnValidSubmit="HandleLogin">
+                            <div class="mb-3">
+                                <label class="form-label" for="loginEmail">@L["auth.email"]</label>
+                                <input id="loginEmail" class="form-control" type="email" @bind="_model.Email"
+                                       required autocomplete="email" aria-required="true" />
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label" for="loginPassword">@L["auth.password"]</label>
+                                <input id="loginPassword" class="form-control" type="password" @bind="_model.Password"
+                                       required autocomplete="current-password" aria-required="true" />
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100" disabled="@_loading"
+                                    aria-busy="@(_loading ? "true" : "false")">
+                                @if (_loading) { <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span> }
+                                @L["auth.login.submit"]
+                            </button>
+                        </EditForm>
+
+                        <hr />
+                        <div class="text-center">
+                            <small>@L["auth.no.account"] <a href="/register">@L["auth.register"]</a></small>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </header>
+
+    <main id="main-content">
+        <section class="py-5 bg-body-secondary" aria-labelledby="features-heading">
+            <div class="container">
+                <h2 id="features-heading" class="text-center fw-bold mb-2">@L["landing.features.title"]</h2>
+                <p class="text-center text-muted mb-5">@L["landing.features.subtitle"]</p>
+
+                <div class="row g-4">
+                    <div class="col-sm-6 col-lg-4">
+                        <article class="landing-feature-card h-100">
+                            <div class="landing-feature-icon text-primary" aria-hidden="true">
+                                <i class="bi bi-broadcast"></i>
+                            </div>
+                            <h3 class="fs-5 fw-semibold">@L["landing.feature.rfid.title"]</h3>
+                            <p class="text-muted small mb-0">@L["landing.feature.rfid.desc"]</p>
+                        </article>
+                    </div>
+                    <div class="col-sm-6 col-lg-4">
+                        <article class="landing-feature-card h-100">
+                            <div class="landing-feature-icon text-success" aria-hidden="true">
+                                <i class="bi bi-database-fill-check"></i>
+                            </div>
+                            <h3 class="fs-5 fw-semibold">@L["landing.feature.materials.title"]</h3>
+                            <p class="text-muted small mb-0">@L["landing.feature.materials.desc"]</p>
+                        </article>
+                    </div>
+                    <div class="col-sm-6 col-lg-4">
+                        <article class="landing-feature-card h-100">
+                            <div class="landing-feature-icon text-warning" aria-hidden="true">
+                                <i class="bi bi-people-fill"></i>
+                            </div>
+                            <h3 class="fs-5 fw-semibold">@L["landing.feature.projects.title"]</h3>
+                            <p class="text-muted small mb-0">@L["landing.feature.projects.desc"]</p>
+                        </article>
+                    </div>
+                    <div class="col-sm-6 col-lg-4">
+                        <article class="landing-feature-card h-100">
+                            <div class="landing-feature-icon text-info" aria-hidden="true">
+                                <i class="bi bi-thermometer-half"></i>
+                            </div>
+                            <h3 class="fs-5 fw-semibold">@L["landing.feature.dryer.title"]</h3>
+                            <p class="text-muted small mb-0">@L["landing.feature.dryer.desc"]</p>
+                        </article>
+                    </div>
+                    <div class="col-sm-6 col-lg-4">
+                        <article class="landing-feature-card h-100">
+                            <div class="landing-feature-icon text-danger" aria-hidden="true">
+                                <i class="bi bi-arrow-left-right"></i>
+                            </div>
+                            <h3 class="fs-5 fw-semibold">@L["landing.feature.inventory.title"]</h3>
+                            <p class="text-muted small mb-0">@L["landing.feature.inventory.desc"]</p>
+                        </article>
+                    </div>
+                    <div class="col-sm-6 col-lg-4">
+                        <article class="landing-feature-card h-100">
+                            <div class="landing-feature-icon text-secondary" aria-hidden="true">
+                                <i class="bi bi-lightning-charge-fill"></i>
+                            </div>
+                            <h3 class="fs-5 fw-semibold">@L["landing.feature.selfhost.title"]</h3>
+                            <p class="text-muted small mb-0">@L["landing.feature.selfhost.desc"]</p>
+                        </article>
+                    </div>
+                </div>
+
+                <div class="mt-4 text-center">
+                    <p class="text-muted small mb-0">
+                        <i class="bi bi-android2 me-1 text-success" aria-hidden="true"></i>
+                        @L["landing.nfc.android.note"]
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <section class="py-4 border-top border-bottom" aria-labelledby="openspool-heading">
+            <div class="container">
+                <div class="row align-items-center g-3 justify-content-center text-center text-md-start">
+                    <div class="col-auto d-none d-md-block">
+                        <i class="bi bi-broadcast text-primary" style="font-size:2.2rem" aria-hidden="true"></i>
+                    </div>
+                    <div class="col-md-9 col-lg-7">
+                        <h3 id="openspool-heading" class="fs-5 fw-semibold mb-1">@L["landing.openspool.title"]</h3>
+                        <p class="text-muted small mb-2">@L["landing.openspool.desc"]</p>
+                        <a href="https://github.com/Bambu-Research-Group/RFID-Tag-Guide" target="_blank" rel="noopener noreferrer"
+                           class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-github me-1" aria-hidden="true"></i>@L["landing.openspool.github"]
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="py-4 border-top border-bottom" aria-labelledby="opensource-heading">
+            <div class="container">
+                <div class="row align-items-center g-3 justify-content-center text-center text-md-start">
+                    <div class="col-auto d-none d-md-block">
+                        <i class="bi bi-code-slash text-primary" style="font-size:2.2rem" aria-hidden="true"></i>
+                    </div>
+                    <div class="col-md-9 col-lg-7">
+                        <h3 id="opensource-heading" class="fs-5 fw-semibold mb-1">@L["landing.opensource.title"]</h3>
+                        <p class="text-muted small mb-2">@L["landing.opensource.desc"]</p>
+                        <a href="https://github.com/Fewiel/SpoolHero" target="_blank" rel="noopener noreferrer"
+                           class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-github me-1" aria-hidden="true"></i>@L["landing.opensource.github"]
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="py-5 bg-body-secondary border-bottom" aria-labelledby="free-heading">
+            <div class="container text-center" style="max-width:700px">
+                <i class="bi bi-gift-fill text-success mb-3" style="font-size:2.5rem" aria-hidden="true"></i>
+                <h2 id="free-heading" class="fw-bold mb-3">@L["landing.free.title"]</h2>
+                <p class="text-muted mb-4">@L["landing.free.desc"]</p>
+                <div class="d-flex justify-content-center gap-3 flex-wrap">
+                    <span class="badge bg-success-subtle text-success-emphasis border border-success-subtle px-3 py-2 fs-6">
+                        <i class="bi bi-heart-fill me-1" aria-hidden="true"></i>@L["landing.free.funded.donations"]
+                    </span>
+                    <span class="badge bg-primary-subtle text-primary-emphasis border border-primary-subtle px-3 py-2 fs-6">
+                        <i class="bi bi-link-45deg me-1" aria-hidden="true"></i>@L["landing.free.funded.affiliate"]
+                    </span>
+                </div>
+            </div>
+        </section>
+
+        <section class="py-4" aria-labelledby="tos-heading">
+            <div class="container" style="max-width:800px">
+                <h2 id="tos-heading" class="fs-6 fw-semibold text-muted text-uppercase mb-3">
+                    <i class="bi bi-file-text me-1" aria-hidden="true"></i>@L["landing.tos.title"]
+                </h2>
+                <p class="text-muted small">@L["landing.tos.desc"]</p>
+                <a href="/terms" class="btn btn-sm btn-outline-secondary">@L["landing.tos.link"]</a>
+            </div>
+        </section>
+    </main>
+
+    <footer class="py-4 text-center text-muted small border-top" role="contentinfo">
+        <div class="container">
+            <p class="mb-1">
+                <a href="/privacy" class="text-muted me-3">@L["legal.privacy.title"]</a>
+                <a href="/imprint" class="text-muted me-3">@L["legal.imprint.title"]</a>
+                <a href="/terms" class="text-muted">@L["legal.terms.title"]</a>
+            </p>
+            <p class="mb-0">&copy; @DateTime.UtcNow.Year Phillip Weitkamp &middot; @L["app.name"]</p>
+        </div>
+    </footer>
+</div>
+
+}
+
+@code {
+    private readonly LoginRequest _model = new();
+    private bool _loading;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Auth.IsAuthenticated) Nav.NavigateTo("/");
+        if (string.IsNullOrEmpty(Branding.LogoDataUrl))
+            await Branding.InitializeAsync();
+    }
+
+    private async Task HandleLogin()
+    {
+        _loading = true;
+        _error = null;
+        var ok = await Auth.LoginAsync(_model);
+        _loading = false;
+        if (ok) Nav.NavigateTo("/");
+        else _error = L["auth.login.error"];
+    }
+}

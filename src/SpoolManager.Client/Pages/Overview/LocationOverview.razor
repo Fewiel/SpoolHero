@@ -1,0 +1,162 @@
+@page "/overview"
+@inject PrinterService Printers
+@inject StorageService Storage
+@inject DryerService Dryers
+@inject SpoolService Spools
+@inject LocalizationService L
+@inject ProjectService Project
+
+<PageTitle>@L["overview.title"] – @L["app.name"]</PageTitle>
+
+<div class="page-header">
+    <h1><i class="bi bi-grid me-2"></i>@L["overview.title"]</h1>
+</div>
+
+@if (_loading)
+{
+    <div class="text-center py-5"><div class="spinner-border"></div></div>
+}
+else if (_printers.Count == 0 && _locations.Count == 0 && _dryers.Count == 0)
+{
+    <div class="text-center py-5 text-muted">
+        <i class="bi bi-grid fs-1"></i>
+        <p class="mt-2">@L["overview.empty"]</p>
+    </div>
+}
+else
+{
+    @if (_printers.Count > 0)
+    {
+        <h5 class="mb-3"><i class="bi bi-printer me-2 text-info"></i>@L["overview.printers"]</h5>
+        <div class="row g-3 mb-4">
+            @foreach (var p in _printers)
+            {
+                var spools = _spools.Where(s => s.PrinterId == p.Id).ToList();
+                <div class="col-12 col-md-6 col-lg-4">
+                    <div class="card h-100">
+                        <div class="card-header d-flex align-items-center gap-2">
+                            <i class="bi bi-printer text-info"></i>
+                            <strong>@p.Name</strong>
+                            <span class="badge bg-secondary ms-auto">@spools.Count</span>
+                        </div>
+                        <div class="card-body">
+                            @if (spools.Count == 0)
+                            {
+                                <small class="text-muted">@L["overview.empty"]</small>
+                            }
+                            else
+                            {
+                                @foreach (var s in spools)
+                                {
+                                    @SpoolChip(s)
+                                }
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+
+    @if (_locations.Count > 0)
+    {
+        <h5 class="mb-3"><i class="bi bi-box me-2 text-success"></i>@L["overview.storage"]</h5>
+        <div class="row g-3 mb-4">
+            @foreach (var loc in _locations)
+            {
+                var spools = _spools.Where(s => s.StorageLocationId == loc.Id).ToList();
+                <div class="col-12 col-md-6 col-lg-4">
+                    <div class="card h-100">
+                        <div class="card-header d-flex align-items-center gap-2">
+                            <i class="bi bi-box text-success"></i>
+                            <strong>@loc.Name</strong>
+                            <span class="badge bg-secondary ms-auto">@spools.Count</span>
+                        </div>
+                        <div class="card-body">
+                            @if (spools.Count == 0)
+                            {
+                                <small class="text-muted">@L["overview.empty"]</small>
+                            }
+                            else
+                            {
+                                @foreach (var s in spools)
+                                {
+                                    @SpoolChip(s)
+                                }
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+
+    @if (_dryers.Count > 0)
+    {
+        <h5 class="mb-3"><i class="bi bi-thermometer-half me-2 text-warning"></i>@L["overview.dryers"]</h5>
+        <div class="row g-3 mb-4">
+            @foreach (var d in _dryers)
+            {
+                var spools = _spools.Where(s => s.DryerId == d.Id).ToList();
+                <div class="col-12 col-md-6 col-lg-4">
+                    <div class="card h-100">
+                        <div class="card-header d-flex align-items-center gap-2">
+                            <i class="bi bi-thermometer-half text-warning"></i>
+                            <strong>@d.Name</strong>
+                            <span class="badge bg-secondary ms-auto">@spools.Count</span>
+                        </div>
+                        <div class="card-body">
+                            @if (spools.Count == 0)
+                            {
+                                <small class="text-muted">@L["overview.empty"]</small>
+                            }
+                            else
+                            {
+                                @foreach (var s in spools)
+                                {
+                                    @SpoolChip(s)
+                                }
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+}
+
+@code {
+    private bool _loading = true;
+    private List<PrinterDto> _printers = [];
+    private List<StorageLocationDto> _locations = [];
+    private List<DryerDto> _dryers = [];
+    private List<SpoolDto> _spools = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Project.CurrentProject == null) return;
+        var pt = Printers.GetAllAsync();
+        var st = Storage.GetAllAsync();
+        var dt = Dryers.GetAllAsync();
+        var spt = Spools.GetAllAsync();
+        await Task.WhenAll(pt, st, dt, spt);
+        _printers = await pt ?? [];
+        _locations = await st ?? [];
+        _dryers = await dt ?? [];
+        _spools = await spt ?? [];
+        _loading = false;
+    }
+
+    private RenderFragment SpoolChip(SpoolDto s) => __builder =>
+    {
+        <a href="/spools/@s.Id" class="text-decoration-none">
+            <div class="d-flex align-items-center gap-2 mb-2 p-2 rounded border">
+                <div style="width:0.8em;height:0.8em;background:#@s.MaterialColorHex;border-radius:50%;border:1px solid var(--bs-border-color);flex-shrink:0"></div>
+                <div class="flex-grow-1 overflow-hidden">
+                    <div class="text-truncate small fw-semibold">@s.MaterialBrand @s.MaterialType</div>
+                    <div class="text-muted" style="font-size:0.75em">@s.RemainingWeightGrams g · @s.RemainingPercent%</div>
+                </div>
+            </div>
+        </a>
+    };
+}
