@@ -1,0 +1,47 @@
+@page "/terms"
+@inject LocalizationService L
+@inject HttpClient Http
+
+<PageTitle>@L["legal.terms.title"] – @L["app.name"]</PageTitle>
+
+<div class="container py-4" style="max-width:860px">
+    <h1 class="mb-4">@L["legal.terms.title"]</h1>
+
+    @if (_loading)
+    {
+        <div class="text-center py-5"><div class="spinner-border text-secondary"></div></div>
+    }
+    else if (!string.IsNullOrWhiteSpace(_content))
+    {
+        @((MarkupString)_content)
+    }
+    else
+    {
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle me-2"></i>@L["legal.not.configured"]
+        </div>
+    }
+
+    <hr class="mt-5" />
+    <p>
+        <a href="/privacy" class="me-3">@L["legal.privacy.title"]</a>
+        <a href="/imprint">@L["legal.imprint.title"]</a>
+    </p>
+</div>
+
+@code {
+    private bool _loading = true;
+    private string _content = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var legal = await Http.GetFromJsonAsync<SpoolManager.Shared.DTOs.Admin.LegalSettingsDto>("api/public/legal");
+            if (legal != null)
+                _content = L.CurrentLanguage == "en" ? legal.TermsEn : legal.TermsDe;
+        }
+        catch { }
+        _loading = false;
+    }
+}

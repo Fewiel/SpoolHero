@@ -1,0 +1,23 @@
+@inject LocalizationService L
+@inject AuthService Auth
+@inject SettingsService Settings
+
+<div class="dropdown">
+    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+        <i class="bi bi-globe me-1"></i>@L.CurrentLanguage.ToUpper()
+    </button>
+    <ul class="dropdown-menu dropdown-menu-end">
+        <li><button class="dropdown-item @(L.CurrentLanguage == "de" ? "active" : "")" @onclick='() => SetLang("de")'>🇩🇪 Deutsch</button></li>
+        <li><button class="dropdown-item @(L.CurrentLanguage == "en" ? "active" : "")" @onclick='() => SetLang("en")'>🇬🇧 English</button></li>
+    </ul>
+</div>
+
+@code {
+    private async Task SetLang(string lang)
+    {
+        await L.SetManualLanguageAsync(lang);
+        if (Auth.IsAuthenticated)
+            _ = Settings.UpdateLanguageAsync(lang);
+        StateHasChanged();
+    }
+}

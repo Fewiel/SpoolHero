@@ -1,0 +1,159 @@
+@page "/tickets"
+@inject TicketService Tickets
+@inject AuthService Auth
+@inject LocalizationService L
+@inject NavigationManager Nav
+
+<PageTitle>@L["ticket.title"] – @L["app.name"]</PageTitle>
+
+<div class="row justify-content-center">
+<div class="col-12 col-lg-9 col-xl-8">
+
+<div class="page-header">
+    <h1><i class="bi bi-headset me-2"></i>@L["ticket.your.tickets"]</h1>
+    <button class="btn btn-primary" @onclick="() => _showForm = !_showForm">
+        <i class="bi bi-plus-lg me-1"></i>@L["ticket.new"]
+    </button>
+</div>
+
+@if (_showForm)
+{
+    <div class="card mb-4">
+        <div class="card-body">
+            <EditForm Model="_form" OnValidSubmit="CreateAsync">
+                <DataAnnotationsValidator />
+                <div class="mb-3">
+                    <label class="form-label">@L["ticket.subject"]</label>
+                    <InputText class="form-control" @bind-Value="_form.Subject" placeholder="@L["ticket.subject"]" />
+                    <ValidationMessage For="() => _form.Subject" class="text-danger small" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">@L["ticket.description"]</label>
+                    <InputTextArea class="form-control" rows="4" @bind-Value="_form.Description"
+                                   placeholder="@L["ticket.comment.placeholder"]" />
+                    <ValidationMessage For="() => _form.Description" class="text-danger small" />
+                </div>
+                @if (_createError != null)
+                {
+                    <div class="alert alert-danger py-2">@_createError</div>
+                }
+                <div class="d-flex gap-2 justify-content-end">
+                    <button type="button" class="btn btn-secondary" @onclick="() => _showForm = false">
+                        @L["common.cancel"]
+                    </button>
+                    <button type="submit" class="btn btn-primary" disabled="@_creating">
+                        @if (_creating) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                        @L["ticket.send"]
+                    </button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@if (_loading)
+{
+    <div class="text-center py-5"><div class="spinner-border"></div></div>
+}
+else if (_tickets.Count == 0)
+{
+    <div class="text-center py-5 text-muted">
+        <i class="bi bi-headset fs-1"></i>
+        <p class="mt-2">@L["ticket.none"]</p>
+    </div>
+}
+else
+{
+    <div class="table-responsive-card">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>@L["ticket.subject"]</th>
+                    <th>@L["ticket.status"]</th>
+                    <th class="d-none d-md-table-cell">@L["ticket.assigned.to"]</th>
+                    <th class="d-none d-md-table-cell">@L["common.created"]</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var t in _tickets)
+                {
+                    <tr style="cursor:pointer" @onclick='() => Nav.NavigateTo($"/tickets/{t.Id}")'>
+                        <td>
+                            @t.Subject
+                            @if (t.CommentCount > 0)
+                            {
+                                <span class="badge bg-light text-dark ms-1">
+                                    <i class="bi bi-chat me-1"></i>@t.CommentCount
+                                </span>
+                            }
+                        </td>
+                        <td>
+                            <span class="badge @StatusBadgeClass(t.Status)">@StatusLabel(t.Status)</span>
+                        </td>
+                        <td class="d-none d-md-table-cell">
+                            <small>@(t.AssignedToUsername ?? L["ticket.unassigned"])</small>
+                        </td>
+                        <td class="d-none d-md-table-cell">
+                            <small>@t.CreatedAt.ToString("dd.MM.yyyy")</small>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+</div>
+</div>
+
+@code {
+    private bool _loading = true;
+    private bool _showForm;
+    private bool _creating;
+    private string? _createError;
+    private List<SupportTicketDto> _tickets = [];
+    private CreateTicketRequest _form = new();
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _tickets = await Tickets.GetMyTicketsAsync() ?? [];
+        _loading = false;
+    }
+
+    private async Task CreateAsync()
+    {
+        _creating = true;
+        _createError = null;
+        var resp = await Tickets.CreateAsync(_form);
+        if (resp.IsSuccessStatusCode)
+        {
+            _showForm = false;
+            _form = new();
+            await LoadAsync();
+        }
+        else
+        {
+            _createError = L["common.error"];
+        }
+        _creating = false;
+    }
+
+    private static string StatusBadgeClass(string status) => status switch
+    {
+        "in_progress" => "bg-primary",
+        "answered"    => "bg-success",
+        "closed"      => "bg-secondary",
+        _             => "bg-warning text-dark"
+    };
+
+    private string StatusLabel(string status) => status switch
+    {
+        "in_progress" => L["ticket.status.in_progress"],
+        "answered"    => L["ticket.status.answered"],
+        "closed"      => L["ticket.status.closed"],
+        _             => L["ticket.status.open"]
+    };
+}

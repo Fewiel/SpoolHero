@@ -1,0 +1,50 @@
+# Build output
+bin/
+obj/
+out/
+
+# .NET user files
+*.user
+*.suo
+.vs/
+.vscode/
+*.DotSettings.user
+
+# Rider
+.idea/
+
+# Published output
+publish/
+
+# User secrets
+appsettings.json
+appsettings.Development.json
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Certificates & secrets
+*.pfx
+*.cer
+*.pem
+*.key
+
+# Build archives
+*.zip
+*.tar.gz
+
+# AI toolings
+.claude/
+.cursor/
+.aider*
+.aider.tags.cache.v*/
+.cursorignore
+.cursorindexingignore
+*.aider
+CLAUDE.md
+CURSOR.md

@@ -1,0 +1,216 @@
+@page "/inventory"
+@implements IDisposable
+@inject InventoryService Inventory
+@inject NfcService Nfc
+@inject LocalizationService L
+@inject ProjectService Project
+
+<PageTitle>@L["inventory.title"] – @L["app.name"]</PageTitle>
+
+<div class="page-header">
+    <h1><i class="bi bi-arrow-left-right me-2"></i>@L["inventory.title"]</h1>
+</div>
+
+@if (!_nfcSupported.HasValue)
+{
+    <div class="text-center py-5"><div class="spinner-border"></div></div>
+}
+else if (!_nfcSupported.Value)
+{
+    <div class="alert alert-warning">
+        <i class="bi bi-exclamation-triangle me-2"></i>@L["tag.nfc.not.supported"]
+    </div>
+}
+else
+{
+    <div class="row justify-content-center">
+        <div class="col-12 col-md-8 col-lg-6">
+
+            @if (_state == ScanState.ScanningFirst)
+            {
+                <div class="card border-primary text-center">
+                    <div class="card-body py-5">
+                        <i class="bi bi-broadcast display-1 text-primary mb-3"></i>
+                        <h4>@L["inventory.scan.first"]</h4>
+                        <p class="text-muted">@L["tag.nfc.scanning"]</p>
+                    </div>
+                </div>
+            }
+
+            @if (_state == ScanState.ScanningSecond && _firstEntity != null)
+            {
+                <div class="card border-success mb-3">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center gap-3">
+                            <i class="@GetIcon(_firstEntity.EntityType) fs-2 text-success"></i>
+                            <div>
+                                <div class="small text-muted">@L["inventory.scanned.first"]</div>
+                                <strong>@_firstEntity.EntityName</strong>
+                                <span class="badge bg-secondary ms-2">@L[$"inventory.type.{_firstEntity.EntityType}"]</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card border-primary text-center">
+                    <div class="card-body py-4">
+                        <div class="spinner-border text-primary mb-3" style="width:3rem;height:3rem;"></div>
+                        <h5>@L["inventory.scan.second"]</h5>
+                        <p class="text-muted small">@L["inventory.hint.different"]</p>
+                    </div>
+                </div>
+            }
+
+            @if (_state == ScanState.Done)
+            {
+                @if (_result != null)
+                {
+                    <div class="card @(_result.Success ? "border-success" : "border-danger") text-center mb-3">
+                        <div class="card-body py-5">
+                            <i class="bi @(_result.Success ? "bi-check-circle-fill text-success" : "bi-x-circle-fill text-danger") display-3 mb-3"></i>
+                            <h4>@(_result.Success ? L["common.success"] : L["common.error"])</h4>
+                            <p>@_result.Description</p>
+                        </div>
+                    </div>
+                }
+                <button class="btn btn-primary w-100 btn-lg" @onclick="RestartAsync">
+                    <i class="bi bi-broadcast me-2"></i>@L["inventory.scan.start"]
+                </button>
+            }
+
+            @if (_errorMessage != null)
+            {
+                <div class="alert alert-warning mt-3">
+                    <i class="bi bi-exclamation-triangle me-1"></i>@_errorMessage
+                </div>
+            }
+
+            <div class="card mt-4">
+                <div class="card-body small text-muted">
+                    <strong>@L["inventory.help.title"]</strong>
+                    <ul class="mb-0 mt-1">
+                        <li>@L["inventory.help.spool.to.printer"]</li>
+                        <li>@L["inventory.help.spool.to.storage"]</li>
+                        <li>@L["inventory.help.printer.to.spool"]</li>
+                        <li>@L["inventory.help.storage.to.spool"]</li>
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+    </div>
+}
+
+@code {
+    private enum ScanState { ScanningFirst, ScanningSecond, Done }
+
+    private bool? _nfcSupported;
+    private ScanState _state = ScanState.ScanningFirst;
+    private InventoryIdentifyResult? _firstEntity;
+    private InventoryActionResult? _result;
+    private string? _errorMessage;
+    private bool _processing;
+    private bool _disposed;
+    private DotNetObjectReference<InventoryScan>? _dotNetRef;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Project.CurrentProject == null) return;
+        _nfcSupported = await Nfc.CheckSupportAsync();
+        if (_nfcSupported == true)
+            await StartScannerAsync();
+    }
+
+    private async Task StartScannerAsync()
+    {
+        _dotNetRef?.Dispose();
+        _dotNetRef = DotNetObjectReference.Create(this);
+        await Nfc.StartReadAsync(_dotNetRef);
+    }
+
+    private async Task RestartAsync()
+    {
+        _firstEntity = null;
+        _result = null;
+        _errorMessage = null;
+        _processing = false;
+        _state = ScanState.ScanningFirst;
+        StateHasChanged();
+        await StartScannerAsync();
+    }
+
+    [JSInvokable]
+    public void OnScanStarted() { }
+
+    [JSInvokable]
+    public async Task OnTagRead(string json, string serialNumber)
+    {
+        if (_disposed || _processing || _state == ScanState.Done) return;
+        _processing = true;
+        _errorMessage = null;
+
+        try
+        {
+            var identified = await Inventory.IdentifyAsync(
+                new InventoryIdentifyRequest { JsonPayload = json, SerialNumber = serialNumber });
+
+            if (_state == ScanState.ScanningFirst)
+            {
+                if (identified == null || identified.EntityType == "unknown")
+                    return;
+
+                _firstEntity = identified;
+                _state = ScanState.ScanningSecond;
+                StateHasChanged();
+            }
+            else if (_state == ScanState.ScanningSecond && _firstEntity != null)
+            {
+                if (identified == null || identified.EntityType == "unknown" ||
+                    (identified.EntityType == _firstEntity.EntityType && identified.EntityId == _firstEntity.EntityId))
+                    return;
+
+                await Nfc.StopReadAsync();
+                _result = await Inventory.PerformActionAsync(
+                    new InventoryActionRequest { First = _firstEntity, Second = identified });
+                _state = ScanState.Done;
+                StateHasChanged();
+            }
+        }
+        finally
+        {
+            _processing = false;
+        }
+    }
+
+    [JSInvokable]
+    public async Task OnReadError(string message)
+    {
+        if (_disposed || _state == ScanState.Done) return;
+        _errorMessage = message;
+        StateHasChanged();
+        await Task.Delay(1500);
+        if (!_disposed && _state != ScanState.Done)
+        {
+            _errorMessage = null;
+            await StartScannerAsync();
+        }
+    }
+
+    [JSInvokable] public void OnWriteSuccess() { }
+    [JSInvokable] public void OnWriteError(string message) { }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        _dotNetRef?.Dispose();
+        _dotNetRef = null;
+    }
+
+    private static string GetIcon(string entityType) => entityType switch
+    {
+        "spool" => "bi bi-archive",
+        "printer" => "bi bi-printer",
+        "storage" => "bi bi-box",
+        _ => "bi bi-question-circle"
+    };
+}

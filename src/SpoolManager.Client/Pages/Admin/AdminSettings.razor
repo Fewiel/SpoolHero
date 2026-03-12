@@ -1,0 +1,441 @@
+@page "/admin/settings"
+@inject AdminService Admin
+@inject AuthService Auth
+@inject BrandingService Branding
+@inject LocalizationService L
+@using SpoolManager.Shared.DTOs.Admin
+
+<PageTitle>@L["admin.settings.title"] – @L["app.name"]</PageTitle>
+
+@if (Auth.CurrentUser?.IsPlatformAdmin != true)
+{
+    <div class="alert alert-danger mt-3">@L["common.access.denied"]</div>
+}
+else
+{
+    <div class="page-header">
+        <h1><i class="bi bi-gear me-2"></i>@L["admin.settings.title"]</h1>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header fw-semibold">
+            <i class="bi bi-sliders me-2"></i>@L["admin.settings.general.title"]
+        </div>
+        <div class="card-body">
+            <div class="d-flex align-items-center justify-content-between gap-3">
+                <div>
+                    <div class="fw-semibold">@L["admin.settings.general.landing.label"]</div>
+                    <div class="text-muted small">@L["admin.settings.general.landing.hint"]</div>
+                </div>
+                <div class="form-check form-switch mb-0">
+                    <input class="form-check-input" type="checkbox" id="landingEnabled"
+                           @bind="_landingEnabled"
+                           @bind:after="SaveLandingPageAsync" />
+                    <label class="form-check-label" for="landingEnabled"></label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header fw-semibold">
+            <i class="bi bi-palette me-2"></i>@L["admin.settings.branding.title"]
+        </div>
+        <div class="card-body">
+            @if (_brandingSuccess != null)
+            {
+                <div class="alert @(_brandingSuccess == true ? "alert-success" : "alert-danger") py-2">@_brandingMessage</div>
+            }
+
+            <div class="row g-4">
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">@L["admin.settings.branding.logo"]</label>
+                    <div class="mb-2">
+                        @if (!string.IsNullOrEmpty(Branding.LogoDataUrl))
+                        {
+                            <div class="border rounded p-2 d-inline-block mb-2" style="background:#f8f9fa">
+                                <img src="@Branding.LogoDataUrl" alt="Logo" style="max-height:60px;max-width:200px;object-fit:contain" />
+                            </div>
+                            <br />
+                            <button class="btn btn-sm btn-outline-danger me-2" @onclick="DeleteLogoAsync" disabled="@_brandingSaving">
+                                <i class="bi bi-trash me-1"></i>@L["common.delete"]
+                            </button>
+                        }
+                    </div>
+                    <InputFile OnChange="OnLogoSelected" accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml" class="form-control form-control-sm" />
+                    <div class="form-text">@L["admin.settings.branding.logo.hint"]</div>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">@L["admin.settings.branding.logo.dark"]</label>
+                    <div class="mb-2">
+                        @if (!string.IsNullOrEmpty(Branding.LogoDarkDataUrl))
+                        {
+                            <div class="border rounded p-2 d-inline-block mb-2" style="background:#212529">
+                                <img src="@Branding.LogoDarkDataUrl" alt="Logo Dark" style="max-height:60px;max-width:200px;object-fit:contain" />
+                            </div>
+                            <br />
+                            <button class="btn btn-sm btn-outline-danger me-2" @onclick="DeleteLogoDarkAsync" disabled="@_brandingSaving">
+                                <i class="bi bi-trash me-1"></i>@L["common.delete"]
+                            </button>
+                        }
+                    </div>
+                    <InputFile OnChange="OnLogoDarkSelected" accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml" class="form-control form-control-sm" />
+                    <div class="form-text">@L["admin.settings.branding.logo.dark.hint"]</div>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">@L["admin.settings.branding.favicon"]</label>
+                    <div class="mb-2">
+                        @if (!string.IsNullOrEmpty(Branding.FaviconDataUrl))
+                        {
+                            <div class="border rounded p-2 d-inline-block mb-2" style="background:#f8f9fa">
+                                <img src="@Branding.FaviconDataUrl" alt="Favicon" style="height:32px;width:32px;object-fit:contain" />
+                            </div>
+                            <br />
+                            <button class="btn btn-sm btn-outline-danger me-2" @onclick="DeleteFaviconAsync" disabled="@_brandingSaving">
+                                <i class="bi bi-trash me-1"></i>@L["common.delete"]
+                            </button>
+                        }
+                    </div>
+                    <InputFile OnChange="OnFaviconSelected" accept="image/png,image/jpeg,image/x-icon" class="form-control form-control-sm" />
+                    <div class="form-text">@L["admin.settings.branding.favicon.hint"]</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header fw-semibold">
+            <i class="bi bi-envelope-at me-2"></i>@L["admin.settings.smtp.title"]
+        </div>
+        <div class="card-body">
+            @if (_smtpLoading)
+            {
+                <div class="text-center py-3"><div class="spinner-border spinner-border-sm"></div></div>
+            }
+            else if (_smtp != null)
+            {
+                @if (_smtpSuccess != null)
+                {
+                    <div class="alert @(_smtpSuccess == true ? "alert-success" : "alert-danger") py-2">
+                        @_smtpMessage
+                    </div>
+                }
+
+                <div class="row g-3">
+                    <div class="col-md-8">
+                        <label class="form-label">@L["admin.settings.smtp.host"]</label>
+                        <input class="form-control" @bind="_smtp.Host" placeholder="smtp.example.com" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">@L["admin.settings.smtp.port"]</label>
+                        <input class="form-control" type="number" @bind="_smtp.Port" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">@L["admin.settings.smtp.username"]</label>
+                        <input class="form-control" @bind="_smtp.Username" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">@L["admin.settings.smtp.password"]</label>
+                        <input class="form-control" type="password" @bind="_smtp.Password" placeholder="@L["admin.settings.smtp.password.hint"]" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">@L["admin.settings.smtp.from.email"]</label>
+                        <input class="form-control" type="email" @bind="_smtp.FromEmail" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">@L["admin.settings.smtp.from.name"]</label>
+                        <input class="form-control" @bind="_smtp.FromName" />
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">@L["admin.settings.smtp.base.url"]</label>
+                        <input class="form-control" @bind="_smtp.BaseUrl" placeholder="https://spoolmanager.example.com" />
+                        <div class="form-text">@L["admin.settings.smtp.base.url.hint"]</div>
+                    </div>
+                    <div class="col-auto">
+                        <div class="form-check form-switch mt-1">
+                            <input class="form-check-input" type="checkbox" id="useSsl" @bind="_smtp.UseSsl" />
+                            <label class="form-check-label" for="useSsl">SSL</label>
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <div class="form-check form-switch mt-1">
+                            <input class="form-check-input" type="checkbox" id="useStartTls" @bind="_smtp.UseStartTls" />
+                            <label class="form-check-label" for="useStartTls">STARTTLS</label>
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <div class="form-check form-switch mt-1">
+                            <input class="form-check-input" type="checkbox" id="smtpEnabled" @bind="_smtp.IsEnabled" />
+                            <label class="form-check-label" for="smtpEnabled">@L["admin.settings.smtp.enabled"]</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2 mt-3 flex-wrap">
+                    <button class="btn btn-primary" @onclick="SaveSmtpAsync" disabled="@_smtpSaving">
+                        @if (_smtpSaving) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                        <i class="bi bi-floppy me-1"></i>@L["common.save"]
+                    </button>
+
+                    <div class="input-group" style="width:auto">
+                        <input class="form-control form-control-sm" @bind="_testEmail" placeholder="@L["admin.settings.smtp.test.email"]" style="width:220px" />
+                        <button class="btn btn-outline-secondary btn-sm" @onclick="TestSmtpAsync" disabled="@_smtpTesting">
+                            @if (_smtpTesting) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                            <i class="bi bi-send me-1"></i>@L["admin.settings.smtp.test"]
+                        </button>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+    <div class="card mb-4">
+        <div class="card-header fw-semibold">
+            <i class="bi bi-file-text me-2"></i>@L["admin.settings.legal.title"]
+        </div>
+        <div class="card-body">
+            <p class="text-muted small">@L["admin.settings.legal.hint"]</p>
+
+            @if (_legalLoading)
+            {
+                <div class="text-center py-3"><div class="spinner-border spinner-border-sm"></div></div>
+            }
+            else if (_legal != null)
+            {
+                @if (_legalSuccess != null)
+                {
+                    <div class="alert @(_legalSuccess == true ? "alert-success" : "alert-danger") py-2">
+                        @_legalMessage
+                    </div>
+                }
+
+                <ul class="nav nav-tabs mb-3" id="legalTabs">
+                    <li class="nav-item">
+                        <button class="nav-link @(_legalTab == "privacy_de" ? "active" : "")" @onclick='() => _legalTab = "privacy_de"'>Datenschutz (DE)</button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link @(_legalTab == "privacy_en" ? "active" : "")" @onclick='() => _legalTab = "privacy_en"'>Privacy (EN)</button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link @(_legalTab == "imprint_de" ? "active" : "")" @onclick='() => _legalTab = "imprint_de"'>Impressum (DE)</button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link @(_legalTab == "imprint_en" ? "active" : "")" @onclick='() => _legalTab = "imprint_en"'>Imprint (EN)</button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link @(_legalTab == "terms_de" ? "active" : "")" @onclick='() => _legalTab = "terms_de"'>Nutzungsbedingungen (DE)</button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link @(_legalTab == "terms_en" ? "active" : "")" @onclick='() => _legalTab = "terms_en"'>Terms (EN)</button>
+                    </li>
+                </ul>
+
+                @if (_legalTab == "privacy_de")
+                {
+                    <textarea class="form-control font-monospace" rows="18" @bind="_legal.PrivacyDe" placeholder="@L["admin.settings.legal.empty.hint"]"></textarea>
+                }
+                else if (_legalTab == "privacy_en")
+                {
+                    <textarea class="form-control font-monospace" rows="18" @bind="_legal.PrivacyEn" placeholder="@L["admin.settings.legal.empty.hint"]"></textarea>
+                }
+                else if (_legalTab == "imprint_de")
+                {
+                    <textarea class="form-control font-monospace" rows="18" @bind="_legal.ImprintDe" placeholder="@L["admin.settings.legal.empty.hint"]"></textarea>
+                }
+                else if (_legalTab == "imprint_en")
+                {
+                    <textarea class="form-control font-monospace" rows="18" @bind="_legal.ImprintEn" placeholder="@L["admin.settings.legal.empty.hint"]"></textarea>
+                }
+                else if (_legalTab == "terms_de")
+                {
+                    <textarea class="form-control font-monospace" rows="18" @bind="_legal.TermsDe" placeholder="@L["admin.settings.legal.empty.hint"]"></textarea>
+                }
+                else
+                {
+                    <textarea class="form-control font-monospace" rows="18" @bind="_legal.TermsEn" placeholder="@L["admin.settings.legal.empty.hint"]"></textarea>
+                }
+
+                <button class="btn btn-primary mt-3" @onclick="SaveLegalAsync" disabled="@_legalSaving">
+                    @if (_legalSaving) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                    <i class="bi bi-floppy me-1"></i>@L["common.save"]
+                </button>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    private bool _landingEnabled = true;
+
+    private async Task SaveLandingPageAsync()
+    {
+        await Admin.SetLandingPageEnabledAsync(_landingEnabled);
+        await Branding.RefreshAsync();
+    }
+
+    private bool _brandingSaving;
+    private bool? _brandingSuccess;
+    private string? _brandingMessage;
+
+    private async Task OnLogoSelected(InputFileChangeEventArgs e)
+    {
+        _brandingSuccess = null;
+        _brandingSaving = true;
+        try
+        {
+            var file = e.File;
+            using var ms = new MemoryStream();
+            await file.OpenReadStream(4_194_304).CopyToAsync(ms);
+            var content = new MultipartFormDataContent();
+            content.Add(new ByteArrayContent(ms.ToArray()), "file", file.Name);
+            content.Headers.ContentType = null;
+            var fileContent = new ByteArrayContent(ms.ToArray());
+            fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(file.ContentType);
+            content = new MultipartFormDataContent();
+            content.Add(fileContent, "file", file.Name);
+            var resp = await Admin.UploadLogoAsync(content);
+            _brandingSuccess = resp.IsSuccessStatusCode;
+            _brandingMessage = resp.IsSuccessStatusCode ? L["common.success"] : L["common.error"];
+            if (resp.IsSuccessStatusCode) await Branding.RefreshAsync();
+        }
+        catch { _brandingSuccess = false; _brandingMessage = L["common.error"]; }
+        _brandingSaving = false;
+    }
+
+    private async Task DeleteLogoAsync()
+    {
+        _brandingSuccess = null;
+        _brandingSaving = true;
+        var resp = await Admin.DeleteLogoAsync();
+        _brandingSuccess = resp.IsSuccessStatusCode;
+        _brandingMessage = resp.IsSuccessStatusCode ? L["common.success"] : L["common.error"];
+        if (resp.IsSuccessStatusCode) await Branding.RefreshAsync();
+        _brandingSaving = false;
+    }
+
+    private async Task OnFaviconSelected(InputFileChangeEventArgs e)
+    {
+        _brandingSuccess = null;
+        _brandingSaving = true;
+        try
+        {
+            var file = e.File;
+            using var ms = new MemoryStream();
+            await file.OpenReadStream(524_288).CopyToAsync(ms);
+            var fileContent = new ByteArrayContent(ms.ToArray());
+            fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(file.ContentType);
+            var content = new MultipartFormDataContent();
+            content.Add(fileContent, "file", file.Name);
+            var resp = await Admin.UploadFaviconAsync(content);
+            _brandingSuccess = resp.IsSuccessStatusCode;
+            _brandingMessage = resp.IsSuccessStatusCode ? L["common.success"] : L["common.error"];
+            if (resp.IsSuccessStatusCode) await Branding.RefreshAsync();
+        }
+        catch { _brandingSuccess = false; _brandingMessage = L["common.error"]; }
+        _brandingSaving = false;
+    }
+
+    private async Task DeleteFaviconAsync()
+    {
+        _brandingSuccess = null;
+        _brandingSaving = true;
+        var resp = await Admin.DeleteFaviconAsync();
+        _brandingSuccess = resp.IsSuccessStatusCode;
+        _brandingMessage = resp.IsSuccessStatusCode ? L["common.success"] : L["common.error"];
+        if (resp.IsSuccessStatusCode) await Branding.RefreshAsync();
+        _brandingSaving = false;
+    }
+
+    private async Task OnLogoDarkSelected(InputFileChangeEventArgs e)
+    {
+        _brandingSuccess = null;
+        _brandingSaving = true;
+        try
+        {
+            var file = e.File;
+            using var ms = new MemoryStream();
+            await file.OpenReadStream(4_194_304).CopyToAsync(ms);
+            var fileContent = new ByteArrayContent(ms.ToArray());
+            fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(file.ContentType);
+            var content = new MultipartFormDataContent();
+            content.Add(fileContent, "file", file.Name);
+            var resp = await Admin.UploadLogoDarkAsync(content);
+            _brandingSuccess = resp.IsSuccessStatusCode;
+            _brandingMessage = resp.IsSuccessStatusCode ? L["common.success"] : L["common.error"];
+            if (resp.IsSuccessStatusCode) await Branding.RefreshAsync();
+        }
+        catch { _brandingSuccess = false; _brandingMessage = L["common.error"]; }
+        _brandingSaving = false;
+    }
+
+    private async Task DeleteLogoDarkAsync()
+    {
+        _brandingSuccess = null;
+        _brandingSaving = true;
+        var resp = await Admin.DeleteLogoDarkAsync();
+        _brandingSuccess = resp.IsSuccessStatusCode;
+        _brandingMessage = resp.IsSuccessStatusCode ? L["common.success"] : L["common.error"];
+        if (resp.IsSuccessStatusCode) await Branding.RefreshAsync();
+        _brandingSaving = false;
+    }
+
+    private bool _smtpLoading = true;
+    private SmtpSettingsDto? _smtp;
+    private bool _smtpSaving;
+    private bool _smtpTesting;
+    private bool? _smtpSuccess;
+    private string? _smtpMessage;
+    private string _testEmail = string.Empty;
+
+    private bool _legalLoading = true;
+    private LegalSettingsDto? _legal;
+    private bool _legalSaving;
+    private bool? _legalSuccess;
+    private string? _legalMessage;
+    private string _legalTab = "privacy_de";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Auth.CurrentUser?.IsPlatformAdmin != true) return;
+        _landingEnabled = Branding.LandingPageEnabled;
+        _smtp = await Admin.GetSmtpSettingsAsync() ?? new SmtpSettingsDto();
+        _smtpLoading = false;
+        _legal = await Admin.GetLegalSettingsAsync() ?? new LegalSettingsDto();
+        _legalLoading = false;
+    }
+
+    private async Task SaveSmtpAsync()
+    {
+        if (_smtp == null) return;
+        _smtpSaving = true;
+        _smtpSuccess = null;
+        var resp = await Admin.SaveSmtpSettingsAsync(_smtp);
+        _smtpSaving = false;
+        _smtpSuccess = resp.IsSuccessStatusCode;
+        _smtpMessage = resp.IsSuccessStatusCode ? L["common.success"] : L["common.error"];
+        _smtp = await Admin.GetSmtpSettingsAsync() ?? _smtp;
+    }
+
+    private async Task SaveLegalAsync()
+    {
+        if (_legal == null) return;
+        _legalSaving = true;
+        _legalSuccess = null;
+        var resp = await Admin.SaveLegalSettingsAsync(_legal);
+        _legalSaving = false;
+        _legalSuccess = resp.IsSuccessStatusCode;
+        _legalMessage = resp.IsSuccessStatusCode ? L["common.success"] : L["common.error"];
+    }
+
+    private async Task TestSmtpAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_testEmail)) return;
+        _smtpTesting = true;
+        _smtpSuccess = null;
+        var resp = await Admin.TestSmtpAsync(_testEmail);
+        _smtpTesting = false;
+        _smtpSuccess = resp.IsSuccessStatusCode;
+        _smtpMessage = resp.IsSuccessStatusCode ? L["admin.settings.smtp.test.ok"] : L["admin.settings.smtp.test.fail"];
+    }
+}

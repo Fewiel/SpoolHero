@@ -1,0 +1,148 @@
+@page "/admin"
+@inject AdminService Admin
+@inject AuthService Auth
+@inject LocalizationService L
+
+<PageTitle>@L["admin.dashboard.title"] – @L["app.name"]</PageTitle>
+
+@if (Auth.CurrentUser?.IsPlatformAdmin != true)
+{
+    <div class="alert alert-danger mt-3">@L["common.access.denied"]</div>
+}
+else
+{
+    <div class="page-header">
+        <h1><i class="bi bi-speedometer2 me-2"></i>@L["admin.dashboard.title"]</h1>
+    </div>
+
+    @if (_loading)
+    {
+        <div class="text-center py-5"><div class="spinner-border"></div></div>
+    }
+    else if (_stats != null)
+    {
+        <div class="row row-cols-2 row-cols-md-3 g-3 mb-4">
+            <div class="col">
+                <div class="card text-center h-100">
+                    <div class="card-body">
+                        <div class="fs-1 fw-bold text-primary">@_stats.TotalUsers</div>
+                        <div class="text-muted small">@L["admin.stats.users.total"]</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col">
+                <div class="card text-center h-100">
+                    <div class="card-body">
+                        <div class="fs-1 fw-bold text-success">@_stats.ActiveUsersLast15Min</div>
+                        <div class="text-muted small">@L["admin.stats.users.active"]</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col">
+                <div class="card text-center h-100">
+                    <div class="card-body">
+                        <div class="fs-1 fw-bold text-info">@_stats.NewUsersThisMonth</div>
+                        <div class="text-muted small">@L["admin.stats.users.new"]</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col">
+                <div class="card text-center h-100">
+                    <div class="card-body">
+                        <div class="fs-1 fw-bold text-secondary">@_stats.TotalProjects</div>
+                        <div class="text-muted small">@L["admin.stats.projects"]</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col">
+                <div class="card text-center h-100">
+                    <div class="card-body">
+                        <div class="fs-1 fw-bold text-secondary">@_stats.ProjectsWithSpools</div>
+                        <div class="text-muted small">@L["admin.stats.projects.active"]</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col">
+                <div class="card text-center h-100">
+                    <div class="card-body">
+                        <div class="fs-1 fw-bold text-secondary">@_stats.TotalSpools</div>
+                        <div class="text-muted small">@L["admin.stats.spools"]</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col">
+                <div class="card text-center h-100">
+                    <div class="card-body">
+                        <div class="fs-1 fw-bold text-warning">@_stats.OpenTickets</div>
+                        <div class="text-muted small">@L["admin.stats.open.tickets"]</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col">
+                <div class="card text-center h-100">
+                    <div class="card-body">
+                        <div class="fs-1 fw-bold text-primary">@_stats.InProgressTickets</div>
+                        <div class="text-muted small">@L["admin.stats.inprogress.tickets"]</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col">
+                <div class="card text-center h-100">
+                    <div class="card-body">
+                        <div class="fs-1 fw-bold text-success">@_stats.TotalReorderClicks</div>
+                        <div class="text-muted small">@L["admin.stats.link.clicks"]</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if (_stats.TopClickedMaterials.Count > 0)
+        {
+            <div class="card">
+                <div class="card-header fw-semibold">
+                    <i class="bi bi-bar-chart me-2"></i>@L["admin.stats.top.clicked"]
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>@L["material.brand"]</th>
+                                <th>@L["material.type"]</th>
+                                <th>@L["material.color.hex"]</th>
+                                <th>@L["material.reorder.clicks"]</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var m in _stats.TopClickedMaterials)
+                            {
+                                <tr>
+                                    <td>@m.Brand</td>
+                                    <td>@m.Type</td>
+                                    <td>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <div style="width:1.2em;height:1.2em;background:#@m.ColorHex;border-radius:50%;border:1px solid var(--bs-border-color);flex-shrink:0"></div>
+                                            <small class="font-monospace">#@m.ColorHex</small>
+                                        </div>
+                                    </td>
+                                    <td><strong>@m.ClickCount</strong></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+    }
+}
+
+@code {
+    private bool _loading = true;
+    private AdminStatsDto? _stats;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Auth.CurrentUser?.IsPlatformAdmin != true) return;
+        _stats = await Admin.GetStatsAsync();
+        _loading = false;
+    }
+}

@@ -1,0 +1,291 @@
+@page "/spools"
+@implements IDisposable
+@inject SpoolService Spools
+@inject TagService Tags
+@inject NfcService Nfc
+@inject LocalizationService L
+@inject NavigationManager Nav
+@inject ProjectService Project
+@using System.Timers
+@using SpoolManager.Shared.DTOs.Tags
+
+<PageTitle>@L["spool.title"] – @L["app.name"]</PageTitle>
+
+<div class="page-header">
+    <h1><i class="bi bi-archive me-2"></i>@L["spool.title"]</h1>
+    <button class="btn btn-primary" @onclick='() => Nav.NavigateTo("/spools/new")'>
+        <i class="bi bi-plus-lg me-1"></i>@L["spool.add"]
+    </button>
+</div>
+
+<div class="row g-2 mb-3">
+    <div class="col-12 col-md-6">
+        <input class="form-control" placeholder="@L["spool.search"]" value="@_search" @oninput="OnSearch" />
+    </div>
+    <div class="col-auto">
+        <select class="form-select" @bind="_filter" @bind:after="LoadAsync">
+            <option value="">@L["spool.filter.all"]</option>
+            <option value="active">@L["spool.filter.active"]</option>
+            <option value="consumed">@L["spool.filter.consumed"]</option>
+        </select>
+    </div>
+</div>
+
+@if (_loading)
+{
+    <div class="text-center py-5"><div class="spinner-border"></div></div>
+}
+else if (_spools.Count == 0)
+{
+    <div class="text-center py-5 text-muted">
+        <i class="bi bi-archive fs-1"></i>
+        <p class="mt-2">@L["common.none"]</p>
+    </div>
+}
+else
+{
+    <div class="row g-3">
+        @foreach (var spool in _spools)
+        {
+            <div class="col-12 col-md-6 col-xl-4">
+                <div class="spool-card">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="color-dot" style="background-color: #@spool.MaterialColorHex"></div>
+                            <div>
+                                <div class="fw-semibold">@spool.MaterialBrand @spool.MaterialType</div>
+                                <small class="text-muted">@(spool.MaterialColorName ?? "#" + spool.MaterialColorHex)</small>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="font-monospace text-muted" style="font-size:.7rem">#@spool.Id.ToString("N")[..5].ToUpper()</span>
+                            <span class="badge @(spool.ConsumedAt != null ? "bg-secondary" : "bg-success") lifecycle-badge">
+                                @(spool.ConsumedAt != null ? L["spool.status.consumed"] : L["spool.status.active"])
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="remaining-bar mb-1">
+                        <div class="remaining-bar-fill @GetBarClass(spool.RemainingPercent)"
+                             style="width: @((int)Math.Min(spool.RemainingPercent, 100))%"></div>
+                    </div>
+                    <small class="text-muted d-block mb-2">@spool.RemainingWeightGrams g – @spool.RemainingPercent%</small>
+
+                    @if (spool.DryerId != null && spool.DriedAt != null)
+                    {
+                        var (elapsed, total, done) = GetDryingState(spool);
+                        var pct = total > 0 ? Math.Min(elapsed / total * 100, 100) : 100;
+                        <div class="@(done ? "drying-done" : "")">
+                            <small class="text-muted">
+                                <i class="bi bi-thermometer-half me-1"></i>
+                                @spool.DryerName –
+                                @if (done)
+                                {
+                                    <span class="text-success fw-semibold">@L["spool.drying.done"]</span>
+                                }
+                                else
+                                {
+                                    <span>@elapsed.ToString("F1")h / @total h</span>
+                                }
+                            </small>
+                            <div class="drying-bar">
+                                <div class="drying-bar-fill @(done ? "done" : "")" style="width:@((int)pct)%"></div>
+                            </div>
+                        </div>
+                    }
+                    @if (spool.PrinterName != null)
+                    {
+                        <small class="text-muted"><i class="bi bi-printer me-1"></i>@spool.PrinterName</small>
+                    }
+                    @if (spool.StorageLocationName != null)
+                    {
+                        <small class="text-muted ms-2"><i class="bi bi-box me-1"></i>@spool.StorageLocationName</small>
+                    }
+
+                    @if (_nfcTarget?.Id == spool.Id)
+                    {
+                        <div class="mt-2">
+                            @if (_nfcWriting)
+                            {
+                                <div class="d-flex align-items-center gap-2 text-muted small">
+                                    <span class="spinner-border spinner-border-sm"></span>
+                                    <span>@L["tag.nfc.scanning"]</span>
+                                </div>
+                            }
+                            else if (_nfcMessage != null)
+                            {
+                                <div class="alert @(_nfcSuccess ? "alert-success" : "alert-danger") py-1 mb-0 small">
+                                    @_nfcMessage
+                                </div>
+                            }
+                        </div>
+                    }
+
+                    <div class="mt-2 d-flex gap-1">
+                        <a href="/spools/@spool.Id" class="btn btn-sm btn-outline-primary flex-fill">
+                            <i class="bi bi-eye"></i>
+                        </a>
+                        <a href="/spools/@spool.Id/edit" class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-pencil"></i>
+                        </a>
+                        @if (_nfcAvailable && spool.ConsumedAt == null)
+                        {
+                            <button class="btn btn-sm btn-outline-info" title="@L["spool.nfc.write.quick"]"
+                                    @onclick="() => WriteNfcAsync(spool)"
+                                    disabled="@(_nfcWriting && _nfcTarget?.Id == spool.Id)">
+                                <i class="bi bi-broadcast"></i>
+                            </button>
+                        }
+                        <button class="btn btn-sm btn-outline-secondary" title="@L["common.copy"]" @onclick="() => CopyAsync(spool)">
+                            <i class="bi bi-copy"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" @onclick="() => ConfirmDelete(spool)">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@if (_deleteTarget != null)
+{
+    <div class="modal-backdrop-custom" @onclick="() => _deleteTarget = null">
+        <div class="modal-box" @onclick:stopPropagation>
+            <h5>@L["spool.delete"]</h5>
+            <p>@L["spool.delete.confirm"]</p>
+            <p><strong>@_deleteTarget.MaterialBrand @_deleteTarget.MaterialType</strong></p>
+            <div class="d-flex gap-2 justify-content-end">
+                <button class="btn btn-secondary" @onclick="() => _deleteTarget = null">@L["common.cancel"]</button>
+                <button class="btn btn-danger" @onclick="DeleteAsync">@L["common.delete"]</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private bool _loading = true;
+    private List<SpoolDto> _spools = [];
+    private string _search = string.Empty;
+    private string _filter = "active";
+    private SpoolDto? _deleteTarget;
+    private Timer? _searchTimer;
+    private Timer? _clockTimer;
+
+    private bool _nfcAvailable;
+    private SpoolDto? _nfcTarget;
+    private bool _nfcWriting;
+    private bool _nfcSuccess;
+    private string? _nfcMessage;
+
+    [JSInvokable]
+    public void OnWriteSuccess()
+    {
+        _nfcMessage = L["tag.write.success"];
+        _nfcSuccess = true;
+        _nfcWriting = false;
+        StateHasChanged();
+    }
+
+    [JSInvokable]
+    public void OnWriteError(string message)
+    {
+        _nfcMessage = message;
+        _nfcSuccess = false;
+        _nfcWriting = false;
+        StateHasChanged();
+    }
+
+    [JSInvokable] public void OnScanStarted() { }
+    [JSInvokable] public void OnTagRead(string json, string serialNumber) { }
+    [JSInvokable] public void OnReadError(string message) { }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Project.CurrentProject == null) return;
+        await LoadAsync();
+        _nfcAvailable = await Nfc.CheckSupportAsync();
+        _clockTimer = new Timer(60_000);
+        _clockTimer.Elapsed += (_, _) => InvokeAsync(StateHasChanged);
+        _clockTimer.Start();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        bool? consumed = _filter == "active" ? false : _filter == "consumed" ? true : null;
+        _spools = await Spools.GetAllAsync(consumed: consumed, search: string.IsNullOrWhiteSpace(_search) ? null : _search) ?? [];
+        _loading = false;
+    }
+
+    private void OnSearch(ChangeEventArgs e)
+    {
+        _search = e.Value?.ToString() ?? string.Empty;
+        _searchTimer?.Stop();
+        _searchTimer = new System.Timers.Timer(300);
+        _searchTimer.Elapsed += async (_, _) => { _searchTimer?.Stop(); await InvokeAsync(LoadAsync); };
+        _searchTimer.Start();
+    }
+
+    private void ConfirmDelete(SpoolDto spool) => _deleteTarget = spool;
+
+    private async Task DeleteAsync()
+    {
+        if (_deleteTarget == null) return;
+        await Spools.DeleteAsync(_deleteTarget.Id);
+        _deleteTarget = null;
+        await LoadAsync();
+    }
+
+    private async Task CopyAsync(SpoolDto spool)
+    {
+        var resp = await Spools.CreateAsync(new CreateSpoolRequest
+        {
+            FilamentMaterialId = spool.FilamentMaterialId,
+            RemainingWeightGrams = spool.RemainingWeightGrams,
+            RemainingPercent = spool.RemainingPercent,
+            PrinterId = spool.PrinterId,
+            StorageLocationId = spool.StorageLocationId,
+            PurchasedAt = spool.PurchasedAt,
+            PurchasePrice = spool.PurchasePrice,
+            ReorderUrl = spool.ReorderUrl,
+            Notes = spool.Notes
+        });
+        if (resp.IsSuccessStatusCode) await LoadAsync();
+    }
+
+    private async Task WriteNfcAsync(SpoolDto spool)
+    {
+        _nfcTarget = spool;
+        _nfcWriting = true;
+        _nfcMessage = null;
+        _nfcSuccess = false;
+        StateHasChanged();
+
+        var encoded = await Tags.EncodeAsync(new TagEncodeRequest { SpoolId = spool.Id });
+        if (encoded?.JsonPayload == null)
+        {
+            _nfcMessage = L["common.error"];
+            _nfcSuccess = false;
+            _nfcWriting = false;
+            StateHasChanged();
+            return;
+        }
+
+        await Nfc.WriteAsync(encoded.JsonPayload, DotNetObjectReference.Create(this));
+    }
+
+    private static string GetBarClass(decimal p) => p >= 50 ? "high" : p >= 20 ? "medium" : "low";
+
+    private static (double elapsed, double total, bool done) GetDryingState(SpoolDto s)
+    {
+        if (s.DriedAt == null || !s.MaterialDryTimeHours.HasValue || s.MaterialDryTimeHours <= 0)
+            return (0, 0, false);
+        var elapsed = (DateTime.UtcNow - s.DriedAt.Value.ToUniversalTime()).TotalHours;
+        var total = (double)s.MaterialDryTimeHours.Value;
+        return (Math.Round(elapsed, 1), total, elapsed >= total);
+    }
+
+    public void Dispose() { _searchTimer?.Dispose(); _clockTimer?.Dispose(); }
+}
