@@ -1,0 +1,243 @@
+@page "/materials/new"
+@page "/materials/{Id:guid}/edit"
+@inject MaterialService Materials
+@inject LocalizationService L
+@inject NavigationManager Nav
+@inject ProjectService Project
+
+<PageTitle>@(Id.HasValue ? L["material.edit"] : L["material.add"]) – @L["app.name"]</PageTitle>
+
+<div class="page-header">
+    <h1><i class="bi bi-database me-2"></i>@(Id.HasValue ? L["material.edit"] : L["material.add"])</h1>
+</div>
+
+@if (_loading) { <div class="text-center py-5"><div class="spinner-border"></div></div> }
+else
+{
+    <div class="row justify-content-center">
+        <div class="col-12 col-lg-8">
+            <div class="card">
+                <div class="card-body">
+                    @if (_error != null) { <div class="alert alert-danger">@_error</div> }
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label">@L["material.type"] *</label>
+                            <input class="form-control" list="type-list" @bind="_form.Type" required />
+                            <datalist id="type-list">
+                                <option value="PLA"/><option value="PETG"/><option value="ABS"/><option value="ASA"/>
+                                <option value="TPU"/><option value="Nylon"/><option value="PC"/><option value="HIPS"/>
+                                <option value="PVA"/><option value="Wood"/><option value="Metal"/>
+                            </datalist>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label">@L["material.brand"] *</label>
+                            <input class="form-control" @bind="_form.Brand" required />
+                        </div>
+                    </div>
+
+                    <div class="mb-2">
+                        <label class="form-label">@L["material.color.hex"] *</label>
+                        <div class="input-group">
+                            <input type="color" class="form-control form-control-color" value="@("#" + _form.ColorHex)" @oninput="OnColorPick" />
+                            <input class="form-control font-monospace text-uppercase" maxlength="6" @bind="_form.ColorHex" placeholder="FFFFFF" />
+                        </div>
+                    </div>
+                    <div class="d-flex flex-wrap gap-1 mb-3">
+                        @foreach (var (hex, name) in ColorPresets)
+                        {
+                            <button type="button" class="btn btn-sm p-0 border" style="width:1.8rem;height:1.8rem;background:#@hex;border-radius:4px"
+                                    title="@name" @onclick="() => _form.ColorHex = hex"></button>
+                        }
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label">@L["material.color.name"] @L["common.optional"]</label>
+                            <input class="form-control" @bind="_form.ColorName" />
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label">@L["material.diameter"]</label>
+                            <select class="form-select" @bind="_diameterStr">
+                                <option value="1.75">1.75 mm</option>
+                                <option value="2.85">2.85 mm</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-6 col-md-3">
+                            <label class="form-label">@L["material.min.temp"] *</label>
+                            <div class="input-group">
+                                <input class="form-control" type="number" @bind="_form.MinTempCelsius" />
+                                <span class="input-group-text">°C</span>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label">@L["material.max.temp"] *</label>
+                            <div class="input-group">
+                                <input class="form-control" type="number" @bind="_form.MaxTempCelsius" />
+                                <span class="input-group-text">°C</span>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label">@L["material.bed.temp"] @L["common.optional"]</label>
+                            <div class="input-group">
+                                <input class="form-control" type="number" @bind="_form.BedTempCelsius" />
+                                <span class="input-group-text">°C</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-6 col-md-3">
+                            <label class="form-label">@L["material.weight"] @L["common.optional"]</label>
+                            <div class="input-group">
+                                <input class="form-control" type="number" @bind="_form.WeightGrams" />
+                                <span class="input-group-text">g</span>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label">@L["material.density"] @L["common.optional"]</label>
+                            <input class="form-control" type="number" step="0.01" @bind="_form.DensityGCm3" />
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label">@L["material.dry.temp"] @L["common.optional"]</label>
+                            <div class="input-group">
+                                <input class="form-control" type="number" @bind="_form.DryTempCelsius" />
+                                <span class="input-group-text">°C</span>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label">@L["material.dry.time"] @L["common.optional"]</label>
+                            <div class="input-group">
+                                <input class="form-control" type="number" @bind="_form.DryTimeHours" />
+                                <span class="input-group-text">h</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label">@L["material.price"] @L["common.optional"]</label>
+                            <div class="input-group">
+                                <input class="form-control" type="number" step="0.01" min="0" @bind="_form.PricePerKg" />
+                                <span class="input-group-text">€/kg</span>
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label">@L["material.reorder"] @L["common.optional"]</label>
+                            <input class="form-control" type="url" @bind="_form.ReorderUrl" />
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">@L["material.notes"] @L["common.optional"]</label>
+                        <textarea class="form-control" rows="2" @bind="_form.Notes"></textarea>
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="isPublic" @bind="_form.IsPublic" />
+                        <label class="form-check-label" for="isPublic">@L["material.public"]</label>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-primary" @onclick="SaveAsync" disabled="@_saving">
+                            @if (_saving) { <span class="spinner-border spinner-border-sm me-2"></span> }
+                            @L["common.save"]
+                        </button>
+                        <a href="/materials" class="btn btn-secondary">@L["common.cancel"]</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public Guid? Id { get; set; }
+
+    private static readonly (string hex, string name)[] ColorPresets =
+    [
+        ("1A1A1A","Schwarz"),("F2F2F2","Weiß"),("808080","Grau"),("C0C0C0","Silber"),
+        ("FF0000","Rot"),("8B0000","Dunkelrot"),("FF6400","Orange"),("FFFF00","Gelb"),
+        ("00FF00","Grün"),("006400","Dunkelgrün"),("0000FF","Blau"),("ADD8E6","Hellblau"),
+        ("800080","Lila"),("FF69B4","Pink"),("8B4513","Braun"),("FFE4C4","Natur")
+    ];
+
+    private bool _loading = true;
+    private bool _saving;
+    private string? _error;
+    private CreateMaterialRequest _form = new();
+
+    private string _diameterStr
+    {
+        get => _form.DiameterMm.ToString("G", System.Globalization.CultureInfo.InvariantCulture);
+        set
+        {
+            if (decimal.TryParse(value, System.Globalization.NumberStyles.Any,
+                    System.Globalization.CultureInfo.InvariantCulture, out var d))
+                _form.DiameterMm = d;
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Project.CurrentProject == null) return;
+        if (Id.HasValue)
+        {
+            var m = await Materials.GetByIdAsync(Id.Value);
+            if (m != null)
+            {
+                _form = new CreateMaterialRequest
+                {
+                    Type = m.Type, ColorHex = m.ColorHex, Brand = m.Brand,
+                    MinTempCelsius = m.MinTempCelsius, MaxTempCelsius = m.MaxTempCelsius,
+                    ColorName = m.ColorName, DiameterMm = m.DiameterMm, WeightGrams = m.WeightGrams,
+                    BedTempCelsius = m.BedTempCelsius, DensityGCm3 = m.DensityGCm3,
+                    DryTempCelsius = m.DryTempCelsius, DryTimeHours = m.DryTimeHours,
+                    Notes = m.Notes, ReorderUrl = m.ReorderUrl, PricePerKg = m.PricePerKg,
+                    IsPublic = m.IsPublic
+                };
+            }
+        }
+        _loading = false;
+    }
+
+    private void OnColorPick(ChangeEventArgs e)
+    {
+        var hex = e.Value?.ToString()?.TrimStart('#').ToUpper() ?? "FFFFFF";
+        _form.ColorHex = hex;
+    }
+
+    private async Task SaveAsync()
+    {
+        _saving = true;
+        _error = null;
+
+        var resp = Id.HasValue
+            ? await Materials.UpdateAsync(Id.Value, new UpdateMaterialRequest
+            {
+                Type = _form.Type, ColorHex = _form.ColorHex.ToUpper(), Brand = _form.Brand,
+                MinTempCelsius = _form.MinTempCelsius, MaxTempCelsius = _form.MaxTempCelsius,
+                ColorName = _form.ColorName, DiameterMm = _form.DiameterMm, WeightGrams = _form.WeightGrams,
+                BedTempCelsius = _form.BedTempCelsius, DensityGCm3 = _form.DensityGCm3,
+                DryTempCelsius = _form.DryTempCelsius, DryTimeHours = _form.DryTimeHours,
+                Notes = _form.Notes, ReorderUrl = _form.ReorderUrl, PricePerKg = _form.PricePerKg,
+                IsPublic = _form.IsPublic
+            })
+            : await Materials.CreateAsync(new CreateMaterialRequest
+            {
+                Type = _form.Type, ColorHex = _form.ColorHex.ToUpper(), Brand = _form.Brand,
+                MinTempCelsius = _form.MinTempCelsius, MaxTempCelsius = _form.MaxTempCelsius,
+                ColorName = _form.ColorName, DiameterMm = _form.DiameterMm, WeightGrams = _form.WeightGrams,
+                BedTempCelsius = _form.BedTempCelsius, DensityGCm3 = _form.DensityGCm3,
+                DryTempCelsius = _form.DryTempCelsius, DryTimeHours = _form.DryTimeHours,
+                Notes = _form.Notes, ReorderUrl = _form.ReorderUrl, PricePerKg = _form.PricePerKg,
+                IsPublic = _form.IsPublic
+            });
+
+        _saving = false;
+        if (resp.IsSuccessStatusCode) Nav.NavigateTo("/materials");
+        else _error = await resp.Content.ReadAsStringAsync();
+    }
+}

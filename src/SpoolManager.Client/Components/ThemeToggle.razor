@@ -1,0 +1,26 @@
+@inject IJSRuntime JS
+@inject LocalizationService L
+
+<button class="btn btn-sm btn-outline-secondary" @onclick="ToggleAsync" title="@L["nav.theme." + (_isDark ? "light" : "dark")]">
+    <i class="bi @(_isDark ? "bi-sun" : "bi-moon")"></i>
+</button>
+
+@code {
+    private bool _isDark;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            var theme = await JS.InvokeAsync<string>("themeHelper.getTheme");
+            _isDark = theme == "dark";
+            StateHasChanged();
+        }
+    }
+
+    private async Task ToggleAsync()
+    {
+        _isDark = !_isDark;
+        await JS.InvokeVoidAsync("themeHelper.setTheme", _isDark ? "dark" : "light");
+    }
+}

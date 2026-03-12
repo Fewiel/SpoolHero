@@ -1,0 +1,154 @@
+@page "/materials/share"
+@using System.Net.Http.Json
+@inject MaterialService Materials
+@inject LocalizationService L
+@inject IJSRuntime JS
+@inject ProjectService Project
+
+<PageTitle>@L["material.share"] – @L["app.name"]</PageTitle>
+
+<div class="page-header">
+    <h1><i class="bi bi-share me-2"></i>@L["material.share"]</h1>
+    <a href="/materials" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i>@L["common.cancel"]
+    </a>
+</div>
+
+<div class="row g-4">
+    <div class="col-12 col-lg-6">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title"><i class="bi bi-box-arrow-up me-2"></i>@L["material.export"]</h5>
+
+                @if (_allMaterials.Count == 0 && !_loadingMaterials)
+                {
+                    <div class="text-muted">@L["common.none"]</div>
+                }
+                else
+                {
+                    <div class="mb-3">
+                        <div class="d-flex gap-2 mb-2">
+                            <button class="btn btn-sm btn-outline-secondary" @onclick="SelectAll">@L["common.confirm"]</button>
+                            <button class="btn btn-sm btn-outline-secondary" @onclick="() => _selected.Clear()">@L["common.cancel"]</button>
+                        </div>
+                        @foreach (var m in _allMaterials)
+                        {
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="m_@m.Id"
+                                       checked="@_selected.Contains(m.Id)"
+                                       @onchange="e => ToggleSelect(m.Id, (bool)(e.Value ?? false))" />
+                                <label class="form-check-label" for="m_@m.Id">
+                                    <span style="width:0.9em;height:0.9em;background:#@m.ColorHex;border-radius:50%;display:inline-block;vertical-align:middle;border:1px solid var(--bs-border-color);margin-right:4px"></span>
+                                    @m.Brand @m.Type @(m.ColorName != null ? $"– {m.ColorName}" : "")
+                                </label>
+                            </div>
+                        }
+                    </div>
+
+                    <button class="btn btn-primary" @onclick="ExportAsync" disabled="@(_selected.Count == 0 || _exporting)">
+                        @if (_exporting) { <span class="spinner-border spinner-border-sm me-2"></span> }
+                        <i class="bi bi-download me-1"></i>@L["material.export"] (@_selected.Count)
+                    </button>
+                }
+
+                @if (_exportBase64 != null)
+                {
+                    <div class="mt-3">
+                        <textarea class="form-control font-monospace" rows="5" readonly>@_exportBase64</textarea>
+                        <button class="btn btn-sm btn-outline-secondary mt-2" @onclick="CopyExportAsync">
+                            <i class="bi bi-clipboard me-1"></i>@(_copied ? L["material.export.copied"] : L["material.export.copy"])
+                        </button>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-6">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title"><i class="bi bi-box-arrow-in-down me-2"></i>@L["material.import"]</h5>
+
+                <div class="mb-3">
+                    <label class="form-label">@L["material.import.paste"]</label>
+                    <textarea class="form-control font-monospace" rows="5" @bind="_importBase64" placeholder="Base64..."></textarea>
+                </div>
+
+                @if (_importError != null)
+                {
+                    <div class="alert alert-danger py-2">@_importError</div>
+                }
+                @if (_importSuccess != null)
+                {
+                    <div class="alert alert-success py-2">@_importSuccess</div>
+                }
+
+                <button class="btn btn-primary" @onclick="DoImportAsync" disabled="@(string.IsNullOrWhiteSpace(_importBase64) || _importing)">
+                    @if (_importing) { <span class="spinner-border spinner-border-sm me-2"></span> }
+                    <i class="bi bi-box-arrow-in-down me-1"></i>@L["material.import.confirm"]
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private bool _loadingMaterials = true;
+    private bool _exporting;
+    private bool _importing;
+    private bool _copied;
+    private List<FilamentMaterialDto> _allMaterials = [];
+    private HashSet<Guid> _selected = [];
+    private string? _exportBase64;
+    private string _importBase64 = string.Empty;
+    private string? _importError;
+    private string? _importSuccess;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Project.CurrentProject == null) return;
+        _allMaterials = await Materials.GetAllAsync() ?? [];
+        _loadingMaterials = false;
+    }
+
+    private void SelectAll() => _selected = _allMaterials.Select(m => m.Id).ToHashSet();
+    private void ToggleSelect(Guid id, bool add) { if (add) _selected.Add(id); else _selected.Remove(id); }
+
+    private async Task ExportAsync()
+    {
+        _exporting = true;
+        _exportBase64 = await Materials.ExportAsync(_selected.ToList());
+        _exporting = false;
+    }
+
+    private async Task CopyExportAsync()
+    {
+        if (_exportBase64 == null) return;
+        _copied = await JS.InvokeAsync<bool>("clipboardHelper.copy", _exportBase64);
+        if (_copied) { await Task.Delay(2000); _copied = false; StateHasChanged(); }
+    }
+
+    private async Task DoImportAsync()
+    {
+        _importing = true;
+        _importError = null;
+        _importSuccess = null;
+
+        var resp = await Materials.ImportAsync(_importBase64);
+        _importing = false;
+
+        if (resp.IsSuccessStatusCode)
+        {
+            var result = await resp.Content.ReadFromJsonAsync<ImportResult>();
+            _importSuccess = L["material.import.success"].Replace("{0}", (result?.Imported ?? 0).ToString());
+            _importBase64 = string.Empty;
+            _allMaterials = await Materials.GetAllAsync() ?? [];
+        }
+        else
+        {
+            _importError = await resp.Content.ReadAsStringAsync();
+        }
+    }
+
+    private record ImportResult(int Imported);
+}

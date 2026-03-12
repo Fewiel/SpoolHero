@@ -1,0 +1,250 @@
+@page "/tickets/{Id:guid}"
+@page "/admin/tickets/{Id:guid}"
+@inject TicketService Tickets
+@inject AdminService Admin
+@inject AuthService Auth
+@inject LocalizationService L
+@inject NavigationManager Nav
+
+<PageTitle>@L["ticket.title"] – @L["app.name"]</PageTitle>
+
+@if (_loading)
+{
+    <div class="text-center py-5"><div class="spinner-border"></div></div>
+}
+else if (_ticket == null)
+{
+    <div class="alert alert-warning mt-3">@L["common.not.found"]</div>
+}
+else
+{
+<div class="row justify-content-center">
+<div class="col-12 col-lg-9 col-xl-8">
+
+    <div class="page-header">
+        <h1 class="fs-4"><i class="bi bi-ticket-perforated me-2"></i>@_ticket.Subject</h1>
+        <a href="@BackUrl" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left me-1"></i>@L["common.cancel"]
+        </a>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-body">
+            <div class="d-flex flex-wrap gap-3 align-items-center">
+                <span class="badge @StatusBadgeClass(_ticket.Status) fs-6">@StatusLabel(_ticket.Status)</span>
+                <span class="text-muted small"><i class="bi bi-person me-1"></i>@_ticket.Username</span>
+                <span class="text-muted small"><i class="bi bi-clock me-1"></i>@_ticket.CreatedAt.ToString("dd.MM.yyyy HH:mm")</span>
+                @if (_ticket.AssignedToUsername != null)
+                {
+                    <span class="text-muted small"><i class="bi bi-person-check me-1"></i>@L["ticket.assigned.to"]: @_ticket.AssignedToUsername</span>
+                }
+            </div>
+            <hr />
+            <p class="mb-0" style="white-space:pre-wrap">@_ticket.Description</p>
+        </div>
+    </div>
+
+    @if (IsAdmin)
+    {
+        <div class="card mb-3 border-primary">
+            <div class="card-header bg-primary text-white fw-semibold small">
+                <i class="bi bi-shield-check me-2"></i>Admin
+            </div>
+            <div class="card-body py-2">
+                <div class="d-flex flex-wrap gap-2 align-items-center">
+                    <select class="form-select form-select-sm" style="width:auto"
+                            value="@_ticket.Status" @onchange="SetStatusAsync">
+                        <option value="open">@L["ticket.status.open"]</option>
+                        <option value="in_progress">@L["ticket.status.in_progress"]</option>
+                        <option value="answered">@L["ticket.status.answered"]</option>
+                        <option value="closed">@L["ticket.status.closed"]</option>
+                    </select>
+                    @if (_ticket.AssignedToUserId == Auth.CurrentUser?.Id)
+                    {
+                        <button class="btn btn-sm btn-outline-secondary" @onclick="UnassignAsync">@L["admin.tickets.unassign"]</button>
+                    }
+                    else
+                    {
+                        <button class="btn btn-sm btn-outline-primary" @onclick="AssignMeAsync">@L["admin.tickets.assign.me"]</button>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+
+    <h6 class="mt-4 fw-semibold text-muted text-uppercase" style="font-size:.75rem">
+        <i class="bi bi-chat-dots me-1"></i>@L["ticket.replies"]
+        @if (_ticket.Comments.Count > 0)
+        {
+            <span class="badge bg-secondary ms-1">@_ticket.Comments.Count</span>
+        }
+    </h6>
+
+    @if (_ticket.Comments.Count > 0)
+    {
+        <div class="d-flex flex-column gap-2 mb-3">
+            @foreach (var c in _ticket.Comments)
+            {
+                <div class="card @(c.IsInternal ? "border-warning" : c.IsAdmin ? "border-primary" : "border-0 bg-body-tertiary")">
+                    <div class="card-body py-2 @(c.IsInternal ? "bg-warning bg-opacity-10" : "")">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="fw-semibold small">
+                                @c.Username
+                                @if (c.IsInternal)
+                                {
+                                    <span class="badge bg-warning text-dark ms-1">
+                                        <i class="bi bi-lock me-1"></i>@L["ticket.reply.internal"]
+                                    </span>
+                                }
+                                else if (c.IsAdmin)
+                                {
+                                    <span class="badge bg-primary ms-1">@L["ticket.admin.note"]</span>
+                                }
+                            </span>
+                            <span class="text-muted" style="font-size:.75rem">@c.CreatedAt.ToString("dd.MM.yyyy HH:mm")</span>
+                        </div>
+                        <p class="mb-0 small" style="white-space:pre-wrap">@c.Content</p>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <p class="text-muted small">@L["ticket.replies.none"]</p>
+    }
+
+    @if (_ticket.Status != "closed")
+    {
+        <div class="card mt-2">
+            <div class="card-body">
+                <textarea class="form-control mb-2" rows="3" @bind="_comment"
+                          placeholder="@L["ticket.reply.placeholder"]"></textarea>
+                @if (IsAdmin)
+                {
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" id="internalCheck" @bind="_isInternal" />
+                        <label class="form-check-label small" for="internalCheck">
+                            <i class="bi bi-lock me-1"></i>@L["ticket.reply.internal"]
+                            <span class="text-muted">– @L["ticket.reply.internal.hint"]</span>
+                        </label>
+                    </div>
+                }
+                <div class="d-flex gap-2 justify-content-between flex-wrap">
+                    @if (_ticket.UserId == Auth.CurrentUser?.Id)
+                    {
+                        <button class="btn btn-outline-secondary btn-sm" @onclick="() => _confirmClose = true">
+                            <i class="bi bi-x-circle me-1"></i>@L["ticket.close"]
+                        </button>
+                    }
+                    else
+                    {
+                        <span></span>
+                    }
+                    <button class="btn btn-primary" @onclick="SendReplyAsync"
+                            disabled="@(string.IsNullOrWhiteSpace(_comment) || _sending)">
+                        @if (_sending) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                        <i class="bi bi-send me-1"></i>@L["ticket.send"]
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (_confirmClose)
+    {
+        <div class="modal-backdrop-custom" @onclick="() => _confirmClose = false">
+            <div class="modal-box" @onclick:stopPropagation>
+                <h5>@L["ticket.close"]</h5>
+                <p>@L["ticket.close.confirm"]</p>
+                <div class="d-flex gap-2 justify-content-end">
+                    <button class="btn btn-secondary" @onclick="() => _confirmClose = false">@L["common.cancel"]</button>
+                    <button class="btn btn-danger" @onclick="ConfirmCloseAsync">@L["common.confirm"]</button>
+                </div>
+            </div>
+        </div>
+    }
+
+</div>
+</div>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private bool _loading = true;
+    private TicketDetailDto? _ticket;
+    private string _comment = string.Empty;
+    private bool _isInternal;
+    private bool _sending;
+    private bool _confirmClose;
+
+    private bool IsAdmin => Auth.CurrentUser?.IsPlatformAdmin == true;
+    private string BackUrl => IsAdmin ? "/admin/tickets" : "/tickets";
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _ticket = await Tickets.GetDetailAsync(Id);
+        _loading = false;
+    }
+
+    private async Task SetStatusAsync(ChangeEventArgs e)
+    {
+        if (_ticket == null) return;
+        await Admin.SetTicketStatusAsync(Id, e.Value?.ToString() ?? _ticket.Status);
+        await LoadAsync();
+    }
+
+    private async Task AssignMeAsync()
+    {
+        if (Auth.CurrentUser == null) return;
+        await Admin.AssignTicketAsync(Id, Auth.CurrentUser.Id);
+        await LoadAsync();
+    }
+
+    private async Task UnassignAsync()
+    {
+        await Admin.AssignTicketAsync(Id, null);
+        await LoadAsync();
+    }
+
+    private async Task SendReplyAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_comment)) return;
+        _sending = true;
+        if (IsAdmin)
+            await Admin.AddAdminCommentAsync(Id, _comment.Trim(), _isInternal);
+        else
+            await Tickets.AddCommentAsync(Id, _comment.Trim());
+        _comment = string.Empty;
+        _isInternal = false;
+        _sending = false;
+        await LoadAsync();
+    }
+
+    private async Task ConfirmCloseAsync()
+    {
+        _confirmClose = false;
+        await Tickets.CloseAsync(Id);
+        await LoadAsync();
+    }
+
+    private static string StatusBadgeClass(string status) => status switch
+    {
+        "in_progress" => "bg-primary",
+        "answered"    => "bg-success",
+        "closed"      => "bg-secondary",
+        _             => "bg-warning text-dark"
+    };
+
+    private string StatusLabel(string status) => status switch
+    {
+        "in_progress" => L["ticket.status.in_progress"],
+        "answered"    => L["ticket.status.answered"],
+        "closed"      => L["ticket.status.closed"],
+        _             => L["ticket.status.open"]
+    };
+}

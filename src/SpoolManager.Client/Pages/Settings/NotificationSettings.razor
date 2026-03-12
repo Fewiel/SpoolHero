@@ -1,0 +1,75 @@
+@page "/settings/notifications"
+@inject SettingsService Settings
+@inject AuthService Auth
+@inject LocalizationService L
+
+<PageTitle>@L["settings.notifications.title"] – @L["app.name"]</PageTitle>
+
+<div class="page-header">
+    <h1><i class="bi bi-bell me-2"></i>@L["settings.notifications.title"]</h1>
+</div>
+
+@if (_loading)
+{
+    <div class="text-center py-5"><div class="spinner-border"></div></div>
+}
+else if (_prefs != null)
+{
+    @if (_saved)
+    {
+        <div class="alert alert-success py-2">@L["common.success"]</div>
+    }
+
+    <div class="card" style="max-width:500px">
+        <div class="card-body">
+            <p class="text-muted small mb-3">@L["settings.notifications.hint"]</p>
+
+            <div class="form-check form-switch mb-3">
+                <input class="form-check-input" type="checkbox" id="notifySpoolLow" @bind="_prefs.NotifySpoolLow" />
+                <label class="form-check-label" for="notifySpoolLow">
+                    <i class="bi bi-exclamation-triangle me-1 text-warning"></i>@L["settings.notifications.spool.low"]
+                </label>
+            </div>
+            <div class="form-check form-switch mb-3">
+                <input class="form-check-input" type="checkbox" id="notifyDryerDone" @bind="_prefs.NotifyDryerDone" />
+                <label class="form-check-label" for="notifyDryerDone">
+                    <i class="bi bi-thermometer-half me-1 text-success"></i>@L["settings.notifications.dryer.done"]
+                </label>
+            </div>
+            <div class="form-check form-switch mb-4">
+                <input class="form-check-input" type="checkbox" id="notifyTicketReply" @bind="_prefs.NotifyTicketReply" />
+                <label class="form-check-label" for="notifyTicketReply">
+                    <i class="bi bi-ticket-perforated me-1 text-primary"></i>@L["settings.notifications.ticket.reply"]
+                </label>
+            </div>
+
+            <button class="btn btn-primary" @onclick="SaveAsync" disabled="@_saving">
+                @if (_saving) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                <i class="bi bi-floppy me-1"></i>@L["common.save"]
+            </button>
+        </div>
+    </div>
+}
+
+@code {
+    private bool _loading = true;
+    private NotificationPrefsDto? _prefs;
+    private bool _saving;
+    private bool _saved;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _prefs = await Settings.GetNotificationPrefsAsync();
+        _loading = false;
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_prefs == null) return;
+        _saving = true;
+        _saved = false;
+        await Settings.SaveNotificationPrefsAsync(_prefs);
+        _saving = false;
+        _saved = true;
+    }
+}

@@ -1,0 +1,147 @@
+@page "/materials"
+@implements IDisposable
+@inject MaterialService Materials
+@inject TicketService Tickets
+@inject LocalizationService L
+@inject NavigationManager Nav
+@inject ProjectService Project
+
+<PageTitle>@L["material.title"] – @L["app.name"]</PageTitle>
+
+<div class="page-header">
+    <h1><i class="bi bi-database me-2"></i>@L["material.title"]</h1>
+    <div class="d-flex gap-2">
+        <a href="/materials/share" class="btn btn-outline-secondary">
+            <i class="bi bi-share me-1"></i>@L["material.share"]
+        </a>
+        <button class="btn btn-primary" @onclick='() => Nav.NavigateTo("/materials/new")'>
+            <i class="bi bi-plus-lg me-1"></i>@L["material.add"]
+        </button>
+    </div>
+</div>
+
+<div class="mb-3">
+    <input class="form-control" placeholder="@L["material.search"]" value="@_search" @oninput="OnSearch" />
+</div>
+
+@if (_loading)
+{
+    <div class="text-center py-5"><div class="spinner-border"></div></div>
+}
+else if (_materials.Count == 0)
+{
+    <div class="text-center py-5 text-muted">
+        <i class="bi bi-database fs-1"></i>
+        <p class="mt-2">@L["common.none"]</p>
+    </div>
+}
+else
+{
+    <div class="table-responsive-card">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>@L["material.type"]</th>
+                    <th>@L["material.brand"]</th>
+                    <th>@L["material.color.hex"]</th>
+                    <th class="d-none d-md-table-cell">Temp</th>
+                    <th class="d-none d-md-table-cell">Ø</th>
+                    <th>@L["common.actions"]</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var m in _materials)
+                {
+                    <tr>
+                        <td><strong>@m.Type</strong></td>
+                        <td>@m.Brand</td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <div style="width:1.2em;height:1.2em;background:#@m.ColorHex;border-radius:50%;border:1px solid var(--bs-border-color);flex-shrink:0"></div>
+                                <small class="font-monospace">#@m.ColorHex</small>
+                                @if (m.ColorName != null) { <small class="text-muted">@m.ColorName</small> }
+                            </div>
+                        </td>
+                        <td class="d-none d-md-table-cell">@m.MinTempCelsius–@m.MaxTempCelsius °C</td>
+                        <td class="d-none d-md-table-cell">@m.DiameterMm mm</td>
+                        <td>
+                            <div class="d-flex gap-1">
+                                @if (m.ReorderUrl != null)
+                                {
+                                    <a href="@m.ReorderUrl" target="_blank" rel="noopener noreferrer"
+                                       class="btn btn-sm btn-outline-success" title="@L["material.reorder"]"
+                                       @onclick="() => _ = Tickets.TrackReorderClickAsync(m.Id)">
+                                        <i class="bi bi-cart"></i>
+                                    </a>
+                                }
+                                <a href="/materials/@m.Id/edit" class="btn btn-sm btn-outline-secondary">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <button class="btn btn-sm btn-outline-danger" @onclick="() => ConfirmDelete(m)">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@if (_deleteTarget != null)
+{
+    <div class="modal-backdrop-custom" @onclick="() => _deleteTarget = null">
+        <div class="modal-box" @onclick:stopPropagation>
+            <h5>@L["material.delete"]</h5>
+            <p>@L["material.delete.confirm"]</p>
+            <p><strong>@_deleteTarget.Brand @_deleteTarget.Type</strong></p>
+            <div class="d-flex gap-2 justify-content-end">
+                <button class="btn btn-secondary" @onclick="() => _deleteTarget = null">@L["common.cancel"]</button>
+                <button class="btn btn-danger" @onclick="DeleteAsync">@L["common.delete"]</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private bool _loading = true;
+    private List<FilamentMaterialDto> _materials = [];
+    private string _search = string.Empty;
+    private FilamentMaterialDto? _deleteTarget;
+    private System.Timers.Timer? _searchTimer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Project.CurrentProject == null) return;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _materials = await Materials.GetAllAsync(string.IsNullOrWhiteSpace(_search) ? null : _search) ?? [];
+        _loading = false;
+    }
+
+    private void OnSearch(ChangeEventArgs e)
+    {
+        _search = e.Value?.ToString() ?? string.Empty;
+        _searchTimer?.Stop();
+        _searchTimer = new System.Timers.Timer(300);
+        _searchTimer.Elapsed += async (_, _) => { _searchTimer?.Stop(); await InvokeAsync(LoadAsync); };
+        _searchTimer.Start();
+    }
+
+    private void ConfirmDelete(FilamentMaterialDto m) => _deleteTarget = m;
+
+    private async Task DeleteAsync()
+    {
+        if (_deleteTarget == null) return;
+        await Materials.DeleteAsync(_deleteTarget.Id);
+        _deleteTarget = null;
+        await LoadAsync();
+    }
+
+    public void Dispose() => _searchTimer?.Dispose();
+}
