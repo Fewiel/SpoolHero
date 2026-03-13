@@ -139,6 +139,7 @@ public static class SpoolManagerMappings
             .HasTableName("spools")
             .HasPrimaryKey(x => x.Id)
             .Property(x => x.Id).HasColumnName("id")
+            .Property(x => x.SpoolmanId).HasColumnName("spoolman_id")
             .Property(x => x.ProjectId).HasColumnName("project_id")
             .Property(x => x.FilamentMaterialId).HasColumnName("filament_material_id")
             .Property(x => x.RfidTagUid).HasColumnName("rfid_tag_uid")
@@ -227,6 +228,16 @@ public static class SpoolManagerMappings
             .Property(x => x.FromName).HasColumnName("from_name")
             .Property(x => x.IsEnabled).HasColumnName("is_enabled")
             .Property(x => x.BaseUrl).HasColumnName("base_url");
+
+        builder.Entity<SpoolmanApiKey>()
+            .HasTableName("spoolman_api_keys")
+            .HasPrimaryKey(x => x.Id)
+            .Property(x => x.Id).HasColumnName("id")
+            .Property(x => x.ProjectId).HasColumnName("project_id")
+            .Property(x => x.ApiKey).HasColumnName("api_key")
+            .Property(x => x.Name).HasColumnName("name")
+            .Property(x => x.CreatedAt).HasColumnName("created_at")
+            .Property(x => x.LastUsedAt).HasColumnName("last_used_at");
 
         builder.Build();
         return schema;

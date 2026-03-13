@@ -1,0 +1,100 @@
+name: Staging Deploy (Beta)
+
+on:
+  push:
+    branches: [beta]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: beta
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Publish
+        run: |
+          dotnet publish src/SpoolManager.Server/SpoolManager.Server.csproj \
+            -c Release \
+            -o ./publish \
+            --no-self-contained
+
+      - name: Create archive
+        run: cd publish && zip -r ../spoolhero-beta.zip .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: spoolhero-beta
+          path: spoolhero-beta.zip
+          retention-days: 3
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: spoolhero-beta
+
+      - name: Stop service
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: systemctl stop spoolhero-beta || true
+
+      - name: Upload archive
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "spoolhero-beta.zip"
+          target: "/tmp/"
+
+      - name: Deploy and start
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            rm -rf /opt/spoolhero-beta
+            mkdir -p /opt/spoolhero-beta
+            unzip /tmp/spoolhero-beta.zip -d /opt/spoolhero-beta
+            rm /tmp/spoolhero-beta.zip
+            cp /opt/appsettings-beta.json /opt/spoolhero-beta/appsettings.json
+            chown -R www-data:www-data /opt/spoolhero-beta
+
+            # Create systemd service if it doesn't exist yet
+            if [ ! -f /etc/systemd/system/spoolhero-beta.service ]; then
+              cat > /etc/systemd/system/spoolhero-beta.service << 'EOF'
+            [Unit]
+            Description=SpoolHero Beta Staging
+            After=network.target
+
+            [Service]
+            WorkingDirectory=/opt/spoolhero-beta
+            ExecStart=/usr/bin/dotnet /opt/spoolhero-beta/SpoolManager.Server.dll
+            Restart=always
+            RestartSec=5
+            User=www-data
+            Environment=ASPNETCORE_ENVIRONMENT=Staging
+            Environment=ASPNETCORE_URLS=http://localhost:5100
+
+            [Install]
+            WantedBy=multi-user.target
+            EOF
+              systemctl daemon-reload
+              systemctl enable spoolhero-beta
+            fi
+
+            systemctl start spoolhero-beta

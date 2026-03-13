@@ -3,6 +3,7 @@ namespace SpoolManager.Shared.DTOs.Spools;
 public class SpoolDto
 {
     public Guid Id { get; set; }
+    public int SpoolmanId { get; set; }
     public Guid ProjectId { get; set; }
     public Guid FilamentMaterialId { get; set; }
     public string MaterialType { get; set; } = string.Empty;
