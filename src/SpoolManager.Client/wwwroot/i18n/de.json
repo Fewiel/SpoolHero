@@ -459,7 +459,7 @@
   "spool.find.found": "Richtige Spule gefunden!",
   "spool.find.wrong": "Falsche Spule",
   "spool.find.retry": "Nächsten Tag versuchen...",
-  "spool.find.no.tag": "Diese Spule hat keinen NFC-Tag. Zuerst einen Tag schreiben."
+  "spool.find.no.tag": "Diese Spule hat keinen NFC-Tag. Zuerst einen Tag schreiben.",
 
   "spoolman.title": "Klipper / Spoolman Integration",
   "spoolman.hint": "SpoolHero stellt eine Spoolman-kompatible API bereit. Füge folgendes in deine moonraker.conf ein, um automatisches Filament-Tracking zu aktivieren:",

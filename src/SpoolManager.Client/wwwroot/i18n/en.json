@@ -460,7 +460,7 @@
   "spool.find.found": "Correct spool found!",
   "spool.find.wrong": "Wrong spool",
   "spool.find.retry": "Try again with another tag...",
-  "spool.find.no.tag": "This spool has no NFC tag assigned. Write a tag first."
+  "spool.find.no.tag": "This spool has no NFC tag assigned. Write a tag first.",
 
   "spoolman.title": "Klipper / Spoolman Integration",
   "spoolman.hint": "SpoolHero provides a Spoolman-compatible API. Add the following to your moonraker.conf to enable automatic filament tracking:",
