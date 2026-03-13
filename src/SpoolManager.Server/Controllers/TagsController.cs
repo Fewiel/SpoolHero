@@ -45,7 +45,7 @@ public class TagsController : ControllerBase
 
             var ndefBytes = _openSpool.Encode(spool.FilamentMaterial, spool.Id, spool.SpoolmanId);
             var json = _openSpool.ToJson(spool.FilamentMaterial, spool.Id);
-            return Ok(new TagEncodeResponse { Base64 = Convert.ToBase64String(ndefBytes), JsonPayload = json });
+            return Ok(new TagEncodeResponse { Base64 = Convert.ToBase64String(ndefBytes), JsonPayload = json, SpoolmanId = spool.SpoolmanId > 0 ? spool.SpoolmanId : null });
         }
         else if (request.MaterialId.HasValue)
         {

@@ -288,7 +288,7 @@ else
             return;
         }
 
-        await Nfc.WriteAsync(encoded.JsonPayload, DotNetObjectReference.Create(this));
+        await Nfc.WriteAsync(encoded.JsonPayload, DotNetObjectReference.Create(this), encoded.SpoolmanId);
     }
 
     private async Task FindSpoolAsync(SpoolDto spool)

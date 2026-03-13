@@ -9,16 +9,18 @@ window.nfcHelper = {
         if (_readAbort) { _readAbort.abort(); _readAbort = null; }
     },
 
-    write: async (jsonPayload, dotnetRef) => {
+    write: async (jsonPayload, dotnetRef, spoolmanId) => {
         try {
             const ndef = new NDEFReader();
-            await ndef.write({
-                records: [{
-                    recordType: "mime",
-                    mediaType: "application/json",
-                    data: new TextEncoder().encode(jsonPayload)
-                }]
-            });
+            const records = [{
+                recordType: "mime",
+                mediaType: "application/json",
+                data: new TextEncoder().encode(jsonPayload)
+            }];
+            if (spoolmanId != null) {
+                records.push({ recordType: "text", data: `SPOOL:${spoolmanId}` });
+            }
+            await ndef.write({ records });
             await dotnetRef.invokeMethodAsync('OnWriteSuccess');
         } catch (e) {
             await dotnetRef.invokeMethodAsync('OnWriteError', e.message);

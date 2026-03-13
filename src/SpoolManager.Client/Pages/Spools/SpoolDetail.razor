@@ -230,6 +230,10 @@ else
                     @if (_tagJson != null)
                     {
                         <pre class="small bg-light border rounded p-2 mt-2 mb-0" style="font-size:0.7rem;word-break:break-all;white-space:pre-wrap;">@_tagJson</pre>
+                        @if (_tagSpoolmanId.HasValue)
+                        {
+                            <div class="small text-muted mt-1"><i class="bi bi-tag me-1"></i>Record 2: <code>SPOOL:@_tagSpoolmanId</code> — nfc2klipper compatible</div>
+                        }
                     }
                     @if (!_nfcSupported)
                     {
@@ -260,6 +264,7 @@ else
     private string? _nfcMessage;
     private bool _nfcSuccess;
     private string? _tagJson;
+    private int? _tagSpoolmanId;
     private Timer? _clockTimer;
 
     [JSInvokable] public void OnWriteSuccess() { _nfcMessage = L["tag.write.success"]; _nfcSuccess = true; _writingNfc = false; StateHasChanged(); }
@@ -313,7 +318,8 @@ else
             return;
         }
         _tagJson = encoded.JsonPayload;
-        await Nfc.WriteAsync(encoded.JsonPayload, DotNetObjectReference.Create(this));
+        _tagSpoolmanId = encoded.SpoolmanId;
+        await Nfc.WriteAsync(encoded.JsonPayload, DotNetObjectReference.Create(this), encoded.SpoolmanId);
     }
 
     private static string GetBarClass(decimal p) => p >= 50 ? "high" : p >= 20 ? "medium" : "low";
