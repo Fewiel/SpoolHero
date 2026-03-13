@@ -452,5 +452,15 @@
 
   "auth.terms.accept": "Ich akzeptiere die",
   "auth.privacy.accept": "Ich habe die",
-  "auth.terms.required": "Bitte akzeptiere die Nutzungsbedingungen und die Datenschutzerklärung."
+  "auth.terms.required": "Bitte akzeptiere die Nutzungsbedingungen und die Datenschutzerklärung.",
+
+  "spoolman.title": "Klipper / Spoolman Integration",
+  "spoolman.hint": "SpoolHero stellt eine Spoolman-kompatible API bereit. Füge folgendes in deine moonraker.conf ein, um automatisches Filament-Tracking zu aktivieren:",
+  "spoolman.apikeys": "API-Schlüssel",
+  "spoolman.apikeys.create": "API-Schlüssel erstellen",
+  "spoolman.apikeys.name": "Name",
+  "spoolman.apikeys.lastused": "Zuletzt benutzt",
+  "spoolman.apikeys.empty": "Noch keine API-Schlüssel. Erstelle einen, um Moonraker zu verbinden.",
+  "spoolman.id": "Spoolman-ID",
+  "nav.settings.spoolman": "Klipper-Integration"
 }

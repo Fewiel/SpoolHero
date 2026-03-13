@@ -14,6 +14,9 @@ public interface ISpoolRepository
     Task DeleteAsync(Guid id);
     Task<int> GetTotalCountAsync();
     Task<List<Spool>> GetSpoolsNeedingLowNotificationAsync();
+    Task<Spool?> GetBySpoolmanIdAsync(int spoolmanId, Guid projectId);
+    Task<List<Spool>> GetAllByProjectAsync(Guid projectId);
+    Task UpdateRemainingWeightAtomicAsync(Guid spoolId, decimal subtractGrams, decimal totalWeightGrams);
 }
 
 public class SpoolRepository : ISpoolRepository
@@ -130,6 +133,37 @@ public class SpoolRepository : ISpoolRepository
 
     public async Task<int> GetTotalCountAsync() =>
         await _db.Spools.CountAsync();
+
+    public async Task<Spool?> GetBySpoolmanIdAsync(int spoolmanId, Guid projectId)
+    {
+        var spool = await _db.Spools.FirstOrDefaultAsync(s => s.SpoolmanId == spoolmanId && s.ProjectId == projectId);
+        return await LoadNavPropsAsync(spool);
+    }
+
+    public async Task<List<Spool>> GetAllByProjectAsync(Guid projectId)
+    {
+        var spools = await _db.Spools
+            .Where(s => s.ProjectId == projectId)
+            .OrderByDescending(s => s.CreatedAt)
+            .ToListAsync();
+
+        foreach (var spool in spools)
+            spool.FilamentMaterial = await _db.FilamentMaterials.FirstOrDefaultAsync(m => m.Id == spool.FilamentMaterialId);
+
+        return spools;
+    }
+
+    public async Task UpdateRemainingWeightAtomicAsync(Guid spoolId, decimal subtractGrams, decimal totalWeightGrams)
+    {
+        await _db.Spools
+            .Where(s => s.Id == spoolId)
+            .Set(s => s.RemainingWeightGrams, s => s.RemainingWeightGrams - subtractGrams < 0 ? 0 : s.RemainingWeightGrams - subtractGrams)
+            .Set(s => s.RemainingPercent, s => totalWeightGrams > 0
+                ? (s.RemainingWeightGrams - subtractGrams < 0 ? 0 : (s.RemainingWeightGrams - subtractGrams) / totalWeightGrams * 100)
+                : 0)
+            .Set(s => s.UpdatedAt, DateTime.UtcNow)
+            .UpdateAsync();
+    }
 
     public async Task<List<Spool>> GetSpoolsNeedingLowNotificationAsync()
     {
