@@ -146,8 +146,10 @@ app.MapGet("/favicon.ico", async (ISiteSettingsRepository settings, HttpContext 
 
 app.UseStaticFiles();
 
+app.UseWebSockets();
 app.UseAuthentication();
 app.UseMiddleware<UserActivityMiddleware>();
+app.UseMiddleware<SpoolmanWebSocketMiddleware>();
 app.UseAuthorization();
 
 app.MapControllers();
