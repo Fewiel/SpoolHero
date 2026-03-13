@@ -25,6 +25,38 @@ public class SpoolmanController : ControllerBase
     [HttpGet("info")]
     public IActionResult Info() => Ok(new SpoolmanInfoResponse());
 
+    [HttpGet("filament")]
+    [ServiceFilter(typeof(SpoolmanAuthFilter))]
+    public async Task<IActionResult> ListFilaments()
+    {
+        var spools = await _spools.GetAllByProjectAsync(ProjectId);
+        var filaments = spools
+            .Where(s => s.FilamentMaterial != null)
+            .GroupBy(s => s.SpoolmanId)
+            .Select(g => g.First())
+            .Select(s => MapToSpoolmanResponse(s).Filament)
+            .ToList();
+        return Ok(filaments);
+    }
+
+    [HttpGet("vendor")]
+    [ServiceFilter(typeof(SpoolmanAuthFilter))]
+    public async Task<IActionResult> ListVendors()
+    {
+        var spools = await _spools.GetAllByProjectAsync(ProjectId);
+        var vendors = spools
+            .Where(s => s.FilamentMaterial != null)
+            .Select(s => new SpoolmanVendorResponse
+            {
+                Id = (s.FilamentMaterial!.Brand ?? "Unknown").GetHashCode() & 0x7FFFFFFF,
+                Name = s.FilamentMaterial.Brand ?? "Unknown"
+            })
+            .GroupBy(v => v.Id)
+            .Select(g => g.First())
+            .ToList();
+        return Ok(vendors);
+    }
+
     [HttpGet("spool/{id:int}")]
     [ServiceFilter(typeof(SpoolmanAuthFilter))]
     public async Task<IActionResult> GetSpool(int id)

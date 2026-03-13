@@ -41,30 +41,22 @@ public partial class SpoolmanWebSocketMiddleware
     private static async Task KeepAliveAsync(WebSocket ws, CancellationToken ct)
     {
         var buffer = new byte[4096];
-        while (ws.State == WebSocketState.Open)
+        while (ws.State == WebSocketState.Open && !ct.IsCancellationRequested)
         {
-            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            timeoutCts.CancelAfter(TimeSpan.FromSeconds(30));
             try
             {
-                var result = await ws.ReceiveAsync(new ArraySegment<byte>(buffer), timeoutCts.Token);
+                var result = await ws.ReceiveAsync(new ArraySegment<byte>(buffer), ct);
                 if (result.MessageType == WebSocketMessageType.Close)
                 {
                     await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
-                    break;
+                    return;
                 }
             }
-            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
-            {
-                // Timeout — send an empty ping to keep the connection alive
-                try
-                {
-                    await ws.SendAsync(ArraySegment<byte>.Empty, WebSocketMessageType.Text, true, ct);
-                }
-                catch { break; }
-            }
-            catch { break; }
+            catch (OperationCanceledException) { return; }
+            catch { return; }
         }
+        if (ws.State == WebSocketState.Open)
+            await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
     }
 
     [GeneratedRegex(@"^/([^/]+)/api/v1/spool$", RegexOptions.IgnoreCase)]
