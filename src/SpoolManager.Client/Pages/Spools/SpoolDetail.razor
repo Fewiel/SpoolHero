@@ -148,6 +148,13 @@ else
                 <div class="card-body">
                     <h6 class="card-subtitle mb-3 text-muted">Details</h6>
                     <div class="row g-2">
+                        @if (_spool.SpoolmanId > 0)
+                        {
+                            <div class="col-6 col-md-3">
+                                <small class="text-muted d-block">@L["spoolman.id"]</small>
+                                <span class="badge bg-secondary">@_spool.SpoolmanId</span>
+                            </div>
+                        }
                         <div class="col-6 col-md-3">
                             <small class="text-muted d-block">@L["spool.printer"]</small>
                             @(_spool.PrinterName ?? "–")

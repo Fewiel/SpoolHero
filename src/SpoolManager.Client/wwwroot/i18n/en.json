@@ -454,10 +454,21 @@
   "auth.privacy.accept": "I have read and agree to the",
   "auth.terms.required": "Please accept the Terms of Use and Privacy Policy.",
 
+
   "spool.find.title": "Find Spool",
   "spool.find.scanning": "Hold your phone near the spool's NFC tag...",
   "spool.find.found": "Correct spool found!",
   "spool.find.wrong": "Wrong spool",
   "spool.find.retry": "Try again with another tag...",
   "spool.find.no.tag": "This spool has no NFC tag assigned. Write a tag first."
+
+  "spoolman.title": "Klipper / Spoolman Integration",
+  "spoolman.hint": "SpoolHero provides a Spoolman-compatible API. Add the following to your moonraker.conf to enable automatic filament tracking:",
+  "spoolman.apikeys": "API Keys",
+  "spoolman.apikeys.create": "Create API Key",
+  "spoolman.apikeys.name": "Name",
+  "spoolman.apikeys.lastused": "Last Used",
+  "spoolman.apikeys.empty": "No API keys yet. Create one to connect Moonraker.",
+  "spoolman.id": "Spoolman ID",
+  "nav.settings.spoolman": "Klipper Integration"
 }
