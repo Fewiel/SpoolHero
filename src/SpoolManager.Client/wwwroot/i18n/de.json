@@ -454,6 +454,13 @@
   "auth.privacy.accept": "Ich habe die",
   "auth.terms.required": "Bitte akzeptiere die Nutzungsbedingungen und die Datenschutzerklärung.",
 
+  "spool.find.title": "Spule suchen",
+  "spool.find.scanning": "Handy an den NFC-Tag der Spule halten...",
+  "spool.find.found": "Richtige Spule gefunden!",
+  "spool.find.wrong": "Falsche Spule",
+  "spool.find.retry": "Nächsten Tag versuchen...",
+  "spool.find.no.tag": "Diese Spule hat keinen NFC-Tag. Zuerst einen Tag schreiben."
+
   "spoolman.title": "Klipper / Spoolman Integration",
   "spoolman.hint": "SpoolHero stellt eine Spoolman-kompatible API bereit. Füge folgendes in deine moonraker.conf ein, um automatisches Filament-Tracking zu aktivieren:",
   "spoolman.apikeys": "API-Schlüssel",

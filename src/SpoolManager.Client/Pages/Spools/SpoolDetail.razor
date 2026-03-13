@@ -212,6 +212,12 @@ else
                                 @if (_writingNfc) { <span class="spinner-border spinner-border-sm me-2"></span> }
                                 <i class="bi bi-broadcast me-1"></i>@L["tag.nfc.write"]
                             </button>
+                            @if (!string.IsNullOrWhiteSpace(_spool!.RfidTagUid))
+                            {
+                                <button class="btn btn-outline-success" @onclick="FindSpoolAsync">
+                                    <i class="bi bi-search me-1"></i>@L["spool.find.title"]
+                                </button>
+                            }
                         }
                         <a href="@Tags.GetDownloadUrl(Id)" class="btn btn-outline-secondary">
                             <i class="bi bi-download me-1"></i>@L["tag.download.bin"]
@@ -235,11 +241,17 @@ else
     </div>
 }
 
+@if (_spool != null)
+{
+    <FindSpoolModal @ref="_findModal" Spool="_spool" />
+}
+
 @code {
     [Parameter] public Guid Id { get; set; }
 
     private bool _loading = true;
     private SpoolDto? _spool;
+    private FindSpoolModal? _findModal;
     private bool _showRemainingForm;
     private decimal _remainingGrams;
     private decimal _remainingPct;
@@ -280,6 +292,12 @@ else
     private async Task MarkRepackagedAsync() { await Spools.MarkRepackagedAsync(Id); _spool = await Spools.GetByIdAsync(Id); }
     private async Task MarkReopenedAsync() { await Spools.MarkReopenedAsync(Id); _spool = await Spools.GetByIdAsync(Id); }
     private async Task MarkConsumedAsync() { await Spools.MarkConsumedAsync(Id); _spool = await Spools.GetByIdAsync(Id); }
+
+    private async Task FindSpoolAsync()
+    {
+        if (_findModal != null)
+            await _findModal.OpenAsync();
+    }
 
     private async Task WriteNfcAsync()
     {

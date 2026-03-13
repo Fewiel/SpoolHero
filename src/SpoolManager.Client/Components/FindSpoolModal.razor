@@ -1,0 +1,157 @@
+@implements IAsyncDisposable
+@inject NfcService Nfc
+@inject LocalizationService L
+
+@if (_visible)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,.55)">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-search me-2"></i>@L["spool.find.title"]
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="CloseAsync"></button>
+                </div>
+                <div class="modal-body text-center py-4">
+                    <div class="d-flex align-items-center justify-content-center gap-2 mb-4">
+                        <div class="color-dot" style="background-color: #@Spool.MaterialColorHex; width:1.1rem; height:1.1rem; border-radius:50%"></div>
+                        <span class="fw-semibold">@Spool.MaterialBrand @Spool.MaterialType</span>
+                    </div>
+
+                    @if (_state == FindState.Found)
+                    {
+                        <div class="text-success mb-2">
+                            <i class="bi bi-check-circle-fill" style="font-size:3.5rem"></i>
+                        </div>
+                        <p class="fw-semibold text-success mb-0">@L["spool.find.found"]</p>
+                    }
+                    else if (_state == FindState.NoTag)
+                    {
+                        <div class="text-warning mb-2">
+                            <i class="bi bi-exclamation-triangle-fill" style="font-size:3rem"></i>
+                        </div>
+                        <p class="text-muted mb-0">@L["spool.find.no.tag"]</p>
+                    }
+                    else
+                    {
+                        <div class="mb-3">
+                            @if (_state == FindState.Mismatch)
+                            {
+                                <i class="bi bi-x-circle-fill text-danger" style="font-size:3rem"></i>
+                                <p class="text-danger fw-semibold mt-2 mb-0">@L["spool.find.wrong"]</p>
+                                <small class="text-muted">@L["spool.find.retry"]</small>
+                            }
+                            else
+                            {
+                                <div class="nfc-pulse-icon mb-2">
+                                    <i class="bi bi-broadcast" style="font-size:3rem; color: var(--bs-primary)"></i>
+                                </div>
+                                <p class="text-muted mb-0">@L["spool.find.scanning"]</p>
+                            }
+                        </div>
+                    }
+                </div>
+                @if (_state != FindState.Found)
+                {
+                    <div class="modal-footer justify-content-center">
+                        <button class="btn btn-secondary" @onclick="CloseAsync">@L["common.cancel"]</button>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired] public SpoolDto Spool { get; set; } = default!;
+
+    private enum FindState { Idle, Scanning, Mismatch, Found, NoTag }
+
+    private bool _visible;
+    private FindState _state = FindState.Idle;
+    private DotNetObjectReference<FindSpoolModal>? _ref;
+    private System.Timers.Timer? _resetTimer;
+
+    public async Task OpenAsync()
+    {
+        if (string.IsNullOrWhiteSpace(Spool.RfidTagUid))
+        {
+            _state = FindState.NoTag;
+            _visible = true;
+            StateHasChanged();
+            return;
+        }
+
+        _state = FindState.Scanning;
+        _visible = true;
+        StateHasChanged();
+
+        _ref ??= DotNetObjectReference.Create(this);
+        await Nfc.StartReadAsync(_ref);
+    }
+
+    [JSInvokable]
+    public void OnScanStarted() { }
+
+    [JSInvokable]
+    public async void OnTagRead(string json, string serialNumber)
+    {
+        _resetTimer?.Stop();
+
+        var uid = serialNumber.Trim().ToLowerInvariant().Replace(":", "").Replace("-", "");
+        var expected = (Spool.RfidTagUid ?? "").Trim().ToLowerInvariant().Replace(":", "").Replace("-", "");
+
+        if (uid == expected)
+        {
+            _state = FindState.Found;
+            await InvokeAsync(StateHasChanged);
+            await Nfc.StopReadAsync();
+            await Task.Delay(2000);
+            await CloseAsync();
+        }
+        else
+        {
+            _state = FindState.Mismatch;
+            await InvokeAsync(StateHasChanged);
+
+            _resetTimer = new System.Timers.Timer(2000);
+            _resetTimer.AutoReset = false;
+            _resetTimer.Elapsed += async (_, _) =>
+            {
+                _state = FindState.Scanning;
+                await InvokeAsync(StateHasChanged);
+            };
+            _resetTimer.Start();
+        }
+    }
+
+    [JSInvokable]
+    public void OnReadError(string message)
+    {
+        _state = FindState.Scanning;
+        InvokeAsync(StateHasChanged);
+    }
+
+    [JSInvokable]
+    public void OnWriteSuccess() { }
+
+    [JSInvokable]
+    public void OnWriteError(string message) { }
+
+    private async Task CloseAsync()
+    {
+        _resetTimer?.Stop();
+        await Nfc.StopReadAsync();
+        _state = FindState.Idle;
+        _visible = false;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _resetTimer?.Dispose();
+        await Nfc.StopReadAsync();
+        _ref?.Dispose();
+    }
+}

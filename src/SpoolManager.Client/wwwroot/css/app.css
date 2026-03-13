@@ -351,10 +351,25 @@
     white-space: normal;
 }
 
+/* Find Spool pulse animation */
+@keyframes nfc-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.1); }
+}
+
+.nfc-pulse-icon {
+    animation: nfc-pulse 1.4s ease-in-out infinite;
+    display: inline-block;
+}
+
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
         animation-duration: 0.01ms !important;
         transition-duration: 0.01ms !important;
+    }
+
+    .nfc-pulse-icon {
+        animation: none;
     }
 }

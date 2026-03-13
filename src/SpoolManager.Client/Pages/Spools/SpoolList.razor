@@ -135,6 +135,13 @@ else
                                     disabled="@(_nfcWriting && _nfcTarget?.Id == spool.Id)">
                                 <i class="bi bi-broadcast"></i>
                             </button>
+                            @if (!string.IsNullOrWhiteSpace(spool.RfidTagUid))
+                            {
+                                <button class="btn btn-sm btn-outline-success" title="@L["spool.find.title"]"
+                                        @onclick="() => FindSpoolAsync(spool)">
+                                    <i class="bi bi-search"></i>
+                                </button>
+                            }
                         }
                         <button class="btn btn-sm btn-outline-secondary" title="@L["common.copy"]" @onclick="() => CopyAsync(spool)">
                             <i class="bi bi-copy"></i>
@@ -164,6 +171,11 @@ else
     </div>
 }
 
+@if (_findTarget != null)
+{
+    <FindSpoolModal @ref="_findModal" Spool="_findTarget" />
+}
+
 @code {
     private bool _loading = true;
     private List<SpoolDto> _spools = [];
@@ -178,6 +190,9 @@ else
     private bool _nfcWriting;
     private bool _nfcSuccess;
     private string? _nfcMessage;
+
+    private SpoolDto? _findTarget;
+    private FindSpoolModal? _findModal;
 
     [JSInvokable]
     public void OnWriteSuccess()
@@ -274,6 +289,15 @@ else
         }
 
         await Nfc.WriteAsync(encoded.JsonPayload, DotNetObjectReference.Create(this));
+    }
+
+    private async Task FindSpoolAsync(SpoolDto spool)
+    {
+        _findTarget = spool;
+        StateHasChanged();
+        await Task.Yield();
+        if (_findModal != null)
+            await _findModal.OpenAsync();
     }
 
     private static string GetBarClass(decimal p) => p >= 50 ? "high" : p >= 20 ? "medium" : "low";
