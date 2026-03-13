@@ -175,4 +175,10 @@ public class SpoolmanController : ControllerBase
             },
         };
     }
+
+    [HttpGet("{**path}")]
+    [HttpPost("{**path}")]
+    [HttpPut("{**path}")]
+    [HttpDelete("{**path}")]
+    public IActionResult UnknownEndpoint() => Ok(new object());
 }
