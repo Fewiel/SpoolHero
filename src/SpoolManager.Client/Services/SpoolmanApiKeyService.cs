@@ -20,4 +20,7 @@ public class SpoolmanApiKeyService
 
     public Task<HttpResponseMessage> DeleteAsync(Guid id) =>
         _http.DeleteAsync($"api/spoolman/apikeys/{id}");
+
+    public Task<List<SpoolmanCallLogDto>?> GetLogsAsync(Guid apiKeyId) =>
+        _http.GetFromJsonAsync<List<SpoolmanCallLogDto>>($"api/spoolman/apikeys/{apiKeyId}/logs");
 }

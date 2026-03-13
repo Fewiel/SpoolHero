@@ -126,3 +126,11 @@ public class CreateSpoolmanApiKeyRequest
 {
     public string Name { get; set; } = string.Empty;
 }
+
+public class SpoolmanCallLogDto
+{
+    public DateTime CalledAt { get; set; }
+    public string Method { get; set; } = string.Empty;
+    public string Path { get; set; } = string.Empty;
+    public int StatusCode { get; set; }
+}

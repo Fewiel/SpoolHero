@@ -2,6 +2,7 @@
 @inject SpoolmanApiKeyService ApiKeys
 @inject LocalizationService L
 @inject IJSRuntime JS
+@inject NavigationManager Nav
 
 <PageTitle>@L["spoolman.title"] – @L["app.name"]</PageTitle>
 
@@ -12,7 +13,7 @@
 <div class="alert alert-info small mb-4">
     <i class="bi bi-info-circle me-1"></i>@L["spoolman.hint"]
     <pre class="mb-0 mt-2 p-2 bg-white border rounded" style="font-size:0.75rem">[spoolman]
-server: https://your-spoolhero-url.com
+server: @_baseUrl/YOUR_API_KEY
 sync_rate: 5</pre>
 </div>
 
@@ -58,7 +59,7 @@ sync_rate: 5</pre>
                     <thead>
                         <tr>
                             <th>@L["spoolman.apikeys.name"]</th>
-                            <th>API Key</th>
+                            <th>@L["spoolman.apikeys.url"]</th>
                             <th>@L["common.created"]</th>
                             <th>@L["spoolman.apikeys.lastused"]</th>
                             <th></th>
@@ -67,22 +68,64 @@ sync_rate: 5</pre>
                     <tbody>
                         @foreach (var key in _keys)
                         {
+                            var serverUrl = $"{_baseUrl}/{key.ApiKey}";
                             <tr>
                                 <td>@key.Name</td>
                                 <td>
-                                    <code class="small user-select-all">@key.ApiKey</code>
-                                    <button class="btn btn-sm btn-link p-0 ms-1" title="@L["common.copy"]" @onclick="() => CopyToClipboard(key.ApiKey)">
+                                    <code class="small user-select-all">@serverUrl</code>
+                                    <button class="btn btn-sm btn-link p-0 ms-1" title="@L["common.copy"]" @onclick="() => CopyToClipboard(serverUrl)">
                                         <i class="bi bi-clipboard"></i>
                                     </button>
                                 </td>
                                 <td class="small text-muted">@key.CreatedAt.ToLocalTime().ToString("g")</td>
                                 <td class="small text-muted">@(key.LastUsedAt?.ToLocalTime().ToString("g") ?? "–")</td>
                                 <td class="text-end">
-                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteKeyAsync(key.Id)">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
+                                    <div class="d-flex gap-1 justify-content-end">
+                                        <button class="btn btn-sm @(_expandedKeyId == key.Id ? "btn-secondary" : "btn-outline-secondary")"
+                                                title="@L["spoolman.apikeys.logs"]"
+                                                @onclick="() => ToggleLogsAsync(key.Id)">
+                                            <i class="bi bi-list-ul"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteKeyAsync(key.Id)">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
+                            @if (_expandedKeyId == key.Id)
+                            {
+                                <tr>
+                                    <td colspan="5" class="p-0">
+                                        <div class="px-3 py-2 bg-light border-top">
+                                            <small class="text-muted fw-semibold">@L["spoolman.apikeys.logs"]</small>
+                                            @if (_logsLoading)
+                                            {
+                                                <div class="my-2"><span class="spinner-border spinner-border-sm"></span></div>
+                                            }
+                                            else if (_logs == null || _logs.Count == 0)
+                                            {
+                                                <p class="text-muted small mb-0 mt-1">@L["spoolman.apikeys.logs.empty"]</p>
+                                            }
+                                            else
+                                            {
+                                                <table class="table table-sm mb-0 mt-1">
+                                                    <tbody>
+                                                        @foreach (var log in _logs)
+                                                        {
+                                                            <tr>
+                                                                <td class="small text-muted" style="white-space:nowrap">@log.CalledAt.ToLocalTime().ToString("HH:mm:ss")</td>
+                                                                <td><span class="badge bg-secondary">@log.Method</span></td>
+                                                                <td class="small font-monospace text-truncate" style="max-width:300px">@log.Path</td>
+                                                                <td><span class="badge @(log.StatusCode < 400 ? "bg-success" : "bg-danger")">@log.StatusCode</span></td>
+                                                            </tr>
+                                                        }
+                                                    </tbody>
+                                                </table>
+                                            }
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
                         }
                     </tbody>
                 </table>
@@ -97,9 +140,16 @@ sync_rate: 5</pre>
     private bool _showCreate;
     private string _newKeyName = string.Empty;
     private bool _creating;
+    private string _baseUrl = string.Empty;
+
+    private Guid? _expandedKeyId;
+    private List<SpoolmanCallLogDto>? _logs;
+    private bool _logsLoading;
 
     protected override async Task OnInitializedAsync()
     {
+        var uri = new Uri(Nav.BaseUri);
+        _baseUrl = $"{uri.Scheme}://{uri.Host}{(uri.IsDefaultPort ? "" : ":" + uri.Port)}";
         _keys = await ApiKeys.GetAllAsync();
         _loading = false;
     }
@@ -123,6 +173,25 @@ sync_rate: 5</pre>
     {
         await ApiKeys.DeleteAsync(id);
         _keys?.RemoveAll(k => k.Id == id);
+        if (_expandedKeyId == id) _expandedKeyId = null;
+    }
+
+    private async Task ToggleLogsAsync(Guid id)
+    {
+        if (_expandedKeyId == id)
+        {
+            _expandedKeyId = null;
+            _logs = null;
+            return;
+        }
+
+        _expandedKeyId = id;
+        _logs = null;
+        _logsLoading = true;
+        StateHasChanged();
+
+        _logs = await ApiKeys.GetLogsAsync(id) ?? [];
+        _logsLoading = false;
     }
 
     private async Task CopyToClipboard(string text)

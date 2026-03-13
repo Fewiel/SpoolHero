@@ -15,10 +15,12 @@ namespace SpoolManager.Server.Controllers;
 public class SpoolmanSettingsController : ControllerBase
 {
     private readonly ISpoolmanApiKeyRepository _apiKeys;
+    private readonly ISpoolmanCallLogRepository _callLogs;
 
-    public SpoolmanSettingsController(ISpoolmanApiKeyRepository apiKeys)
+    public SpoolmanSettingsController(ISpoolmanApiKeyRepository apiKeys, ISpoolmanCallLogRepository callLogs)
     {
         _apiKeys = apiKeys;
+        _callLogs = callLogs;
     }
 
     private ProjectMember ProjectMember => (ProjectMember)HttpContext.Items["ProjectMember"]!;
@@ -66,6 +68,19 @@ public class SpoolmanSettingsController : ControllerBase
     {
         await _apiKeys.DeleteAsync(id);
         return NoContent();
+    }
+
+    [HttpGet("{id:guid}/logs")]
+    public async Task<IActionResult> GetLogs(Guid id)
+    {
+        var logs = await _callLogs.GetLast24hAsync(id);
+        return Ok(logs.Select(l => new SpoolmanCallLogDto
+        {
+            CalledAt = l.CalledAt,
+            Method = l.Method,
+            Path = l.Path,
+            StatusCode = l.StatusCode,
+        }).ToList());
     }
 
     private static string GenerateApiKey()

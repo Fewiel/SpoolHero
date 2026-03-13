@@ -468,6 +468,9 @@
   "spoolman.apikeys.name": "Name",
   "spoolman.apikeys.lastused": "Zuletzt benutzt",
   "spoolman.apikeys.empty": "Noch keine API-Schlüssel. Erstelle einen, um Moonraker zu verbinden.",
+  "spoolman.apikeys.url": "Server-URL",
+  "spoolman.apikeys.logs": "API-Calls (letzte 24h)",
+  "spoolman.apikeys.logs.empty": "Keine Calls in den letzten 24 Stunden.",
   "spoolman.id": "Spoolman-ID",
   "nav.settings.spoolman": "Klipper-Integration"
 }

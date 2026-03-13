@@ -7,26 +7,25 @@ namespace SpoolManager.Server.Filters;
 public class SpoolmanAuthFilter : IAsyncActionFilter
 {
     private readonly ISpoolmanApiKeyRepository _apiKeys;
+    private readonly ISpoolmanCallLogRepository _callLogs;
 
-    public SpoolmanAuthFilter(ISpoolmanApiKeyRepository apiKeys) => _apiKeys = apiKeys;
+    public SpoolmanAuthFilter(ISpoolmanApiKeyRepository apiKeys, ISpoolmanCallLogRepository callLogs)
+    {
+        _apiKeys = apiKeys;
+        _callLogs = callLogs;
+    }
 
     public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
     {
-        string? apiKey = null;
+        var apiKeyValue = context.RouteData.Values["apiKey"]?.ToString();
 
-        if (context.HttpContext.Request.Headers.TryGetValue("X-Api-Key", out var headerValue))
-            apiKey = headerValue.ToString();
-
-        if (string.IsNullOrEmpty(apiKey) && context.HttpContext.Request.Query.TryGetValue("apikey", out var queryValue))
-            apiKey = queryValue.ToString();
-
-        if (string.IsNullOrEmpty(apiKey))
+        if (string.IsNullOrEmpty(apiKeyValue))
         {
-            context.Result = new UnauthorizedObjectResult(new { message = "X-Api-Key header or apikey query parameter is required." });
+            context.Result = new UnauthorizedObjectResult(new { message = "API key missing from URL." });
             return;
         }
 
-        var key = await _apiKeys.GetByApiKeyAsync(apiKey);
+        var key = await _apiKeys.GetByApiKeyAsync(apiKeyValue);
         if (key == null)
         {
             context.Result = new UnauthorizedObjectResult(new { message = "Invalid API key." });
@@ -34,12 +33,22 @@ public class SpoolmanAuthFilter : IAsyncActionFilter
         }
 
         context.HttpContext.Items["SpoolmanProjectId"] = key.ProjectId;
+        context.HttpContext.Items["SpoolmanApiKeyId"] = key.Id;
 
         _ = Task.Run(async () =>
         {
             try { await _apiKeys.UpdateLastUsedAsync(key.Id); } catch { }
         });
 
-        await next();
+        var result = await next();
+
+        var statusCode = context.HttpContext.Response.StatusCode;
+        var method = context.HttpContext.Request.Method;
+        var path = context.HttpContext.Request.Path.Value ?? "/";
+
+        _ = Task.Run(async () =>
+        {
+            try { await _callLogs.LogAsync(key.Id, method, path, statusCode); } catch { }
+        });
     }
 }

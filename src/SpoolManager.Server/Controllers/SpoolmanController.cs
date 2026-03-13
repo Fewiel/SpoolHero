@@ -7,7 +7,7 @@ using SpoolManager.Shared.Models;
 namespace SpoolManager.Server.Controllers;
 
 [ApiController]
-[Route("api/v1")]
+[Route("{apiKey}/api/v1")]
 public class SpoolmanController : ControllerBase
 {
     private readonly ISpoolRepository _spools;

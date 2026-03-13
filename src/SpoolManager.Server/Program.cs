@@ -48,6 +48,7 @@ builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddHostedService<NotificationBackgroundService>();
 
 builder.Services.AddScoped<ISpoolmanApiKeyRepository, SpoolmanApiKeyRepository>();
+builder.Services.AddScoped<ISpoolmanCallLogRepository, SpoolmanCallLogRepository>();
 builder.Services.AddScoped<ProjectAuthFilter>();
 builder.Services.AddScoped<SpoolmanAuthFilter>();
 builder.Services.AddSingleton<LoginRateLimiter>();
