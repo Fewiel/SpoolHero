@@ -18,7 +18,7 @@ window.nfcHelper = {
                 data: new TextEncoder().encode(jsonPayload)
             }];
             if (spoolmanId != null) {
-                records.push({ recordType: "text", data: `SPOOL:${spoolmanId}` });
+                records.push({ recordType: "text", data: `SPOOL:${spoolmanId}\nFILAMENT:${spoolmanId}\n` });
             }
             await ndef.write({ records });
             await dotnetRef.invokeMethodAsync('OnWriteSuccess');

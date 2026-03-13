@@ -10,7 +10,7 @@ public interface IOpenSpoolService
     byte[] Encode(FilamentMaterial material, Guid? spoolId = null, int? spoolmanId = null);
     byte[] EncodeEntityTag(string entityType, Guid entityId);
     (FilamentMaterial material, bool isValid) Decode(byte[] ndefBytes);
-    string ToJson(FilamentMaterial material, Guid? spoolId = null);
+    string ToJson(FilamentMaterial material, Guid? spoolId = null, int? spoolmanId = null);
     (FilamentMaterial? material, bool isValid, string rawJson, Guid? spoolId) FromJson(string json);
 }
 
@@ -23,7 +23,7 @@ public class OpenSpoolService : IOpenSpoolService
         DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
     };
 
-    public string ToJson(FilamentMaterial material, Guid? spoolId = null)
+    public string ToJson(FilamentMaterial material, Guid? spoolId = null, int? spoolmanId = null)
     {
         var payload = new OpenSpoolPayload
         {
@@ -34,7 +34,8 @@ public class OpenSpoolService : IOpenSpoolService
             Brand = material.Brand,
             MinTemp = material.MinTempCelsius,
             MaxTemp = material.MaxTempCelsius,
-            SmSpoolId = spoolId?.ToString()
+            SmSpoolId = spoolId?.ToString(),
+            SpoolmanId = spoolmanId > 0 ? spoolmanId : null,
         };
         return JsonSerializer.Serialize(payload, _jsonOptions);
     }
@@ -109,18 +110,16 @@ public class OpenSpoolService : IOpenSpoolService
 
     public byte[] Encode(FilamentMaterial material, Guid? spoolId = null, int? spoolmanId = null)
     {
-        var json = ToJson(material, spoolId);
+        var json = ToJson(material, spoolId, spoolmanId);
         var jsonBytes = Encoding.UTF8.GetBytes(json);
         var typeBytes = Encoding.UTF8.GetBytes("application/json");
-        var openSpoolRecord = BuildNdefRecord(typeBytes, jsonBytes, isFirst: spoolmanId == null, isLast: spoolmanId == null);
 
         if (spoolmanId.HasValue)
         {
-            var spoolmanText = $"SPOOL:{spoolmanId.Value}";
-            var spoolmanBytes = Encoding.UTF8.GetBytes(spoolmanText);
+            var nfc2klipperText = $"SPOOL:{spoolmanId.Value}\nFILAMENT:{spoolmanId.Value}\n";
             var textType = Encoding.UTF8.GetBytes("T");
             var firstRecord = BuildNdefRecord(typeBytes, jsonBytes, isFirst: true, isLast: false);
-            var lastRecord = BuildNdefRecord(textType, BuildTextPayload(spoolmanText), isFirst: false, isLast: true, tnf: 0x01);
+            var lastRecord = BuildNdefRecord(textType, BuildTextPayload(nfc2klipperText), isFirst: false, isLast: true, tnf: 0x01);
 
             using var ms = new MemoryStream();
             ms.Write(firstRecord, 0, firstRecord.Length);
@@ -128,7 +127,7 @@ public class OpenSpoolService : IOpenSpoolService
             return ms.ToArray();
         }
 
-        return openSpoolRecord;
+        return BuildNdefRecord(typeBytes, jsonBytes, isFirst: true, isLast: true);
     }
 
     private static byte[] BuildTextPayload(string text)
@@ -240,5 +239,8 @@ public class OpenSpoolService : IOpenSpoolService
         public int? MaxTemp { get; set; }
         [JsonPropertyName("_sm_spool_id")]
         public string? SmSpoolId { get; set; }
+
+        [JsonPropertyName("spool_id")]
+        public int? SpoolmanId { get; set; }
     }
 }
