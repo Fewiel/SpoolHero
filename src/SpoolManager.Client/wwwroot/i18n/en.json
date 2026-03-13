@@ -452,5 +452,12 @@
 
   "auth.terms.accept": "I accept the",
   "auth.privacy.accept": "I have read and agree to the",
-  "auth.terms.required": "Please accept the Terms of Use and Privacy Policy."
+  "auth.terms.required": "Please accept the Terms of Use and Privacy Policy.",
+
+  "spool.find.title": "Find Spool",
+  "spool.find.scanning": "Hold your phone near the spool's NFC tag...",
+  "spool.find.found": "Correct spool found!",
+  "spool.find.wrong": "Wrong spool",
+  "spool.find.retry": "Try again with another tag...",
+  "spool.find.no.tag": "This spool has no NFC tag assigned. Write a tag first."
 }

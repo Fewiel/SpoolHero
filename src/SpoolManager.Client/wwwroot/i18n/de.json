@@ -452,5 +452,12 @@
 
   "auth.terms.accept": "Ich akzeptiere die",
   "auth.privacy.accept": "Ich habe die",
-  "auth.terms.required": "Bitte akzeptiere die Nutzungsbedingungen und die Datenschutzerklärung."
+  "auth.terms.required": "Bitte akzeptiere die Nutzungsbedingungen und die Datenschutzerklärung.",
+
+  "spool.find.title": "Spule suchen",
+  "spool.find.scanning": "Handy an den NFC-Tag der Spule halten...",
+  "spool.find.found": "Richtige Spule gefunden!",
+  "spool.find.wrong": "Falsche Spule",
+  "spool.find.retry": "Nächsten Tag versuchen...",
+  "spool.find.no.tag": "Diese Spule hat keinen NFC-Tag. Zuerst einen Tag schreiben."
 }
