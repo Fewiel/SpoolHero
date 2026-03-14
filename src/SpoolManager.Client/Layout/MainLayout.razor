@@ -263,9 +263,31 @@ else
         </div>
     </div>
 
-    <main id="main-content" class="main-content container-fluid py-4 mt-navbar" tabindex="-1">
+    <main id="main-content" class="main-content with-mobile-quick-actions container-fluid py-4 mt-navbar" tabindex="-1">
         <div @key="_languageKey">@Body</div>
     </main>
+
+    @if (!_showCookieBanner)
+    {
+        <nav class="mobile-quick-actions d-lg-none" role="navigation" aria-label="@L["mobile.quick.actions"]">
+            <NavLink class="mobile-quick-action" href="/" Match="NavLinkMatch.All">
+                <i class="bi bi-house" aria-hidden="true"></i>
+                <span>@L["nav.dashboard"]</span>
+            </NavLink>
+            <NavLink class="mobile-quick-action" href="/inventory">
+                <i class="bi bi-arrow-left-right" aria-hidden="true"></i>
+                <span>@L["nav.inventory"]</span>
+            </NavLink>
+            <NavLink class="mobile-quick-action" href="/spools/new">
+                <i class="bi bi-plus-circle" aria-hidden="true"></i>
+                <span>@L["spool.add"]</span>
+            </NavLink>
+            <NavLink class="mobile-quick-action" href="/tags/read">
+                <i class="bi bi-upc-scan" aria-hidden="true"></i>
+                <span>@L["tag.read"]</span>
+            </NavLink>
+        </nav>
+    }
 
     <footer class="text-center text-muted py-3" style="font-size:.8rem; border-top: 1px solid var(--bs-border-color);">
         <a href="/privacy" class="text-muted me-3">@L["legal.privacy.title"]</a>

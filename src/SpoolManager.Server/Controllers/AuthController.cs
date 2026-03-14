@@ -181,8 +181,24 @@ public class AuthController : ControllerBase
             Email = user.Email,
             IsPlatformAdmin = user.IsPlatformAdmin,
             IsSuperAdmin = user.IsSuperAdmin,
+            DashboardOnboardingDismissed = user.DashboardOnboardingDismissed,
             CreatedAt = user.CreatedAt
         });
+    }
+
+    [Authorize]
+    [HttpPut("dashboard-onboarding")]
+    public async Task<IActionResult> SetDashboardOnboarding([FromBody] SetDashboardOnboardingRequest request)
+    {
+        var idClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!Guid.TryParse(idClaim, out var userId)) return Unauthorized();
+
+        var user = await _users.GetByIdAsync(userId);
+        if (user == null) return NotFound();
+
+        user.DashboardOnboardingDismissed = request.Dismissed;
+        await _users.UpdateAsync(user);
+        return NoContent();
     }
 
     [Authorize]

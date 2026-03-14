@@ -75,3 +75,47 @@ main {
         padding-right: 1.5rem !important;
     }
 }
+
+.mobile-quick-actions {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1030;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: .25rem;
+    padding: .4rem .5rem calc(.4rem + env(safe-area-inset-bottom));
+    background: var(--bs-body-bg);
+    border-top: 1px solid var(--bs-border-color);
+}
+
+.mobile-quick-actions ::deep .mobile-quick-action {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: .2rem;
+    min-height: 3rem;
+    color: var(--bs-secondary-color);
+    text-decoration: none;
+    border-radius: .5rem;
+    font-size: .68rem;
+    font-weight: 600;
+}
+
+.mobile-quick-actions ::deep .mobile-quick-action i {
+    font-size: 1rem;
+    line-height: 1;
+}
+
+.mobile-quick-actions ::deep .mobile-quick-action.active {
+    color: var(--bs-primary);
+    background: var(--bs-primary-bg-subtle);
+}
+
+@media (max-width: 991.98px) {
+    .with-mobile-quick-actions {
+        padding-bottom: 5.1rem !important;
+    }
+}

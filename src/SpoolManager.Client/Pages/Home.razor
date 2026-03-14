@@ -1,12 +1,17 @@
 @page "/"
 @implements IDisposable
 @inject SpoolService Spools
+@inject MaterialService Materials
+@inject PrinterService Printers
+@inject StorageService Storage
 @inject LocalizationService L
 @inject AuthService Auth
 @inject NavigationManager Nav
 
 @if (!Auth.IsAuthenticated)
 {
+    <PageTitle>@L["auth.login"] – @L["app.name"]</PageTitle>
+    <div class="text-center py-5"><div class="spinner-border"></div></div>
     return;
 }
 
@@ -22,6 +27,71 @@
 }
 else
 {
+    @if (_showOnboarding)
+    {
+        <div class="card border-primary-subtle mb-4">
+            <div class="card-body py-2">
+                <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap mb-2">
+                    <div>
+                        <h5 class="mb-1"><i class="bi bi-signpost-split me-2"></i>@L["dashboard.onboarding.title"]</h5>
+                        <div class="text-muted small">@L["dashboard.onboarding.subtitle"]</div>
+                    </div>
+                    <button class="btn btn-sm btn-outline-secondary" @onclick="SkipOnboardingAsync" disabled="@_onboardingSaving">
+                        @if (_onboardingSaving) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                        @L["dashboard.onboarding.skip"]
+                    </button>
+                </div>
+
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item px-0 py-1 border-0">
+                        <div class="d-flex align-items-center gap-2 small">
+                            <i class="bi @(_materialsCount > 0 ? "bi-check-circle-fill text-success" : "bi-circle text-secondary")"></i>
+                            <a class="text-decoration-none" href="/materials" aria-label="@L["material.title"]">
+                                1. @L["material.title"] <i class="bi bi-arrow-right-circle" aria-hidden="true"></i>
+                            </a>
+                        </div>
+                    </li>
+
+                    <li class="list-group-item px-0 py-1 border-0">
+                        <div class="d-flex align-items-center gap-2 small">
+                            <i class="bi @(_printersCount > 0 ? "bi-check-circle-fill text-success" : "bi-circle text-secondary")"></i>
+                            <a class="text-decoration-none" href="/printers" aria-label="@L["printer.title"]">
+                                2. @L["printer.title"] <i class="bi bi-arrow-right-circle" aria-hidden="true"></i>
+                            </a>
+                        </div>
+                    </li>
+
+                    <li class="list-group-item px-0 py-1 border-0">
+                        <div class="d-flex align-items-center gap-2 small">
+                            <i class="bi @(_storageCount > 0 ? "bi-check-circle-fill text-success" : "bi-circle text-secondary")"></i>
+                            <a class="text-decoration-none" href="/storage" aria-label="@L["storage.title"]">
+                                3. @L["storage.title"] <i class="bi bi-arrow-right-circle" aria-hidden="true"></i>
+                            </a>
+                        </div>
+                    </li>
+
+                    <li class="list-group-item px-0 py-1 border-0">
+                        <div class="d-flex align-items-center gap-2 small">
+                            <i class="bi @(_total > 0 ? "bi-check-circle-fill text-success" : "bi-circle text-secondary")"></i>
+                            <a class="text-decoration-none" href="/spools/new" aria-label="@L["spool.add"]">
+                                4. @L["spool.title"] <i class="bi bi-arrow-right-circle" aria-hidden="true"></i>
+                            </a>
+                        </div>
+                    </li>
+
+                    <li class="list-group-item px-0 py-1 border-0">
+                        <div class="d-flex align-items-center gap-2 small">
+                            <i class="bi @(_storedCount > 0 ? "bi-check-circle-fill text-success" : "bi-circle text-secondary")"></i>
+                            <a class="text-decoration-none" href="/inventory" aria-label="@L["inventory.title"]">
+                                5. @L["inventory.title"] <i class="bi bi-arrow-right-circle" aria-hidden="true"></i>
+                            </a>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    }
+
     <div class="row g-3 mb-4">
         <div class="col-6 col-md-3">
             <div class="stat-card text-center">
@@ -94,7 +164,13 @@ else
 
 @code {
     private bool _loading = true;
+    private bool _showOnboarding;
+    private bool _onboardingSaving;
+    private int _materialsCount;
+    private int _printersCount;
+    private int _storageCount;
     private int _total, _active, _lowStock, _consumed;
+    private int _storedCount;
     private List<SpoolDto> _recent = [];
     private List<LocationGroup> _locationGroups = [];
 
@@ -109,7 +185,8 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        if (!Auth.IsAuthenticated) { Nav.NavigateTo("/login"); return; }
+        if (!Auth.IsAuthenticated) { Nav.NavigateTo("/login", replace: true); return; }
+        _showOnboarding = Auth.CurrentUser?.DashboardOnboardingDismissed != true;
         await LoadDataAsync();
     }
 
@@ -123,6 +200,16 @@ else
         if (Project.CurrentProject == null) return;
         _loading = true;
         StateHasChanged();
+
+        var materials = await Materials.GetAllAsync() ?? [];
+        _materialsCount = materials.Count;
+
+        var printers = await Printers.GetAllAsync() ?? [];
+        _printersCount = printers.Count;
+
+        var storageLocations = await Storage.GetAllAsync() ?? [];
+        _storageCount = storageLocations.Count;
+
         var all = await Spools.GetAllAsync() ?? [];
         _total = all.Count;
         _active = all.Count(s => s.ConsumedAt == null);
@@ -131,6 +218,7 @@ else
         _recent = [.. all.OrderByDescending(s => s.CreatedAt).Take(6)];
 
         var activeSpools = all.Where(s => s.ConsumedAt == null).ToList();
+    _storedCount = activeSpools.Count(s => s.StorageLocationName != null);
         var groups = new List<LocationGroup>();
 
         foreach (var g in activeSpools.Where(s => s.PrinterName != null).GroupBy(s => s.PrinterName!))
@@ -147,6 +235,16 @@ else
             groups.Add(new LocationGroup(L["dashboard.no.location"], "bi-question-circle", "muted", noLocation));
 
         _locationGroups = groups;
+
+        if (_showOnboarding && !_onboardingSaving && IsOnboardingCompleted())
+        {
+            _onboardingSaving = true;
+            var saved = await Auth.SetDashboardOnboardingDismissedAsync(true);
+            _onboardingSaving = false;
+            if (saved)
+                _showOnboarding = false;
+        }
+
         _loading = false;
         StateHasChanged();
     }
@@ -155,6 +253,24 @@ else
     {
         Project.OnProjectChanged -= OnProjectChanged;
     }
+
+    private async Task SkipOnboardingAsync()
+    {
+        if (_onboardingSaving) return;
+        _onboardingSaving = true;
+        var saved = await Auth.SetDashboardOnboardingDismissedAsync(true);
+        _onboardingSaving = false;
+        if (saved)
+            _showOnboarding = false;
+    }
+
+    private bool IsOnboardingCompleted() =>
+        Project.CurrentProject != null
+        && _materialsCount > 0
+        && _printersCount > 0
+        && _storageCount > 0
+        && _total > 0
+        && _storedCount > 0;
 
     private static string GetBarClass(decimal percent) =>
         percent >= 50 ? "high" : percent >= 20 ? "medium" : "low";

@@ -27,6 +27,7 @@ public static class SpoolManagerMappings
             .Property(x => x.NotifySpoolLow).HasColumnName("notify_spool_low")
             .Property(x => x.NotifyDryerDone).HasColumnName("notify_dryer_done")
             .Property(x => x.NotifyTicketReply).HasColumnName("notify_ticket_reply")
+            .Property(x => x.DashboardOnboardingDismissed).HasColumnName("dashboard_onboarding_dismissed")
             .Property(x => x.PreferredLanguage).HasColumnName("preferred_language")
             .Property(x => x.TokenVersion).HasColumnName("token_version")
             .Property(x => x.CreatedAt).HasColumnName("created_at")

@@ -15,6 +15,13 @@ else
         <h1><i class="bi bi-people me-2"></i>@L["admin.users.title"]</h1>
     </div>
 
+    @if (_resetStatusMessage != null)
+    {
+        <div class="alert alert-success py-2">
+            <i class="bi bi-check-circle me-1"></i>@_resetStatusMessage
+        </div>
+    }
+
     @if (_loading)
     {
         <div class="text-center py-5"><div class="spinner-border"></div></div>
@@ -94,6 +101,19 @@ else
                                                 <i class="bi bi-shield-check me-1"></i>@L["admin.users.make.admin"]
                                             </button>
                                         }
+                                        <button class="btn btn-sm btn-outline-secondary"
+                                                @onclick="() => ResetOnboardingAsync(u)"
+                                                disabled="@(_resettingOnboardingUserId == u.Id)">
+                                            @if (_resettingOnboardingUserId == u.Id)
+                                            {
+                                                <span class="spinner-border spinner-border-sm me-1"></span>
+                                            }
+                                            else
+                                            {
+                                                <i class="bi bi-arrow-counterclockwise me-1"></i>
+                                            }
+                                            @L["admin.users.reset.onboarding"]
+                                        </button>
                                         <button class="btn btn-sm btn-outline-danger" @onclick="() => RequestDelete(u)">
                                             <i class="bi bi-trash me-1"></i>@L["common.delete"]
                                         </button>
@@ -148,6 +168,8 @@ else
     private List<AdminUserDto> _users = [];
     private AdminUserDto? _toggleTarget;
     private AdminUserDto? _deleteTarget;
+    private Guid? _resettingOnboardingUserId;
+    private string? _resetStatusMessage;
 
     protected override async Task OnInitializedAsync()
     {
@@ -181,5 +203,25 @@ else
         _deleteTarget = null;
         await Admin.DeleteUserAsync(target.Id);
         await LoadAsync();
+    }
+
+    private async Task ResetOnboardingAsync(AdminUserDto user)
+    {
+        _resetStatusMessage = null;
+        _resettingOnboardingUserId = user.Id;
+        var response = await Admin.ResetDashboardOnboardingAsync(user.Id);
+        _resettingOnboardingUserId = null;
+        if (response.IsSuccessStatusCode)
+        {
+            _resetStatusMessage = L["admin.users.reset.onboarding.success"].Replace("{0}", user.Username);
+            _ = AutoHideResetStatusAsync();
+        }
+    }
+
+    private async Task AutoHideResetStatusAsync()
+    {
+        await Task.Delay(3000);
+        _resetStatusMessage = null;
+        await InvokeAsync(StateHasChanged);
     }
 }

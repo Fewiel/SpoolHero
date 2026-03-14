@@ -26,6 +26,41 @@ else
     <div class="row justify-content-center">
         <div class="col-12 col-md-8 col-lg-6">
 
+            @if (_state != ScanState.Done)
+            {
+                <div class="card mb-3">
+                    <div class="card-body py-2 d-flex align-items-center justify-content-between gap-2 flex-wrap">
+                        <span class="badge bg-primary-subtle text-primary-emphasis">
+                            @GetProgressLabel()
+                        </span>
+                        <div class="btn-group btn-group-sm">
+                            @if (_scannerRunning)
+                            {
+                                <button class="btn btn-outline-secondary" @onclick="PauseScannerAsync">
+                                    <i class="bi bi-pause-fill me-1"></i>@L["inventory.reader.pause"]
+                                </button>
+                            }
+                            else
+                            {
+                                <button class="btn btn-outline-secondary" @onclick="ResumeScannerAsync">
+                                    <i class="bi bi-play-fill me-1"></i>@L["inventory.reader.resume"]
+                                </button>
+                            }
+                            <button class="btn btn-outline-secondary" @onclick="RestartAsync">
+                                <i class="bi bi-arrow-counterclockwise me-1"></i>@L["inventory.scan.reset"]
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            @if (_hintMessage != null)
+            {
+                <div class="alert @(_hintIsWarning ? "alert-warning" : "alert-info") mb-3">
+                    <i class="bi @(_hintIsWarning ? "bi-exclamation-triangle" : "bi-info-circle") me-2"></i>@_hintMessage
+                </div>
+            }
+
             @if (_state == ScanState.ScanningFirst)
             {
                 <div class="card border-primary text-center">
@@ -73,9 +108,6 @@ else
                         </div>
                     </div>
                 }
-                <button class="btn btn-primary w-100 btn-lg" @onclick="RestartAsync">
-                    <i class="bi bi-broadcast me-2"></i>@L["inventory.scan.start"]
-                </button>
             }
 
             @if (_errorMessage != null)
@@ -107,10 +139,15 @@ else
     private bool? _nfcSupported;
     private ScanState _state = ScanState.ScanningFirst;
     private InventoryIdentifyResult? _firstEntity;
+    private InventoryIdentifyResult? _secondEntity;
     private InventoryActionResult? _result;
     private string? _errorMessage;
+    private string? _hintMessage;
+    private bool _hintIsWarning;
     private bool _processing;
+    private bool _scannerRunning;
     private bool _disposed;
+    private DateTime _lastReadAt = DateTime.MinValue;
     private DotNetObjectReference<InventoryScan>? _dotNetRef;
 
     protected override async Task OnInitializedAsync()
@@ -126,14 +163,34 @@ else
         _dotNetRef?.Dispose();
         _dotNetRef = DotNetObjectReference.Create(this);
         await Nfc.StartReadAsync(_dotNetRef);
+        _scannerRunning = true;
+    }
+
+    private async Task PauseScannerAsync()
+    {
+        if (!_scannerRunning || _state == ScanState.Done) return;
+        await Nfc.StopReadAsync();
+        _scannerRunning = false;
+        SetHint(L["inventory.scan.paused"]);
+    }
+
+    private async Task ResumeScannerAsync()
+    {
+        if (_scannerRunning || _state == ScanState.Done) return;
+        await StartScannerAsync();
+        SetHint(L["inventory.scan.resumed"]);
     }
 
     private async Task RestartAsync()
     {
         _firstEntity = null;
+        _secondEntity = null;
         _result = null;
         _errorMessage = null;
+        _hintMessage = null;
+        _hintIsWarning = false;
         _processing = false;
+        _scannerRunning = false;
         _state = ScanState.ScanningFirst;
         StateHasChanged();
         await StartScannerAsync();
@@ -145,7 +202,12 @@ else
     [JSInvokable]
     public async Task OnTagRead(string json, string serialNumber)
     {
-        if (_disposed || _processing || _state == ScanState.Done) return;
+        if (_disposed || _processing || _state == ScanState.Done || !_scannerRunning) return;
+
+        var now = DateTime.UtcNow;
+        if ((now - _lastReadAt).TotalMilliseconds < 700) return;
+        _lastReadAt = now;
+
         _processing = true;
         _errorMessage = null;
 
@@ -154,31 +216,85 @@ else
             var identified = await Inventory.IdentifyAsync(
                 new InventoryIdentifyRequest { JsonPayload = json, SerialNumber = serialNumber });
 
+            if (identified == null)
+            {
+                SetHint(L["inventory.scan.identify.error"], isWarning: true);
+                return;
+            }
+
             if (_state == ScanState.ScanningFirst)
             {
                 if (identified == null || identified.EntityType == "unknown")
+                {
+                    SetHint(L["inventory.scan.unknown"], isWarning: true);
                     return;
+                }
 
                 _firstEntity = identified;
                 _state = ScanState.ScanningSecond;
+                SetHint(L["inventory.scan.first.ok"]);
                 StateHasChanged();
             }
             else if (_state == ScanState.ScanningSecond && _firstEntity != null)
             {
-                if (identified == null || identified.EntityType == "unknown" ||
-                    (identified.EntityType == _firstEntity.EntityType && identified.EntityId == _firstEntity.EntityId))
+                if (identified.EntityType == "unknown")
+                {
+                    SetHint(L["inventory.scan.unknown"], isWarning: true);
                     return;
+                }
 
-                await Nfc.StopReadAsync();
-                _result = await Inventory.PerformActionAsync(
-                    new InventoryActionRequest { First = _firstEntity, Second = identified });
-                _state = ScanState.Done;
-                StateHasChanged();
+                if (identified.EntityType == _firstEntity.EntityType && identified.EntityId == _firstEntity.EntityId)
+                {
+                    SetHint(L["inventory.scan.same"], isWarning: true);
+                    return;
+                }
+
+                _secondEntity = identified;
+                await ExecuteActionAndContinueAsync();
             }
         }
         finally
         {
             _processing = false;
+        }
+    }
+
+    private async Task ExecuteActionAndContinueAsync()
+    {
+        if (_firstEntity == null || _secondEntity == null) return;
+
+        await Nfc.StopReadAsync();
+        _scannerRunning = false;
+
+        _errorMessage = null;
+        try
+        {
+            _result = await Inventory.PerformActionAsync(
+                new InventoryActionRequest { First = _firstEntity, Second = _secondEntity });
+            _state = ScanState.Done;
+            _hintMessage = null;
+            _hintIsWarning = false;
+            StateHasChanged();
+
+            await Task.Delay(1000);
+
+            if (!_disposed)
+                await RestartAsync();
+        }
+        catch (Exception)
+        {
+            _state = ScanState.Done;
+            _result = new InventoryActionResult
+            {
+                Success = false,
+                Description = L["inventory.scan.identify.error"]
+            };
+            StateHasChanged();
+
+            await Task.Delay(1000);
+
+            if (!_disposed)
+                await RestartAsync();
         }
     }
 
@@ -189,7 +305,7 @@ else
         _errorMessage = message;
         StateHasChanged();
         await Task.Delay(1500);
-        if (!_disposed && _state != ScanState.Done)
+        if (!_disposed && _state != ScanState.Done && _scannerRunning)
         {
             _errorMessage = null;
             await StartScannerAsync();
@@ -202,9 +318,23 @@ else
     public void Dispose()
     {
         _disposed = true;
+        try { _ = Nfc.StopReadAsync(); } catch { }
         _dotNetRef?.Dispose();
         _dotNetRef = null;
     }
+
+    private void SetHint(string message, bool isWarning = false)
+    {
+        _hintMessage = message;
+        _hintIsWarning = isWarning;
+    }
+
+    private string GetProgressLabel() => _state switch
+    {
+        ScanState.ScanningFirst => L["inventory.progress.first"],
+        ScanState.ScanningSecond => L["inventory.progress.second"],
+        _ => string.Empty
+    };
 
     private static string GetIcon(string entityType) => entityType switch
     {

@@ -19,6 +19,9 @@ public class AdminService
     public Task<HttpResponseMessage> DeleteUserAsync(Guid id) =>
         _http.DeleteAsync($"api/admin/users/{id}");
 
+    public Task<HttpResponseMessage> ResetDashboardOnboardingAsync(Guid id) =>
+        _http.PutAsJsonAsync($"api/admin/users/{id}/onboarding/reset", new { });
+
     public Task<AdminStatsDto?> GetStatsAsync() =>
         _http.GetFromJsonAsync<AdminStatsDto>("api/admin/stats");
 
