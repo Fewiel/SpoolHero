@@ -30,11 +30,11 @@ else
     @if (_showOnboarding)
     {
         <div class="card border-primary-subtle mb-4">
-            <div class="card-body">
-                <div class="d-flex align-items-start justify-content-between gap-2 flex-wrap mb-3">
+            <div class="card-body py-2">
+                <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap mb-2">
                     <div>
                         <h5 class="mb-1"><i class="bi bi-signpost-split me-2"></i>@L["dashboard.onboarding.title"]</h5>
-                        <p class="text-muted mb-0">@L["dashboard.onboarding.subtitle"]</p>
+                        <div class="text-muted small">@L["dashboard.onboarding.subtitle"]</div>
                     </div>
                     <button class="btn btn-sm btn-outline-secondary" @onclick="SkipOnboardingAsync" disabled="@_onboardingSaving">
                         @if (_onboardingSaving) { <span class="spinner-border spinner-border-sm me-1"></span> }
@@ -43,58 +43,53 @@ else
                 </div>
 
                 <ul class="list-group list-group-flush">
-                    <li class="list-group-item px-0">
-                        <div class="d-flex align-items-start gap-2">
-                            <i class="bi @(_materialsCount > 0 ? "bi-check-circle-fill text-success" : "bi-circle text-secondary") mt-1"></i>
-                            <div class="flex-grow-1">
-                                <div class="fw-semibold">1. @L["material.title"]</div>
-                                <div class="small text-muted mb-2">@L["dashboard.onboarding.step.material"]</div>
-                                <a class="btn btn-sm btn-outline-primary" href="/materials">@L["material.title"]</a>
-                            </div>
+                    <li class="list-group-item px-0 py-1 border-0">
+                        <div class="d-flex align-items-center gap-2 small">
+                            <i class="bi @(_materialsCount > 0 ? "bi-check-circle-fill text-success" : "bi-circle text-secondary")"></i>
+                            <span>1. @L["material.title"]</span>
+                            <a class="ms-auto text-decoration-none" href="/materials" aria-label="@L["material.title"]">
+                                <i class="bi bi-arrow-right-circle" aria-hidden="true"></i>
+                            </a>
                         </div>
                     </li>
 
-                    <li class="list-group-item px-0">
-                        <div class="d-flex align-items-start gap-2">
-                            <i class="bi @(_printersCount > 0 ? "bi-check-circle-fill text-success" : "bi-circle text-secondary") mt-1"></i>
-                            <div class="flex-grow-1">
-                                <div class="fw-semibold">2. @L["printer.title"]</div>
-                                <div class="small text-muted mb-2">@L["dashboard.onboarding.step.printer"]</div>
-                                <a class="btn btn-sm btn-outline-primary" href="/printers">@L["printer.title"]</a>
-                            </div>
+                    <li class="list-group-item px-0 py-1 border-0">
+                        <div class="d-flex align-items-center gap-2 small">
+                            <i class="bi @(_printersCount > 0 ? "bi-check-circle-fill text-success" : "bi-circle text-secondary")"></i>
+                            <span>2. @L["printer.title"]</span>
+                            <a class="ms-auto text-decoration-none" href="/printers" aria-label="@L["printer.title"]">
+                                <i class="bi bi-arrow-right-circle" aria-hidden="true"></i>
+                            </a>
                         </div>
                     </li>
 
-                    <li class="list-group-item px-0">
-                        <div class="d-flex align-items-start gap-2">
-                            <i class="bi @(_storageCount > 0 ? "bi-check-circle-fill text-success" : "bi-circle text-secondary") mt-1"></i>
-                            <div class="flex-grow-1">
-                                <div class="fw-semibold">3. @L["storage.title"]</div>
-                                <div class="small text-muted mb-2">@L["dashboard.onboarding.step.storage"]</div>
-                                <a class="btn btn-sm btn-outline-primary" href="/storage">@L["storage.title"]</a>
-                            </div>
+                    <li class="list-group-item px-0 py-1 border-0">
+                        <div class="d-flex align-items-center gap-2 small">
+                            <i class="bi @(_storageCount > 0 ? "bi-check-circle-fill text-success" : "bi-circle text-secondary")"></i>
+                            <span>3. @L["storage.title"]</span>
+                            <a class="ms-auto text-decoration-none" href="/storage" aria-label="@L["storage.title"]">
+                                <i class="bi bi-arrow-right-circle" aria-hidden="true"></i>
+                            </a>
                         </div>
                     </li>
 
-                    <li class="list-group-item px-0">
-                        <div class="d-flex align-items-start gap-2">
-                            <i class="bi @(_total > 0 ? "bi-check-circle-fill text-success" : "bi-circle text-secondary") mt-1"></i>
-                            <div class="flex-grow-1">
-                                <div class="fw-semibold">4. @L["spool.title"]</div>
-                                <div class="small text-muted mb-2">@L["dashboard.onboarding.step.spool"]</div>
-                                <a class="btn btn-sm btn-outline-primary" href="/spools/new">@L["spool.add"]</a>
-                            </div>
+                    <li class="list-group-item px-0 py-1 border-0">
+                        <div class="d-flex align-items-center gap-2 small">
+                            <i class="bi @(_total > 0 ? "bi-check-circle-fill text-success" : "bi-circle text-secondary")"></i>
+                            <span>4. @L["spool.title"]</span>
+                            <a class="ms-auto text-decoration-none" href="/spools/new" aria-label="@L["spool.add"]">
+                                <i class="bi bi-arrow-right-circle" aria-hidden="true"></i>
+                            </a>
                         </div>
                     </li>
 
-                    <li class="list-group-item px-0">
-                        <div class="d-flex align-items-start gap-2">
-                            <i class="bi @(_storedCount > 0 ? "bi-check-circle-fill text-success" : "bi-circle text-secondary") mt-1"></i>
-                            <div class="flex-grow-1">
-                                <div class="fw-semibold">5. @L["inventory.title"]</div>
-                                <div class="small text-muted mb-2">@L["dashboard.onboarding.step.inventory"]</div>
-                                <a class="btn btn-sm btn-outline-primary" href="/inventory">@L["inventory.title"]</a>
-                            </div>
+                    <li class="list-group-item px-0 py-1 border-0">
+                        <div class="d-flex align-items-center gap-2 small">
+                            <i class="bi @(_storedCount > 0 ? "bi-check-circle-fill text-success" : "bi-circle text-secondary")"></i>
+                            <span>5. @L["inventory.title"]</span>
+                            <a class="ms-auto text-decoration-none" href="/inventory" aria-label="@L["inventory.title"]">
+                                <i class="bi bi-arrow-right-circle" aria-hidden="true"></i>
+                            </a>
                         </div>
                     </li>
                 </ul>
