@@ -34,20 +34,17 @@ else
                             @GetProgressLabel()
                         </span>
                         <div class="btn-group btn-group-sm">
-                            @if (_state != ScanState.ConfirmingAction)
+                            @if (_scannerRunning)
                             {
-                                @if (_scannerRunning)
-                                {
-                                    <button class="btn btn-outline-secondary" @onclick="PauseScannerAsync">
-                                        <i class="bi bi-pause-fill me-1"></i>@L["inventory.reader.pause"]
-                                    </button>
-                                }
-                                else
-                                {
-                                    <button class="btn btn-outline-secondary" @onclick="ResumeScannerAsync">
-                                        <i class="bi bi-play-fill me-1"></i>@L["inventory.reader.resume"]
-                                    </button>
-                                }
+                                <button class="btn btn-outline-secondary" @onclick="PauseScannerAsync">
+                                    <i class="bi bi-pause-fill me-1"></i>@L["inventory.reader.pause"]
+                                </button>
+                            }
+                            else
+                            {
+                                <button class="btn btn-outline-secondary" @onclick="ResumeScannerAsync">
+                                    <i class="bi bi-play-fill me-1"></i>@L["inventory.reader.resume"]
+                                </button>
                             }
                             <button class="btn btn-outline-secondary" @onclick="RestartAsync">
                                 <i class="bi bi-arrow-counterclockwise me-1"></i>@L["inventory.scan.reset"]
@@ -99,44 +96,6 @@ else
                 </div>
             }
 
-            @if (_state == ScanState.ConfirmingAction && _firstEntity != null && _secondEntity != null)
-            {
-                <div class="card border-primary mb-3">
-                    <div class="card-body">
-                        <h5 class="mb-3"><i class="bi bi-check2-square me-2"></i>@L["inventory.confirm.title"]</h5>
-                        <p class="text-muted small mb-3">@L["inventory.confirm.hint"]</p>
-
-                        <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap border rounded p-3 mb-2">
-                            <div class="d-flex align-items-center gap-2">
-                                <i class="@GetIcon(_firstEntity.EntityType) fs-4 text-primary"></i>
-                                <div>
-                                    <div class="fw-semibold">@_firstEntity.EntityName</div>
-                                    <small class="text-muted">@L[$"inventory.type.{_firstEntity.EntityType}"]</small>
-                                </div>
-                            </div>
-                            <i class="bi bi-arrow-right fs-5 text-muted"></i>
-                            <div class="d-flex align-items-center gap-2">
-                                <i class="@GetIcon(_secondEntity.EntityType) fs-4 text-success"></i>
-                                <div>
-                                    <div class="fw-semibold">@_secondEntity.EntityName</div>
-                                    <small class="text-muted">@L[$"inventory.type.{_secondEntity.EntityType}"]</small>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="d-flex gap-2 flex-wrap">
-                            <button class="btn btn-primary" @onclick="ConfirmActionAsync" disabled="@_processing">
-                                @if (_processing) { <span class="spinner-border spinner-border-sm me-1"></span> }
-                                <i class="bi bi-check2 me-1"></i>@L["inventory.confirm.execute"]
-                            </button>
-                            <button class="btn btn-outline-secondary" @onclick="ScanSecondAgainAsync" disabled="@_processing">
-                                <i class="bi bi-arrow-repeat me-1"></i>@L["inventory.confirm.rescan.second"]
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            }
-
             @if (_state == ScanState.Done)
             {
                 @if (_result != null)
@@ -149,9 +108,6 @@ else
                         </div>
                     </div>
                 }
-                <button class="btn btn-primary w-100 btn-lg" @onclick="RestartAsync">
-                    <i class="bi bi-broadcast me-2"></i>@L["inventory.scan.start"]
-                </button>
             }
 
             @if (_errorMessage != null)
@@ -178,7 +134,7 @@ else
 }
 
 @code {
-    private enum ScanState { ScanningFirst, ScanningSecond, ConfirmingAction, Done }
+    private enum ScanState { ScanningFirst, ScanningSecond, Done }
 
     private bool? _nfcSupported;
     private ScanState _state = ScanState.ScanningFirst;
@@ -293,12 +249,8 @@ else
                     return;
                 }
 
-                await Nfc.StopReadAsync();
-                _scannerRunning = false;
                 _secondEntity = identified;
-                _state = ScanState.ConfirmingAction;
-                SetHint(L["inventory.scan.second.ok"]);
-                StateHasChanged();
+                await ExecuteActionAndContinueAsync();
             }
         }
         finally
@@ -307,11 +259,13 @@ else
         }
     }
 
-    private async Task ConfirmActionAsync()
+    private async Task ExecuteActionAndContinueAsync()
     {
         if (_firstEntity == null || _secondEntity == null) return;
 
-        _processing = true;
+        await Nfc.StopReadAsync();
+        _scannerRunning = false;
+
         _errorMessage = null;
         try
         {
@@ -320,21 +274,28 @@ else
             _state = ScanState.Done;
             _hintMessage = null;
             _hintIsWarning = false;
-        }
-        finally
-        {
-            _processing = false;
-        }
-    }
+            StateHasChanged();
 
-    private async Task ScanSecondAgainAsync()
-    {
-        if (_state != ScanState.ConfirmingAction) return;
-        _secondEntity = null;
-        _state = ScanState.ScanningSecond;
-        SetHint(L["inventory.scan.second.again"]);
-        await StartScannerAsync();
-        StateHasChanged();
+            await Task.Delay(1000);
+
+            if (!_disposed)
+                await RestartAsync();
+        }
+        catch (Exception)
+        {
+            _state = ScanState.Done;
+            _result = new InventoryActionResult
+            {
+                Success = false,
+                Description = L["inventory.scan.identify.error"]
+            };
+            StateHasChanged();
+
+            await Task.Delay(1000);
+
+            if (!_disposed)
+                await RestartAsync();
+        }
     }
 
     [JSInvokable]
@@ -372,7 +333,6 @@ else
     {
         ScanState.ScanningFirst => L["inventory.progress.first"],
         ScanState.ScanningSecond => L["inventory.progress.second"],
-        ScanState.ConfirmingAction => L["inventory.progress.confirm"],
         _ => string.Empty
     };
 

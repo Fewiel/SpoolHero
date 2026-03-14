@@ -81,7 +81,7 @@ main {
     left: 0;
     right: 0;
     bottom: 0;
-    z-index: 1050;
+    z-index: 1030;
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: .25rem;
