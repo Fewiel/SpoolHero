@@ -158,6 +158,25 @@ public class AdminController : ControllerBase
         return NoContent();
     }
 
+    [HttpPut("users/{id}/onboarding/reset")]
+    public async Task<IActionResult> ResetUserOnboarding(Guid id)
+    {
+        if (!IsPlatformAdmin()) return Forbid();
+
+        var user = await _users.GetByIdAsync(id);
+        if (user == null) return NotFound();
+
+        user.DashboardOnboardingDismissed = false;
+        await _users.UpdateAsync(user);
+
+        await _audit.LogAsync("admin.user.onboarding.reset",
+            userId: UserId, username: UserName,
+            entityType: "user", entityId: id.ToString(), entityName: user.Username,
+            ipAddress: ClientIp);
+
+        return NoContent();
+    }
+
     [HttpGet("settings/legal")]
     public async Task<IActionResult> GetLegalSettings()
     {

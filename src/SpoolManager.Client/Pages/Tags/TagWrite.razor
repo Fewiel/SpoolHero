@@ -1,6 +1,62 @@
 @page "/tags/write"
-@inject NavigationManager Nav
+@inject LocalizationService L
 
-@code {
-    protected override void OnInitialized() => Nav.NavigateTo("/spools", replace: true);
-}
+<PageTitle>@L["tag.write"] – @L["app.name"]</PageTitle>
+
+<div class="page-header">
+    <h1><i class="bi bi-broadcast me-2"></i>@L["tag.write"]</h1>
+</div>
+
+<div class="alert alert-info">
+    <i class="bi bi-info-circle me-2"></i>@L["tag.write.hint"]
+</div>
+
+<div class="row g-4">
+    <div class="col-12 col-md-6">
+        <a href="/spools" class="text-decoration-none">
+            <div class="card h-100 tag-actions">
+                <div class="card-body text-center py-4">
+                    <i class="bi bi-archive fs-1 text-primary mb-3 d-block"></i>
+                    <h5>@L["nav.spools"]</h5>
+                    <p class="text-muted mb-0">@L["spool.nfc.write.quick"]</p>
+                </div>
+            </div>
+        </a>
+    </div>
+
+    <div class="col-12 col-md-6">
+        <a href="/printers" class="text-decoration-none">
+            <div class="card h-100 tag-actions">
+                <div class="card-body text-center py-4">
+                    <i class="bi bi-printer fs-1 text-info mb-3 d-block"></i>
+                    <h5>@L["nav.printers"]</h5>
+                    <p class="text-muted mb-0">@L["tag.write.printer"]</p>
+                </div>
+            </div>
+        </a>
+    </div>
+
+    <div class="col-12 col-md-6">
+        <a href="/storage" class="text-decoration-none">
+            <div class="card h-100 tag-actions">
+                <div class="card-body text-center py-4">
+                    <i class="bi bi-box fs-1 text-success mb-3 d-block"></i>
+                    <h5>@L["nav.storage"]</h5>
+                    <p class="text-muted mb-0">@L["tag.write.storage"]</p>
+                </div>
+            </div>
+        </a>
+    </div>
+
+    <div class="col-12 col-md-6">
+        <a href="/dryers" class="text-decoration-none">
+            <div class="card h-100 tag-actions">
+                <div class="card-body text-center py-4">
+                    <i class="bi bi-thermometer-half fs-1 text-warning mb-3 d-block"></i>
+                    <h5>@L["nav.dryers"]</h5>
+                    <p class="text-muted mb-0">@L["tag.write.dryer"]</p>
+                </div>
+            </div>
+        </a>
+    </div>
+</div>

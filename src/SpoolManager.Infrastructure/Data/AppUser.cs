@@ -14,6 +14,7 @@ public class AppUser
     public bool NotifySpoolLow { get; set; } = true;
     public bool NotifyDryerDone { get; set; } = true;
     public bool NotifyTicketReply { get; set; } = true;
+    public bool DashboardOnboardingDismissed { get; set; }
     public string PreferredLanguage { get; set; } = "en";
     public int TokenVersion { get; set; }
     public DateTime CreatedAt { get; set; }

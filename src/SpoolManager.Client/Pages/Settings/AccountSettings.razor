@@ -31,6 +31,27 @@ else
         </div>
     </div>
 
+    <div class="card mb-4">
+        <div class="card-header fw-semibold">
+            <i class="bi bi-signpost-split me-2"></i>@L["settings.account.onboarding.title"]
+        </div>
+        <div class="card-body">
+            <p class="text-muted">@L["settings.account.onboarding.hint"]</p>
+
+            @if (_onboardingMessage != null)
+            {
+                <div class="alert @(_onboardingSuccess ? "alert-success" : "alert-danger") py-2">
+                    @_onboardingMessage
+                </div>
+            }
+
+            <button class="btn btn-outline-primary" @onclick="ShowOnboardingAgainAsync" disabled="@_onboardingLoading">
+                @if (_onboardingLoading) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                <i class="bi bi-arrow-counterclockwise me-1"></i>@L["settings.account.onboarding.show.again"]
+            </button>
+        </div>
+    </div>
+
     <div class="card border-danger">
         <div class="card-header fw-semibold text-danger">
             <i class="bi bi-exclamation-triangle me-2"></i>@L["settings.account.delete.title"]
@@ -87,6 +108,22 @@ else
     private string _deletePassword = string.Empty;
     private string? _deleteModalError;
     private bool _deleting;
+    private bool _onboardingLoading;
+    private bool _onboardingSuccess;
+    private string? _onboardingMessage;
+
+    private async Task ShowOnboardingAgainAsync()
+    {
+        _onboardingLoading = true;
+        _onboardingMessage = null;
+
+        var ok = await Auth.SetDashboardOnboardingDismissedAsync(false);
+        _onboardingLoading = false;
+        _onboardingSuccess = ok;
+        _onboardingMessage = ok
+            ? L["settings.account.onboarding.success"]
+            : L["settings.account.onboarding.error"];
+    }
 
     private async Task DeleteAccountAsync()
     {

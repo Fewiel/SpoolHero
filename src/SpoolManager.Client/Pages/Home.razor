@@ -7,6 +7,8 @@
 
 @if (!Auth.IsAuthenticated)
 {
+    <PageTitle>@L["auth.login"] – @L["app.name"]</PageTitle>
+    <div class="text-center py-5"><div class="spinner-border"></div></div>
     return;
 }
 
@@ -22,6 +24,65 @@
 }
 else
 {
+    @if (_showOnboarding)
+    {
+        <div class="card border-primary-subtle mb-4">
+            <div class="card-body">
+                <div class="d-flex align-items-start justify-content-between gap-2 flex-wrap mb-3">
+                    <div>
+                        <h5 class="mb-1"><i class="bi bi-signpost-split me-2"></i>@L["dashboard.onboarding.title"]</h5>
+                        <p class="text-muted mb-0">@L["dashboard.onboarding.subtitle"]</p>
+                    </div>
+                    <button class="btn btn-sm btn-outline-secondary" @onclick="SkipOnboardingAsync" disabled="@_onboardingSaving">
+                        @if (_onboardingSaving) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                        @L["dashboard.onboarding.skip"]
+                    </button>
+                </div>
+
+                <div class="row g-2">
+                    <div class="col-12 col-lg-4">
+                        <div class="border rounded p-3 h-100">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <strong>1. @L["project.title"]</strong>
+                                <span class="badge @(Project.CurrentProject != null ? "text-bg-success" : "text-bg-secondary")">
+                                    @(Project.CurrentProject != null ? L["dashboard.onboarding.done"] : L["dashboard.onboarding.pending"])
+                                </span>
+                            </div>
+                            <div class="small text-muted mb-2">@L["dashboard.onboarding.step.project"]</div>
+                            <a class="btn btn-sm btn-outline-primary" href="/projects">@L["project.title"]</a>
+                        </div>
+                    </div>
+
+                    <div class="col-12 col-lg-4">
+                        <div class="border rounded p-3 h-100">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <strong>2. @L["spool.add"]</strong>
+                                <span class="badge @(_total > 0 ? "text-bg-success" : "text-bg-secondary")">
+                                    @(_total > 0 ? L["dashboard.onboarding.done"] : L["dashboard.onboarding.pending"])
+                                </span>
+                            </div>
+                            <div class="small text-muted mb-2">@L["dashboard.onboarding.step.spool"]</div>
+                            <a class="btn btn-sm btn-outline-primary" href="/spools/new">@L["spool.add"]</a>
+                        </div>
+                    </div>
+
+                    <div class="col-12 col-lg-4">
+                        <div class="border rounded p-3 h-100">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <strong>3. @L["inventory.title"]</strong>
+                                <span class="badge @(_assignedCount > 0 ? "text-bg-success" : "text-bg-secondary")">
+                                    @(_assignedCount > 0 ? L["dashboard.onboarding.done"] : L["dashboard.onboarding.pending"])
+                                </span>
+                            </div>
+                            <div class="small text-muted mb-2">@L["dashboard.onboarding.step.inventory"]</div>
+                            <a class="btn btn-sm btn-outline-primary" href="/inventory">@L["inventory.title"]</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
     <div class="row g-3 mb-4">
         <div class="col-6 col-md-3">
             <div class="stat-card text-center">
@@ -94,7 +155,10 @@ else
 
 @code {
     private bool _loading = true;
+    private bool _showOnboarding;
+    private bool _onboardingSaving;
     private int _total, _active, _lowStock, _consumed;
+    private int _assignedCount;
     private List<SpoolDto> _recent = [];
     private List<LocationGroup> _locationGroups = [];
 
@@ -109,7 +173,8 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        if (!Auth.IsAuthenticated) { Nav.NavigateTo("/login"); return; }
+        if (!Auth.IsAuthenticated) { Nav.NavigateTo("/login", replace: true); return; }
+        _showOnboarding = Auth.CurrentUser?.DashboardOnboardingDismissed != true;
         await LoadDataAsync();
     }
 
@@ -131,6 +196,7 @@ else
         _recent = [.. all.OrderByDescending(s => s.CreatedAt).Take(6)];
 
         var activeSpools = all.Where(s => s.ConsumedAt == null).ToList();
+        _assignedCount = activeSpools.Count(s => s.PrinterName != null || s.StorageLocationName != null || s.DryerName != null);
         var groups = new List<LocationGroup>();
 
         foreach (var g in activeSpools.Where(s => s.PrinterName != null).GroupBy(s => s.PrinterName!))
@@ -147,6 +213,16 @@ else
             groups.Add(new LocationGroup(L["dashboard.no.location"], "bi-question-circle", "muted", noLocation));
 
         _locationGroups = groups;
+
+        if (_showOnboarding && !_onboardingSaving && IsOnboardingCompleted())
+        {
+            _onboardingSaving = true;
+            var saved = await Auth.SetDashboardOnboardingDismissedAsync(true);
+            _onboardingSaving = false;
+            if (saved)
+                _showOnboarding = false;
+        }
+
         _loading = false;
         StateHasChanged();
     }
@@ -155,6 +231,19 @@ else
     {
         Project.OnProjectChanged -= OnProjectChanged;
     }
+
+    private async Task SkipOnboardingAsync()
+    {
+        if (_onboardingSaving) return;
+        _onboardingSaving = true;
+        var saved = await Auth.SetDashboardOnboardingDismissedAsync(true);
+        _onboardingSaving = false;
+        if (saved)
+            _showOnboarding = false;
+    }
+
+    private bool IsOnboardingCompleted() =>
+        Project.CurrentProject != null && _total > 0 && _assignedCount > 0;
 
     private static string GetBarClass(decimal percent) =>
         percent >= 50 ? "high" : percent >= 20 ? "medium" : "low";

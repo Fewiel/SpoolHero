@@ -75,6 +75,29 @@ public class AuthService
         return await _http.SendAsync(request);
     }
 
+    public async Task<bool> SetDashboardOnboardingDismissedAsync(bool dismissed)
+    {
+        try
+        {
+            var response = await _http.PutAsJsonAsync("api/auth/dashboard-onboarding", new SetDashboardOnboardingRequest
+            {
+                Dismissed = dismissed
+            });
+
+            if (!response.IsSuccessStatusCode)
+                return false;
+
+            if (CurrentUser != null)
+                CurrentUser.DashboardOnboardingDismissed = dismissed;
+
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     public async Task LogoutAsync()
     {
         Token = null;
