@@ -4,6 +4,15 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      target_branch:
+        description: "Branch to run the workflow for"
+        required: true
+        default: beta
+        type: choice
+        options:
+          - beta
+          - main
 
 jobs:
   version:
@@ -102,6 +111,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.target_branch }}
 
       - name: Read version
         id: read
@@ -118,7 +129,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: main
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.target_branch || github.ref_name }}
 
       - name: Resolve version
         id: resolve
@@ -150,7 +161,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     needs: build
-    if: always() && !failure() && !cancelled()
+    if: always() && !failure() && !cancelled() && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.target_branch == 'main'))
 
     steps:
       - uses: actions/download-artifact@v4
@@ -192,7 +203,7 @@ jobs:
   release:
     runs-on: ubuntu-latest
     needs: [build, deploy]
-    if: always() && !failure() && !cancelled()
+    if: always() && !failure() && !cancelled() && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.target_branch == 'main'))
     permissions:
       contents: write
 
