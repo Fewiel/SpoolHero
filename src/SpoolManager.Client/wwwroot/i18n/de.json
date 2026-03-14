@@ -435,11 +435,14 @@
   "dashboard.by.location": "Spulen nach Standort",
   "dashboard.no.location": "Ohne Standort",
   "dashboard.onboarding.title": "Schnellstart",
-  "dashboard.onboarding.subtitle": "In drei Schritten bist du startklar.",
+  "dashboard.onboarding.subtitle": "Nach der Projektanlage erledige diese fünf Einrichtungsschritte.",
   "dashboard.onboarding.skip": "Überspringen",
   "dashboard.onboarding.step.project": "Projekt wählen oder anlegen.",
-  "dashboard.onboarding.step.spool": "Erste Spule erfassen.",
-  "dashboard.onboarding.step.inventory": "Spule per Inventur einem Standort zuweisen.",
+  "dashboard.onboarding.step.material": "Öffne Materialien und lege mindestens ein Filament-Material an (Marke, Typ, Farbe).",
+  "dashboard.onboarding.step.printer": "Öffne Drucker, lege einen Drucker an, platziere einen NTAG215/216 am Drucker und schreibe den Drucker-Tag per NFC.",
+  "dashboard.onboarding.step.storage": "Öffne Lagerorte, lege einen Lagerort an, befestige einen NTAG215/216 und schreibe den Lagerort-Tag per NFC.",
+  "dashboard.onboarding.step.spool": "Öffne Spulen, erfasse deine erste Spule und klebe einen NTAG215/216-Tag auf die Spule.",
+  "dashboard.onboarding.step.inventory": "Öffne Inventur, scanne den Spulen-Tag und danach den Lagerort-Tag, um die Spule einzulagern.",
   "dashboard.onboarding.done": "Erledigt",
   "dashboard.onboarding.pending": "Offen",
 
@@ -477,6 +480,10 @@
   "landing.openspool.title": "OpenSpool-Standard",
   "landing.openspool.desc": "SpoolHero implementiert den offenen OpenSpool-Standard – ein einheitliches JSON-Format für Filament-Daten auf NFC-Tags (NTAG215/216). Kompatibel mit anderen Tools und Druckern, die denselben Standard verwenden.",
   "landing.openspool.github": "OpenSpool auf GitHub",
+
+  "landing.ntag.title": "Empfohlen für NTAG215/216",
+  "landing.ntag.desc": "Nutze beschreibbare NTAG215/216 NFC-Tags für Drucker, Lagerorte und Spulen. Selbstklebende Tags sind am einfachsten zu platzieren.",
+  "landing.ntag.link": "Empfehlung öffnen",
 
   "landing.opensource.title": "Open Source",
   "landing.opensource.desc": "SpoolHero ist Open Source und kann selbst gehostet werden. Betreibe deine eigene Instanz auf eigener Hardware – volle Kontrolle über deine Daten. Beiträge sind willkommen.",

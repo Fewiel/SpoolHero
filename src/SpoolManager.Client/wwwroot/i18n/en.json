@@ -435,11 +435,14 @@
   "dashboard.by.location": "Spools by Location",
   "dashboard.no.location": "No Location",
   "dashboard.onboarding.title": "Quick start",
-  "dashboard.onboarding.subtitle": "Get running in three steps.",
+  "dashboard.onboarding.subtitle": "After creating your project, complete these five setup steps.",
   "dashboard.onboarding.skip": "Skip",
   "dashboard.onboarding.step.project": "Choose or create a project.",
-  "dashboard.onboarding.step.spool": "Create your first spool.",
-  "dashboard.onboarding.step.inventory": "Assign a spool to a location via inventory scan.",
+  "dashboard.onboarding.step.material": "Open Materials and add at least one filament material (brand, type, color).",
+  "dashboard.onboarding.step.printer": "Open Printers, add your printer, place an NTAG215/216 tag on it, then write the printer tag via NFC.",
+  "dashboard.onboarding.step.storage": "Open Storage Locations, create a storage place, attach an NTAG215/216 tag, and write the storage tag via NFC.",
+  "dashboard.onboarding.step.spool": "Open Spools, create your first spool, and attach an NTAG215/216 sticker tag to the spool.",
+  "dashboard.onboarding.step.inventory": "Open Inventory, scan the spool tag and then the storage tag to place the spool into storage.",
   "dashboard.onboarding.done": "Done",
   "dashboard.onboarding.pending": "Open",
 
@@ -477,6 +480,10 @@
   "landing.openspool.title": "OpenSpool Standard",
   "landing.openspool.desc": "SpoolHero implements the open OpenSpool standard – a unified JSON format for filament data on NFC tags (NTAG215/216). Compatible with other tools and printers that use the same standard.",
   "landing.openspool.github": "OpenSpool on GitHub",
+
+  "landing.ntag.title": "Recommended for NTAG215/216",
+  "landing.ntag.desc": "Use writable NTAG215/216 NFC tags for printers, storage locations, and spools. Adhesive tags are the easiest option for mounting.",
+  "landing.ntag.link": "Open recommendation",
 
   "landing.opensource.title": "Open Source",
   "landing.opensource.desc": "SpoolHero is open source and free to self-host. Run your own instance on your own hardware – full control over your data. Contributions are welcome.",
