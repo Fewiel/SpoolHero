@@ -42,72 +42,62 @@ else
                     </button>
                 </div>
 
-                <div class="row g-2">
-                    <div class="col-12 col-lg-4">
-                        <div class="border rounded p-3 h-100">
-                            <div class="d-flex align-items-center justify-content-between mb-2">
-                                <strong>1. @L["material.title"]</strong>
-                                <span class="badge @(_materialsCount > 0 ? "text-bg-success" : "text-bg-secondary")">
-                                    @(_materialsCount > 0 ? L["dashboard.onboarding.done"] : L["dashboard.onboarding.pending"])
-                                </span>
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item px-0">
+                        <div class="d-flex align-items-start gap-2">
+                            <i class="bi @(_materialsCount > 0 ? "bi-check-circle-fill text-success" : "bi-circle text-secondary") mt-1"></i>
+                            <div class="flex-grow-1">
+                                <div class="fw-semibold">1. @L["material.title"]</div>
+                                <div class="small text-muted mb-2">@L["dashboard.onboarding.step.material"]</div>
+                                <a class="btn btn-sm btn-outline-primary" href="/materials">@L["material.title"]</a>
                             </div>
-                            <div class="small text-muted mb-2">@L["dashboard.onboarding.step.material"]</div>
-                            <a class="btn btn-sm btn-outline-primary" href="/materials">@L["material.title"]</a>
                         </div>
-                    </div>
+                    </li>
 
-                    <div class="col-12 col-lg-4">
-                        <div class="border rounded p-3 h-100">
-                            <div class="d-flex align-items-center justify-content-between mb-2">
-                                <strong>2. @L["printer.title"]</strong>
-                                <span class="badge @(_printersCount > 0 ? "text-bg-success" : "text-bg-secondary")">
-                                    @(_printersCount > 0 ? L["dashboard.onboarding.done"] : L["dashboard.onboarding.pending"])
-                                </span>
+                    <li class="list-group-item px-0">
+                        <div class="d-flex align-items-start gap-2">
+                            <i class="bi @(_printersCount > 0 ? "bi-check-circle-fill text-success" : "bi-circle text-secondary") mt-1"></i>
+                            <div class="flex-grow-1">
+                                <div class="fw-semibold">2. @L["printer.title"]</div>
+                                <div class="small text-muted mb-2">@L["dashboard.onboarding.step.printer"]</div>
+                                <a class="btn btn-sm btn-outline-primary" href="/printers">@L["printer.title"]</a>
                             </div>
-                            <div class="small text-muted mb-2">@L["dashboard.onboarding.step.printer"]</div>
-                            <a class="btn btn-sm btn-outline-primary" href="/printers">@L["printer.title"]</a>
                         </div>
-                    </div>
+                    </li>
 
-                    <div class="col-12 col-lg-4">
-                        <div class="border rounded p-3 h-100">
-                            <div class="d-flex align-items-center justify-content-between mb-2">
-                                <strong>3. @L["storage.title"]</strong>
-                                <span class="badge @(_storageCount > 0 ? "text-bg-success" : "text-bg-secondary")">
-                                    @(_storageCount > 0 ? L["dashboard.onboarding.done"] : L["dashboard.onboarding.pending"])
-                                </span>
+                    <li class="list-group-item px-0">
+                        <div class="d-flex align-items-start gap-2">
+                            <i class="bi @(_storageCount > 0 ? "bi-check-circle-fill text-success" : "bi-circle text-secondary") mt-1"></i>
+                            <div class="flex-grow-1">
+                                <div class="fw-semibold">3. @L["storage.title"]</div>
+                                <div class="small text-muted mb-2">@L["dashboard.onboarding.step.storage"]</div>
+                                <a class="btn btn-sm btn-outline-primary" href="/storage">@L["storage.title"]</a>
                             </div>
-                            <div class="small text-muted mb-2">@L["dashboard.onboarding.step.storage"]</div>
-                            <a class="btn btn-sm btn-outline-primary" href="/storage">@L["storage.title"]</a>
                         </div>
-                    </div>
+                    </li>
 
-                    <div class="col-12 col-lg-4">
-                        <div class="border rounded p-3 h-100">
-                            <div class="d-flex align-items-center justify-content-between mb-2">
-                                <strong>4. @L["spool.title"]</strong>
-                                <span class="badge @(_total > 0 ? "text-bg-success" : "text-bg-secondary")">
-                                    @(_total > 0 ? L["dashboard.onboarding.done"] : L["dashboard.onboarding.pending"])
-                                </span>
+                    <li class="list-group-item px-0">
+                        <div class="d-flex align-items-start gap-2">
+                            <i class="bi @(_total > 0 ? "bi-check-circle-fill text-success" : "bi-circle text-secondary") mt-1"></i>
+                            <div class="flex-grow-1">
+                                <div class="fw-semibold">4. @L["spool.title"]</div>
+                                <div class="small text-muted mb-2">@L["dashboard.onboarding.step.spool"]</div>
+                                <a class="btn btn-sm btn-outline-primary" href="/spools/new">@L["spool.add"]</a>
                             </div>
-                            <div class="small text-muted mb-2">@L["dashboard.onboarding.step.spool"]</div>
-                            <a class="btn btn-sm btn-outline-primary" href="/spools/new">@L["spool.add"]</a>
                         </div>
-                    </div>
+                    </li>
 
-                    <div class="col-12 col-lg-4">
-                        <div class="border rounded p-3 h-100">
-                            <div class="d-flex align-items-center justify-content-between mb-2">
-                                <strong>5. @L["inventory.title"]</strong>
-                                <span class="badge @(_storedCount > 0 ? "text-bg-success" : "text-bg-secondary")">
-                                    @(_storedCount > 0 ? L["dashboard.onboarding.done"] : L["dashboard.onboarding.pending"])
-                                </span>
+                    <li class="list-group-item px-0">
+                        <div class="d-flex align-items-start gap-2">
+                            <i class="bi @(_storedCount > 0 ? "bi-check-circle-fill text-success" : "bi-circle text-secondary") mt-1"></i>
+                            <div class="flex-grow-1">
+                                <div class="fw-semibold">5. @L["inventory.title"]</div>
+                                <div class="small text-muted mb-2">@L["dashboard.onboarding.step.inventory"]</div>
+                                <a class="btn btn-sm btn-outline-primary" href="/inventory">@L["inventory.title"]</a>
                             </div>
-                            <div class="small text-muted mb-2">@L["dashboard.onboarding.step.inventory"]</div>
-                            <a class="btn btn-sm btn-outline-primary" href="/inventory">@L["inventory.title"]</a>
                         </div>
-                    </div>
-                </div>
+                    </li>
+                </ul>
             </div>
         </div>
     }
