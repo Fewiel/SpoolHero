@@ -17,9 +17,9 @@ public class NfcService
         return IsSupported;
     }
 
-    public async Task WriteAsync<T>(string jsonPayload, DotNetObjectReference<T> dotnetRef) where T : class
+    public async Task WriteAsync<T>(string jsonPayload, DotNetObjectReference<T> dotnetRef, int? spoolmanId = null) where T : class
     {
-        await _js.InvokeVoidAsync("nfcHelper.write", jsonPayload, dotnetRef);
+        await _js.InvokeVoidAsync("nfcHelper.write", jsonPayload, dotnetRef, spoolmanId);
     }
 
     public async Task StartReadAsync<T>(DotNetObjectReference<T> dotnetRef) where T : class

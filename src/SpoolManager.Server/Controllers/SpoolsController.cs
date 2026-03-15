@@ -192,6 +192,7 @@ public class SpoolsController : ControllerBase
     private static SpoolDto MapToDto(Spool s) => new()
     {
         Id = s.Id,
+        SpoolmanId = s.SpoolmanId,
         ProjectId = s.ProjectId,
         FilamentMaterialId = s.FilamentMaterialId,
         MaterialType = s.FilamentMaterial?.Type ?? string.Empty,
