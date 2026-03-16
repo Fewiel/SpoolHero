@@ -29,8 +29,12 @@ public class ProjectService
             var match = projects?.FirstOrDefault(p => p.Id == projectId);
             if (match != null)
             {
+                var projectChanged = CurrentProject?.Id != match.Id;
                 CurrentProject = match;
                 SetProjectHeader(match.Id);
+
+                if (projectChanged)
+                    OnProjectChanged?.Invoke();
             }
         }
         catch { }
