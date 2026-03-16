@@ -148,6 +148,13 @@ else
                 <div class="card-body">
                     <h6 class="card-subtitle mb-3 text-muted">Details</h6>
                     <div class="row g-2">
+                        @if (_spool.SpoolmanId > 0)
+                        {
+                            <div class="col-6 col-md-3">
+                                <small class="text-muted d-block">@L["spoolman.id"]</small>
+                                <span class="badge bg-secondary">@_spool.SpoolmanId</span>
+                            </div>
+                        }
                         <div class="col-6 col-md-3">
                             <small class="text-muted d-block">@L["spool.printer"]</small>
                             @(_spool.PrinterName ?? "–")
@@ -205,6 +212,12 @@ else
                                 @if (_writingNfc) { <span class="spinner-border spinner-border-sm me-2"></span> }
                                 <i class="bi bi-broadcast me-1"></i>@L["tag.nfc.write"]
                             </button>
+                            @if (!string.IsNullOrWhiteSpace(_spool!.RfidTagUid))
+                            {
+                                <button class="btn btn-outline-success" @onclick="FindSpoolAsync">
+                                    <i class="bi bi-search me-1"></i>@L["spool.find.title"]
+                                </button>
+                            }
                         }
                         <a href="@Tags.GetDownloadUrl(Id)" class="btn btn-outline-secondary">
                             <i class="bi bi-download me-1"></i>@L["tag.download.bin"]
@@ -217,6 +230,10 @@ else
                     @if (_tagJson != null)
                     {
                         <pre class="small bg-light border rounded p-2 mt-2 mb-0" style="font-size:0.7rem;word-break:break-all;white-space:pre-wrap;">@_tagJson</pre>
+                        @if (_tagSpoolmanId.HasValue)
+                        {
+                            <div class="small text-muted mt-1"><i class="bi bi-tag me-1"></i>Record 2: <code>SPOOL:@_tagSpoolmanId</code> — nfc2klipper compatible</div>
+                        }
                     }
                     @if (!_nfcSupported)
                     {
@@ -228,11 +245,17 @@ else
     </div>
 }
 
+@if (_spool != null)
+{
+    <FindSpoolModal @ref="_findModal" Spool="_spool" />
+}
+
 @code {
     [Parameter] public Guid Id { get; set; }
 
     private bool _loading = true;
     private SpoolDto? _spool;
+    private FindSpoolModal? _findModal;
     private bool _showRemainingForm;
     private decimal _remainingGrams;
     private decimal _remainingPct;
@@ -241,6 +264,7 @@ else
     private string? _nfcMessage;
     private bool _nfcSuccess;
     private string? _tagJson;
+    private int? _tagSpoolmanId;
     private Timer? _clockTimer;
 
     [JSInvokable] public void OnWriteSuccess() { _nfcMessage = L["tag.write.success"]; _nfcSuccess = true; _writingNfc = false; StateHasChanged(); }
@@ -274,6 +298,12 @@ else
     private async Task MarkReopenedAsync() { await Spools.MarkReopenedAsync(Id); _spool = await Spools.GetByIdAsync(Id); }
     private async Task MarkConsumedAsync() { await Spools.MarkConsumedAsync(Id); _spool = await Spools.GetByIdAsync(Id); }
 
+    private async Task FindSpoolAsync()
+    {
+        if (_findModal != null)
+            await _findModal.OpenAsync();
+    }
+
     private async Task WriteNfcAsync()
     {
         _writingNfc = true;
@@ -288,7 +318,8 @@ else
             return;
         }
         _tagJson = encoded.JsonPayload;
-        await Nfc.WriteAsync(encoded.JsonPayload, DotNetObjectReference.Create(this));
+        _tagSpoolmanId = encoded.SpoolmanId;
+        await Nfc.WriteAsync(encoded.JsonPayload, DotNetObjectReference.Create(this), encoded.SpoolmanId);
     }
 
     private static string GetBarClass(decimal p) => p >= 50 ? "high" : p >= 20 ? "medium" : "low";

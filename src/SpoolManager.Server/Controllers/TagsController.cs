@@ -43,9 +43,9 @@ public class TagsController : ControllerBase
             var spool = await _spools.GetByIdAsync(request.SpoolId.Value, ProjectMember.ProjectId);
             if (spool?.FilamentMaterial == null) return NotFound();
 
-            var ndefBytes = _openSpool.Encode(spool.FilamentMaterial, spool.Id);
-            var json = _openSpool.ToJson(spool.FilamentMaterial, spool.Id);
-            return Ok(new TagEncodeResponse { Base64 = Convert.ToBase64String(ndefBytes), JsonPayload = json });
+            var ndefBytes = _openSpool.Encode(spool.FilamentMaterial, spool.Id, spool.SpoolmanId);
+            var json = _openSpool.ToJson(spool.FilamentMaterial, spool.Id, spool.SpoolmanId > 0 ? spool.SpoolmanId : null);
+            return Ok(new TagEncodeResponse { Base64 = Convert.ToBase64String(ndefBytes), JsonPayload = json, SpoolmanId = spool.SpoolmanId > 0 ? spool.SpoolmanId : null });
         }
         else if (request.MaterialId.HasValue)
         {
@@ -138,7 +138,7 @@ public class TagsController : ControllerBase
         var spool = await _spools.GetByIdAsync(spoolId, ProjectMember.ProjectId);
         if (spool?.FilamentMaterial == null) return NotFound();
 
-        var bytes = _openSpool.Encode(spool.FilamentMaterial, spool.Id);
+        var bytes = _openSpool.Encode(spool.FilamentMaterial, spool.Id, spool.SpoolmanId);
         var filename = $"openspool_{spool.FilamentMaterial.Brand}_{spool.FilamentMaterial.Type}_{spoolId}.bin".Replace(" ", "_");
         return File(bytes, "application/octet-stream", filename);
     }
