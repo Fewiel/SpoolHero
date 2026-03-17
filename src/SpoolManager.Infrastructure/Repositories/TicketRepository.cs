@@ -14,6 +14,7 @@ public interface ITicketRepository
     Task<List<TicketComment>> GetCommentsAsync(Guid ticketId);
     Task<Guid> AddCommentAsync(TicketComment comment);
     Task<int> CountByStatusAsync(TicketStatus status);
+    Task<Dictionary<Guid, int>> GetPublicCommentCountsAsync(IEnumerable<Guid> ticketIds);
 }
 
 public class TicketRepository : ITicketRepository
@@ -75,4 +76,15 @@ public class TicketRepository : ITicketRepository
 
     public async Task<int> CountByStatusAsync(TicketStatus status) =>
         await _db.Tickets.CountAsync(t => t.Status == status);
+
+    public async Task<Dictionary<Guid, int>> GetPublicCommentCountsAsync(IEnumerable<Guid> ticketIds)
+    {
+        var idList = ticketIds.ToList();
+        var counts = await _db.TicketComments
+            .Where(c => idList.Contains(c.TicketId) && !c.IsInternal)
+            .GroupBy(c => c.TicketId)
+            .Select(g => new { TicketId = g.Key, Count = g.Count() })
+            .ToListAsync();
+        return counts.ToDictionary(x => x.TicketId, x => x.Count);
+    }
 }

@@ -17,7 +17,7 @@ else if (!Auth.IsAuthenticated)
 }
 else
 {
-    <a href="#main-content" class="visually-hidden-focusable position-absolute top-0 start-0 p-2 bg-primary text-white" style="z-index:9999">Zum Hauptinhalt springen</a>
+    <a href="#main-content" class="visually-hidden-focusable position-absolute top-0 start-0 p-2 bg-primary text-white" style="z-index:9999">@L["a11y.skip.to.content"]</a>
 
     <nav class="navbar navbar-expand-lg bg-body-tertiary fixed-top shadow-sm" role="navigation" aria-label="@L["app.name"] Navigation">
         <div class="container-fluid">
@@ -63,7 +63,7 @@ else
             }
 
             <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#navOffcanvas"
-                    aria-controls="navOffcanvas" aria-label="Navigation öffnen">
+                    aria-controls="navOffcanvas" aria-label="@L["a11y.toggle.nav"]">
                 <span class="navbar-toggler-icon" aria-hidden="true"></span>
             </button>
 
@@ -86,6 +86,8 @@ else
                             <li><NavLink class="dropdown-item" href="/materials"><i class="bi bi-database me-2"></i>@L["nav.materials"]</NavLink></li>
                             <li><NavLink class="dropdown-item" href="/inventory"><i class="bi bi-arrow-left-right me-2"></i>@L["nav.inventory"]</NavLink></li>
                             <li><NavLink class="dropdown-item" href="/tags"><i class="bi bi-tags me-2"></i>@L["nav.tags"]</NavLink></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><NavLink class="dropdown-item" href="/import/csv"><i class="bi bi-file-earmark-spreadsheet me-2"></i>@L["nav.import"]</NavLink></li>
                         </ul>
                     </li>
 
@@ -207,6 +209,7 @@ else
                 <li class="nav-item"><NavLink class="nav-link py-1" href="/materials" @onclick="CloseOffcanvas"><i class="bi bi-database me-2"></i>@L["nav.materials"]</NavLink></li>
                 <li class="nav-item"><NavLink class="nav-link py-1" href="/inventory" @onclick="CloseOffcanvas"><i class="bi bi-arrow-left-right me-2"></i>@L["nav.inventory"]</NavLink></li>
                 <li class="nav-item"><NavLink class="nav-link py-1" href="/tags" @onclick="CloseOffcanvas"><i class="bi bi-tags me-2"></i>@L["nav.tags"]</NavLink></li>
+                <li class="nav-item"><NavLink class="nav-link py-1" href="/import/csv" @onclick="CloseOffcanvas"><i class="bi bi-file-earmark-spreadsheet me-2"></i>@L["nav.import"]</NavLink></li>
 
                 <li class="nav-item mt-2">
                     <small class="text-muted fw-semibold text-uppercase px-2" style="font-size:.7rem">@L["nav.group.locations"]</small>
@@ -306,6 +309,8 @@ else
     }
 }
 
+@implements IDisposable
+
 @code {
     [Inject] private IJSRuntime JSRuntime { get; set; } = default!;
     private bool _showCookieBanner;
@@ -318,9 +323,9 @@ else
     protected override async Task OnInitializedAsync()
     {
         Auth.OnAuthStateChanged += OnAuthStateChanged;
-        L.OnLanguageChanged += () => { _languageKey++; StateHasChanged(); };
+        L.OnLanguageChanged += OnLanguageChanged;
         Project.OnProjectChanged += OnProjectChanged;
-        Branding.OnBrandingChanged += StateHasChanged;
+        Branding.OnBrandingChanged += OnBrandingChanged;
         Nav.LocationChanged += OnLocationChanged;
         await L.InitializeAsync();
         await Branding.InitializeAsync();
@@ -374,7 +379,8 @@ else
 
     private async Task LoadProjectsAsync()
     {
-        try { _projects = await Project.GetMyProjectsAsync() ?? []; } catch { }
+        try { _projects = await Project.GetMyProjectsAsync() ?? []; }
+        catch (Exception ex) { Console.Error.WriteLine($"Failed to load projects: {ex.Message}"); }
         _projectsLoaded = true;
     }
 
@@ -428,8 +434,20 @@ else
         Nav.NavigateTo("/login");
     }
 
+    private void OnLanguageChanged() { _languageKey++; StateHasChanged(); }
+    private void OnBrandingChanged() => StateHasChanged();
+
     private async Task CloseOffcanvas()
     {
         try { await JSRuntime.InvokeVoidAsync("eval", "bootstrap.Offcanvas.getInstance(document.getElementById('navOffcanvas'))?.hide()"); } catch { }
+    }
+
+    public void Dispose()
+    {
+        Auth.OnAuthStateChanged -= OnAuthStateChanged;
+        L.OnLanguageChanged -= OnLanguageChanged;
+        Project.OnProjectChanged -= OnProjectChanged;
+        Branding.OnBrandingChanged -= OnBrandingChanged;
+        Nav.LocationChanged -= OnLocationChanged;
     }
 }

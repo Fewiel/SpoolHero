@@ -20,6 +20,16 @@ public class FilamentMaterialDto
     public decimal? PricePerKg { get; set; }
     public bool IsPublic { get; set; }
     public int ReorderClickCount { get; set; }
+    public string Source { get; set; } = "manual";
+    public string? ProductName { get; set; }
+    public int? SpoolWeightGrams { get; set; }
+    public string? SpoolType { get; set; }
+    public string? Finish { get; set; }
+    public bool Translucent { get; set; }
+    public bool Glow { get; set; }
+    public string? Fill { get; set; }
+    public string? ImageBase64 { get; set; }
+    public string? ImageContentType { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 }

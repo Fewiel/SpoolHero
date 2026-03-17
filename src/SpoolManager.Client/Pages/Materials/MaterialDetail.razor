@@ -1,0 +1,535 @@
+@page "/materials/{Id:guid}"
+@inject MaterialService Materials
+@inject SlicerProfileService SlicerProfiles
+@inject PrinterService Printers
+@inject LocalizationService L
+@inject NavigationManager Nav
+@inject ProjectService Project
+@inject IJSRuntime JSRuntime
+
+<PageTitle>@L["material.title"] – @L["app.name"]</PageTitle>
+
+@if (_loading) { <div class="text-center py-5"><div class="spinner-border"></div></div> }
+else if (_material == null) { <div class="alert alert-danger mt-3">@L["common.not.found"]</div> }
+else
+{
+    <div class="page-header">
+        <div class="d-flex align-items-center gap-2">
+            <ColorSwatch ColorHex="@_material.ColorHex" />
+            <h1>@_material.Brand @_material.Type</h1>
+            @if (_material.Source == "spoolmandb")
+            {
+                <span class="badge bg-info">SpoolmanDB</span>
+            }
+        </div>
+        <div class="d-flex gap-2">
+            <a href="/materials/@_material.Id/edit" class="btn btn-outline-secondary">
+                <i class="bi bi-pencil me-1"></i>@L["common.edit"]
+            </a>
+            <a href="/materials" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-1"></i>@L["common.back"]
+            </a>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-12 col-md-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-3 text-muted">@L["material.details"]</h6>
+                    <div class="row g-2">
+                        <div class="col-6"><strong>@L["material.type"]:</strong></div>
+                        <div class="col-6">@_material.Type</div>
+                        <div class="col-6"><strong>@L["material.brand"]:</strong></div>
+                        <div class="col-6">@_material.Brand</div>
+                        @if (!string.IsNullOrEmpty(_material.ProductName))
+                        {
+                            <div class="col-6"><strong>@L["material.product.name"]:</strong></div>
+                            <div class="col-6">@_material.ProductName</div>
+                        }
+                        <div class="col-6"><strong>@L["material.color.hex"]:</strong></div>
+                        <div class="col-6">
+                            <div class="d-flex align-items-center gap-2">
+                                <ColorSwatch ColorHex="@_material.ColorHex" />
+                                <span class="font-monospace">#@_material.ColorHex</span>
+                                @if (_material.ColorName != null) { <span class="text-muted">@_material.ColorName</span> }
+                            </div>
+                        </div>
+                        <div class="col-6"><strong>Temp:</strong></div>
+                        <div class="col-6">@_material.MinTempCelsius–@_material.MaxTempCelsius °C</div>
+                        @if (_material.BedTempCelsius.HasValue)
+                        {
+                            <div class="col-6"><strong>@L["material.bed.temp"]:</strong></div>
+                            <div class="col-6">@_material.BedTempCelsius °C</div>
+                        }
+                        <div class="col-6"><strong>@L["material.diameter"]:</strong></div>
+                        <div class="col-6">@_material.DiameterMm mm</div>
+                        @if (_material.WeightGrams.HasValue)
+                        {
+                            <div class="col-6"><strong>@L["material.weight"]:</strong></div>
+                            <div class="col-6">@_material.WeightGrams g</div>
+                        }
+                        @if (_material.DensityGCm3.HasValue)
+                        {
+                            <div class="col-6"><strong>@L["material.density"]:</strong></div>
+                            <div class="col-6">@_material.DensityGCm3 g/cm³</div>
+                        }
+                        @if (!string.IsNullOrEmpty(_material.Finish))
+                        {
+                            <div class="col-6"><strong>@L["material.finish"]:</strong></div>
+                            <div class="col-6">@_material.Finish</div>
+                        }
+                        @if (_material.Translucent)
+                        {
+                            <div class="col-12"><span class="badge bg-secondary">@L["material.translucent"]</span></div>
+                        }
+                        @if (_material.Glow)
+                        {
+                            <div class="col-12"><span class="badge bg-warning text-dark">@L["material.glow"]</span></div>
+                        }
+                    </div>
+
+                    <hr class="my-3" />
+                    <h6 class="text-muted mb-2">@L["image.title"]</h6>
+                    @if (!string.IsNullOrEmpty(_material.ImageBase64))
+                    {
+                        <div class="mb-2">
+                            <img src="data:@(_material.ImageContentType ?? "image/jpeg");base64,@_material.ImageBase64"
+                                 alt="@_material.Brand @_material.Type"
+                                 class="img-thumbnail" style="max-width:200px;max-height:200px" />
+                        </div>
+                        <div class="d-flex gap-2 flex-wrap">
+                            <label class="btn btn-sm btn-outline-primary mb-0">
+                                <i class="bi bi-camera me-1"></i>@L["image.change"]
+                                <InputFile OnChange="OnImageSelected" style="display:none" accept="image/jpeg,image/png,image/webp" />
+                            </label>
+                            <button class="btn btn-sm btn-outline-danger" @onclick="DeleteImageAsync">
+                                <i class="bi bi-trash me-1"></i>@L["image.delete"]
+                            </button>
+                        </div>
+                    }
+                    else
+                    {
+                        <label class="btn btn-sm btn-outline-primary mb-0">
+                            <i class="bi bi-camera me-1"></i>@L["image.upload"]
+                            <InputFile OnChange="OnImageSelected" style="display:none" accept="image/jpeg,image/png,image/webp" />
+                        </label>
+                    }
+                    @if (_imageError != null)
+                    {
+                        <div class="alert alert-danger py-1 small mt-2">@_imageError</div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-md-6">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0"><i class="bi bi-sliders me-1"></i>@L["slicer.profiles"]</h6>
+                    <button class="btn btn-sm btn-primary" @onclick="ShowCreateForm">
+                        <i class="bi bi-plus-lg me-1"></i>@L["slicer.profile.add"]
+                    </button>
+                </div>
+                <div class="card-body">
+                    @if (_profiles.Count == 0)
+                    {
+                        <div class="text-muted text-center py-3">@L["slicer.profile.none"]</div>
+                    }
+                    else
+                    {
+                        @foreach (var p in _profiles)
+                        {
+                            <div class="d-flex justify-content-between align-items-center border-bottom py-2">
+                                <div>
+                                    <strong>@p.Name</strong>
+                                    <span class="badge bg-secondary ms-1">@p.SlicerType</span>
+                                    @if (p.PrinterName != null)
+                                    {
+                                        <span class="badge bg-info ms-1">
+                                            <i class="bi bi-printer"></i> @p.PrinterName
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-light text-muted ms-1">@L["slicer.all.printers"]</span>
+                                    }
+                                    <div class="small text-muted">
+                                        @if (p.NozzleTemp.HasValue) { <span class="me-2">@p.NozzleTemp°C</span> }
+                                        @if (p.RetractionLength.HasValue) { <span class="me-2">Ret: @(p.RetractionLength)mm</span> }
+                                        @if (p.PressureAdvance.HasValue) { <span class="me-2">PA: @p.PressureAdvance</span> }
+                                    </div>
+                                </div>
+                                <div class="d-flex gap-1">
+                                    @{ var profileId = p.Id; var profileName = p.Name; }
+                                    <button class="btn btn-sm btn-outline-primary" title="OrcaSlicer"
+                                            @onclick="() => DownloadExportAsync(profileId, profileName, _orca)">
+                                        <i class="bi bi-download"></i> Orca
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-primary" title="PrusaSlicer"
+                                            @onclick="() => DownloadExportAsync(profileId, profileName, _prusa)">
+                                        <i class="bi bi-download"></i> Prusa
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-secondary" @onclick="() => EditProfile(p)">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => ConfirmDeleteProfile(p)">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (_showForm)
+    {
+        <div class="modal-backdrop-custom" @onclick="CloseForm">
+            <div class="modal-box modal-lg" @onclick:stopPropagation>
+                <h5 class="mb-3">@(_editingProfile != null ? L["slicer.profile.edit"] : L["slicer.profile.add"])</h5>
+                @if (_formError != null) { <div class="alert alert-danger py-1 small">@_formError</div> }
+
+                <div class="row g-3 mb-3">
+                    <div class="col-12 col-md-6">
+                        <label class="form-label">@L["common.name"] *</label>
+                        <input class="form-control" @bind="_form.Name" />
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label">@L["slicer.type"]</label>
+                        <select class="form-select" @bind="_form.SlicerType">
+                            <option value="generic">Generic</option>
+                            <option value="orcaslicer">OrcaSlicer</option>
+                            <option value="prusaslicer">PrusaSlicer</option>
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label">@L["slicer.printer"]</label>
+                        <select class="form-select" value="@(_form.PrinterId?.ToString() ?? "")"
+                                @onchange="e => _form.PrinterId = Guid.TryParse(e.Value?.ToString(), out var pid) ? pid : null">
+                            <option value="">@L["slicer.all.printers"]</option>
+                            @foreach (var pr in _printers)
+                            {
+                                <option value="@pr.Id">@pr.Name</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+
+                <h6 class="text-muted small">@L["slicer.temps"]</h6>
+                <div class="row g-3 mb-3">
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small">@L["slicer.nozzle.temp"]</label>
+                        <div class="input-group input-group-sm">
+                            <input class="form-control" type="number" @bind="_form.NozzleTemp" />
+                            <span class="input-group-text">°C</span>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small">@L["slicer.nozzle.temp.initial"]</label>
+                        <div class="input-group input-group-sm">
+                            <input class="form-control" type="number" @bind="_form.NozzleTempInitialLayer" />
+                            <span class="input-group-text">°C</span>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small">@L["slicer.bed.temp"]</label>
+                        <div class="input-group input-group-sm">
+                            <input class="form-control" type="number" @bind="_form.BedTemp" />
+                            <span class="input-group-text">°C</span>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small">@L["slicer.bed.temp.initial"]</label>
+                        <div class="input-group input-group-sm">
+                            <input class="form-control" type="number" @bind="_form.BedTempInitialLayer" />
+                            <span class="input-group-text">°C</span>
+                        </div>
+                    </div>
+                </div>
+
+                <h6 class="text-muted small">@L["slicer.flow"]</h6>
+                <div class="row g-3 mb-3">
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small">@L["slicer.max.volumetric"]</label>
+                        <div class="input-group input-group-sm">
+                            <input class="form-control" type="number" step="0.1" @bind="_form.MaxVolumetricSpeed" />
+                            <span class="input-group-text">mm³/s</span>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small">@L["slicer.flow.ratio"]</label>
+                        <input class="form-control form-control-sm" type="number" step="0.01" @bind="_form.FilamentFlowRatio" />
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small">@L["slicer.pressure.advance"]</label>
+                        <input class="form-control form-control-sm" type="number" step="0.001" @bind="_form.PressureAdvance" />
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small">@L["slicer.chamber.temp"]</label>
+                        <div class="input-group input-group-sm">
+                            <input class="form-control" type="number" @bind="_form.ChamberTemp" />
+                            <span class="input-group-text">°C</span>
+                        </div>
+                    </div>
+                </div>
+
+                <h6 class="text-muted small">@L["slicer.retraction"]</h6>
+                <div class="row g-3 mb-3">
+                    <div class="col-6 col-md-4">
+                        <label class="form-label small">@L["slicer.retraction.length"]</label>
+                        <div class="input-group input-group-sm">
+                            <input class="form-control" type="number" step="0.1" @bind="_form.RetractionLength" />
+                            <span class="input-group-text">mm</span>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-4">
+                        <label class="form-label small">@L["slicer.retraction.speed"]</label>
+                        <div class="input-group input-group-sm">
+                            <input class="form-control" type="number" @bind="_form.RetractionSpeed" />
+                            <span class="input-group-text">mm/s</span>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-4">
+                        <label class="form-label small">@L["slicer.zhop"]</label>
+                        <div class="input-group input-group-sm">
+                            <input class="form-control" type="number" step="0.1" @bind="_form.ZHop" />
+                            <span class="input-group-text">mm</span>
+                        </div>
+                    </div>
+                </div>
+
+                <h6 class="text-muted small">@L["slicer.fan"]</h6>
+                <div class="row g-3 mb-3">
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small">@L["slicer.fan.min"]</label>
+                        <div class="input-group input-group-sm">
+                            <input class="form-control" type="number" @bind="_form.FanMinSpeed" />
+                            <span class="input-group-text">%</span>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small">@L["slicer.fan.max"]</label>
+                        <div class="input-group input-group-sm">
+                            <input class="form-control" type="number" @bind="_form.FanMaxSpeed" />
+                            <span class="input-group-text">%</span>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small">@L["slicer.fan.disable.layers"]</label>
+                        <input class="form-control form-control-sm" type="number" @bind="_form.FanDisableFirstLayers" />
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <label class="form-label small">@L["slicer.fan.overhang"]</label>
+                        <div class="input-group input-group-sm">
+                            <input class="form-control" type="number" @bind="_form.OverhangFanSpeed" />
+                            <span class="input-group-text">%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label small">@L["slicer.start.gcode"]</label>
+                    <textarea class="form-control form-control-sm font-monospace" rows="2" @bind="_form.FilamentStartGcode"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small">@L["slicer.end.gcode"]</label>
+                    <textarea class="form-control form-control-sm font-monospace" rows="2" @bind="_form.FilamentEndGcode"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small">@L["material.notes"]</label>
+                    <textarea class="form-control form-control-sm" rows="2" @bind="_form.Notes"></textarea>
+                </div>
+
+                <div class="d-flex gap-2 justify-content-end">
+                    <button class="btn btn-secondary" @onclick="CloseForm">@L["common.cancel"]</button>
+                    <button class="btn btn-primary" @onclick="SaveProfileAsync" disabled="@_saving">
+                        @if (_saving) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                        @L["common.save"]
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (_deleteProfile != null)
+    {
+        <div class="modal-backdrop-custom" @onclick="() => _deleteProfile = null">
+            <div class="modal-box" @onclick:stopPropagation>
+                <h5>@L["slicer.profile.delete"]</h5>
+                <p>@L["slicer.profile.delete.confirm"]</p>
+                <p><strong>@_deleteProfile.Name</strong></p>
+                <div class="d-flex gap-2 justify-content-end">
+                    <button class="btn btn-secondary" @onclick="() => _deleteProfile = null">@L["common.cancel"]</button>
+                    <button class="btn btn-danger" @onclick="DeleteProfileAsync">@L["common.delete"]</button>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private const string _orca = "orcaslicer";
+    private const string _prusa = "prusaslicer";
+    private bool _loading = true;
+    private FilamentMaterialDto? _material;
+    private List<SlicerProfileDto> _profiles = [];
+    private List<PrinterDto> _printers = [];
+    private bool _showForm;
+    private bool _saving;
+    private string? _formError;
+    private string? _imageError;
+    private SlicerProfileDto? _editingProfile;
+    private SlicerProfileDto? _deleteProfile;
+    private CreateSlicerProfileRequest _form = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Project.CurrentProject == null) return;
+        _material = await Materials.GetByIdAsync(Id);
+        if (_material != null)
+        {
+            var pt = SlicerProfiles.GetByMaterialAsync(Id);
+            var prt = Printers.GetAllAsync();
+            await Task.WhenAll(pt, prt);
+            _profiles = await pt ?? [];
+            _printers = await prt ?? [];
+        }
+        _loading = false;
+    }
+
+    private void ShowCreateForm()
+    {
+        _editingProfile = null;
+        _form = new CreateSlicerProfileRequest
+        {
+            FilamentMaterialId = Id,
+            NozzleTemp = _material?.MinTempCelsius > 0 ? (_material.MinTempCelsius + _material.MaxTempCelsius) / 2 : null,
+            BedTemp = _material?.BedTempCelsius
+        };
+        _formError = null;
+        _showForm = true;
+    }
+
+    private void EditProfile(SlicerProfileDto p)
+    {
+        _editingProfile = p;
+        _form = new CreateSlicerProfileRequest
+        {
+            FilamentMaterialId = p.FilamentMaterialId,
+            PrinterId = p.PrinterId,
+            Name = p.Name,
+            SlicerType = p.SlicerType,
+            NozzleTemp = p.NozzleTemp,
+            NozzleTempInitialLayer = p.NozzleTempInitialLayer,
+            BedTemp = p.BedTemp,
+            BedTempInitialLayer = p.BedTempInitialLayer,
+            ChamberTemp = p.ChamberTemp,
+            MaxVolumetricSpeed = p.MaxVolumetricSpeed,
+            FilamentFlowRatio = p.FilamentFlowRatio,
+            PressureAdvance = p.PressureAdvance,
+            RetractionLength = p.RetractionLength,
+            RetractionSpeed = p.RetractionSpeed,
+            ZHop = p.ZHop,
+            FanMinSpeed = p.FanMinSpeed,
+            FanMaxSpeed = p.FanMaxSpeed,
+            FanDisableFirstLayers = p.FanDisableFirstLayers,
+            OverhangFanSpeed = p.OverhangFanSpeed,
+            FilamentStartGcode = p.FilamentStartGcode,
+            FilamentEndGcode = p.FilamentEndGcode,
+            Notes = p.Notes
+        };
+        _formError = null;
+        _showForm = true;
+    }
+
+    private void CloseForm() => _showForm = false;
+
+    private async Task SaveProfileAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_form.Name)) { _formError = "Name required"; return; }
+        _saving = true;
+        _formError = null;
+
+        HttpResponseMessage resp;
+        if (_editingProfile != null)
+            resp = await SlicerProfiles.UpdateAsync(Id, _editingProfile.Id, new UpdateSlicerProfileRequest
+            {
+                FilamentMaterialId = _form.FilamentMaterialId,
+                PrinterId = _form.PrinterId, Name = _form.Name, SlicerType = _form.SlicerType,
+                NozzleTemp = _form.NozzleTemp, NozzleTempInitialLayer = _form.NozzleTempInitialLayer,
+                BedTemp = _form.BedTemp, BedTempInitialLayer = _form.BedTempInitialLayer,
+                ChamberTemp = _form.ChamberTemp, MaxVolumetricSpeed = _form.MaxVolumetricSpeed,
+                FilamentFlowRatio = _form.FilamentFlowRatio, PressureAdvance = _form.PressureAdvance,
+                RetractionLength = _form.RetractionLength, RetractionSpeed = _form.RetractionSpeed,
+                ZHop = _form.ZHop, FanMinSpeed = _form.FanMinSpeed, FanMaxSpeed = _form.FanMaxSpeed,
+                FanDisableFirstLayers = _form.FanDisableFirstLayers, OverhangFanSpeed = _form.OverhangFanSpeed,
+                FilamentStartGcode = _form.FilamentStartGcode, FilamentEndGcode = _form.FilamentEndGcode,
+                Notes = _form.Notes
+            });
+        else
+            resp = await SlicerProfiles.CreateAsync(Id, _form);
+
+        _saving = false;
+        if (resp.IsSuccessStatusCode)
+        {
+            _showForm = false;
+            _profiles = await SlicerProfiles.GetByMaterialAsync(Id) ?? [];
+        }
+        else
+        {
+            _formError = await resp.Content.ReadAsStringAsync();
+        }
+    }
+
+    private async Task OnImageSelected(InputFileChangeEventArgs e)
+    {
+        _imageError = null;
+        var file = e.File;
+        if (file.Size > 8 * 1024 * 1024) { _imageError = L["common.image.too.large"]; return; }
+        using var content = new MultipartFormDataContent();
+        content.Add(new StreamContent(file.OpenReadStream(8 * 1024 * 1024)), "file", file.Name);
+        content.Headers.ContentDisposition = null;
+        var resp = await Materials.UploadImageAsync(Id, content);
+        if (resp.IsSuccessStatusCode)
+            _material = await Materials.GetByIdAsync(Id);
+        else
+            _imageError = L["common.error"];
+    }
+
+    private async Task DeleteImageAsync()
+    {
+        _imageError = null;
+        var resp = await Materials.DeleteImageAsync(Id);
+        if (resp.IsSuccessStatusCode)
+            _material = await Materials.GetByIdAsync(Id);
+        else
+            _imageError = L["common.error"];
+    }
+
+    private void ConfirmDeleteProfile(SlicerProfileDto p) => _deleteProfile = p;
+
+    private async Task DeleteProfileAsync()
+    {
+        if (_deleteProfile == null) return;
+        var resp = await SlicerProfiles.DeleteAsync(Id, _deleteProfile.Id);
+        _deleteProfile = null;
+        if (resp.IsSuccessStatusCode)
+            _profiles = await SlicerProfiles.GetByMaterialAsync(Id) ?? [];
+    }
+
+    private async Task DownloadExportAsync(Guid profileId, string profileName, string format)
+    {
+        var resp = await SlicerProfiles.DownloadExportAsync(_material!.Id, profileId, format);
+        if (!resp.IsSuccessStatusCode) return;
+        var bytes = await resp.Content.ReadAsByteArrayAsync();
+        var base64 = Convert.ToBase64String(bytes);
+        var ext = format == "orcaslicer" ? "json" : "ini";
+        var fileName = $"{profileName}.{ext}";
+        await JSRuntime.InvokeVoidAsync("eval", $"{{var a=document.createElement('a');a.href='data:application/octet-stream;base64,{base64}';a.download='{fileName}';document.body.appendChild(a);a.click();a.remove();}}");
+    }
+}

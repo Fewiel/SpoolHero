@@ -10,6 +10,7 @@
 @inject NavigationManager Nav
 @inject ProjectService Project
 @using SpoolManager.Shared.DTOs.Materials
+@implements IDisposable
 @using System.Text.Json
 
 <PageTitle>@(Id.HasValue ? L["spool.edit"] : L["spool.add"]) – @L["app.name"]</PageTitle>
@@ -68,14 +69,9 @@ else
 
                     <div class="mb-3">
                         <label class="form-label">@L["spool.material"] *</label>
-                        <select class="form-select" value="@_form.FilamentMaterialId"
-                                @onchange="OnMaterialChanged" required>
-                            <option value="">– @L["spool.material"] –</option>
-                            @foreach (var m in _materials)
-                            {
-                                <option value="@m.Id">@m.Brand @m.Type @(m.ColorName != null ? $"– {m.ColorName}" : $"– #{m.ColorHex}")</option>
-                            }
-                        </select>
+                        <MaterialPicker Value="@_form.FilamentMaterialId"
+                                        ValueChanged="OnMaterialPickerChanged"
+                                        OnMaterialSelected="OnMaterialSelected" />
                     </div>
 
                     <div class="row g-3 mb-3">
@@ -176,6 +172,7 @@ else
     private string? _error;
     private CreateSpoolRequest _form = new() { RemainingPercent = 100 };
     private List<FilamentMaterialDto> _materials = [];
+    private FilamentMaterialDto? _selectedMaterial;
     private List<PrinterDto> _printers = [];
     private List<StorageLocationDto> _storages = [];
     private List<DryerDto> _dryerList = [];
@@ -205,6 +202,7 @@ else
             if (spool != null)
             {
                 _form.FilamentMaterialId = spool.FilamentMaterialId;
+                _selectedMaterial = _materials.FirstOrDefault(m => m.Id == spool.FilamentMaterialId);
                 _form.RemainingWeightGrams = spool.RemainingWeightGrams;
                 _form.RemainingPercent = spool.RemainingPercent;
                 _form.PrinterId = spool.PrinterId;
@@ -241,13 +239,13 @@ else
     }
 
     [JSInvokable]
-    public void OnTagRead(string json)
+    public void OnTagRead(string json, string serialNumber)
     {
         _nfcReading = false;
         _nfcImportError = null;
         try
         {
-            var doc = JsonDocument.Parse(json);
+            using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
 
             var brand = root.TryGetProperty("brand", out var b) ? b.GetString() : null;
@@ -268,6 +266,7 @@ else
                 if (match != null)
                 {
                     _form.FilamentMaterialId = match.Id;
+                    _selectedMaterial = match;
                     if (match.WeightGrams is > 0)
                     {
                         _form.RemainingWeightGrams = match.WeightGrams.Value;
@@ -313,28 +312,29 @@ else
     [JSInvokable]
     public void OnWriteError(string error) { }
 
-    private void OnMaterialChanged(ChangeEventArgs e)
+    private void OnMaterialPickerChanged(Guid id)
     {
-        if (!Guid.TryParse(e.Value?.ToString(), out var id)) return;
         _form.FilamentMaterialId = id;
+    }
+
+    private void OnMaterialSelected(FilamentMaterialDto? material)
+    {
+        if (material == null) return;
+        _form.FilamentMaterialId = material.Id;
+        _selectedMaterial = material;
         if (Id.HasValue) return;
-        var mat = _materials.FirstOrDefault(m => m.Id == id);
-        if (mat == null) return;
-        if (mat.WeightGrams is > 0)
+        if (material.WeightGrams is > 0)
         {
-            _form.RemainingWeightGrams = mat.WeightGrams.Value;
+            _form.RemainingWeightGrams = material.WeightGrams.Value;
             _form.RemainingPercent = 100;
         }
-        if (string.IsNullOrEmpty(_form.ReorderUrl) && mat.ReorderUrl != null)
-            _form.ReorderUrl = mat.ReorderUrl;
+        if (string.IsNullOrEmpty(_form.ReorderUrl) && material.ReorderUrl != null)
+            _form.ReorderUrl = material.ReorderUrl;
     }
 
     private void OnLocationChange(string type, string? value)
     {
         var parsed = Guid.TryParse(value, out var id) ? id : (Guid?)null;
-        _form.PrinterId = null;
-        _form.StorageLocationId = null;
-        _form.DryerId = null;
         if (type == "printer") _form.PrinterId = parsed;
         else if (type == "storage") _form.StorageLocationId = parsed;
         else if (type == "dryer") _form.DryerId = parsed;
@@ -343,17 +343,15 @@ else
     private void SetWeight(decimal value)
     {
         _form.RemainingWeightGrams = value;
-        var material = _materials.FirstOrDefault(m => m.Id == _form.FilamentMaterialId);
-        if (material?.WeightGrams is > 0)
-            _form.RemainingPercent = Math.Round(value / material.WeightGrams.Value * 100m, 1);
+        if (_selectedMaterial?.WeightGrams is > 0)
+            _form.RemainingPercent = Math.Round(value / _selectedMaterial.WeightGrams.Value * 100m, 1);
     }
 
     private void SetPercent(decimal value)
     {
         _form.RemainingPercent = value;
-        var material = _materials.FirstOrDefault(m => m.Id == _form.FilamentMaterialId);
-        if (material?.WeightGrams is > 0)
-            _form.RemainingWeightGrams = Math.Round(value / 100m * material.WeightGrams.Value, 1);
+        if (_selectedMaterial?.WeightGrams is > 0)
+            _form.RemainingWeightGrams = Math.Round(value / 100m * _selectedMaterial.WeightGrams.Value, 1);
     }
 
     private async Task SaveAsync()
@@ -389,4 +387,6 @@ else
         if (resp.IsSuccessStatusCode) Nav.NavigateTo("/spools");
         else _error = await resp.Content.ReadAsStringAsync();
     }
+
+    public void Dispose() => _dotnetRef?.Dispose();
 }

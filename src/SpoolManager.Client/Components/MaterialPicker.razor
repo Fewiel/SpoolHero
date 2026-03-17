@@ -1,0 +1,219 @@
+@implements IDisposable
+@inject MaterialService Materials
+@inject LocalizationService L
+
+<div class="material-picker">
+    @if (SelectedMaterial != null)
+    {
+        <div class="d-flex align-items-center gap-2 p-2 border rounded mb-2 bg-body-tertiary">
+            <ColorSwatch ColorHex="@SelectedMaterial.ColorHex" />
+            <div class="flex-grow-1">
+                <strong>@SelectedMaterial.Brand</strong> @SelectedMaterial.Type
+                @if (!string.IsNullOrEmpty(SelectedMaterial.ColorName))
+                {
+                    <span class="text-muted">– @SelectedMaterial.ColorName</span>
+                }
+                @if (!string.IsNullOrEmpty(SelectedMaterial.ProductName))
+                {
+                    <div class="small text-muted">@SelectedMaterial.ProductName</div>
+                }
+            </div>
+            @if (SelectedMaterial.Source == "spoolmandb")
+            {
+                <span class="badge bg-info">SpoolmanDB</span>
+            }
+            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="ClearSelection">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+    }
+
+    <div class="input-group mb-2">
+        <span class="input-group-text"><i class="bi bi-search"></i></span>
+        <input type="text" class="form-control" placeholder="@L["material.picker.search"]"
+               @bind:get="_searchQuery" @bind:set="OnSearchChanged" @bind:event="oninput" />
+    </div>
+
+    <div class="d-flex gap-2 mb-2 flex-wrap">
+        <select class="form-select form-select-sm" style="max-width: 160px"
+                @bind:get="_selectedType" @bind:set="OnTypeChanged" @bind:event="onchange">
+            <option value="">@L["material.picker.filter.type"]: @L["material.picker.filter.all"]</option>
+            @foreach (var t in _availableTypes)
+            {
+                <option value="@t">@t</option>
+            }
+        </select>
+        <select class="form-select form-select-sm" style="max-width: 160px"
+                @bind:get="_selectedBrand" @bind:set="OnBrandChanged" @bind:event="onchange">
+            <option value="">@L["material.picker.filter.brand"]: @L["material.picker.filter.all"]</option>
+            @foreach (var b in _availableBrands)
+            {
+                <option value="@b">@b</option>
+            }
+        </select>
+        <button type="button" class="btn btn-sm btn-outline-secondary ms-auto" @onclick="SearchAsync">
+            <i class="bi bi-arrow-clockwise"></i>
+        </button>
+    </div>
+
+    @if (_searching)
+    {
+        <div class="text-center py-3"><div class="spinner-border spinner-border-sm"></div></div>
+    }
+    else if (_results.Count == 0)
+    {
+        <div class="text-muted text-center py-3">@L["material.picker.no.results"]</div>
+    }
+    else
+    {
+        <div class="list-group material-picker-list" style="max-height: 300px; overflow-y: auto;">
+            @foreach (var m in _results)
+            {
+                var isSelected = Value == m.Id;
+                <button type="button"
+                        class="list-group-item list-group-item-action d-flex align-items-center gap-2 @(isSelected ? "active" : "")"
+                        @onclick="() => SelectMaterial(m)">
+                    <ColorSwatch ColorHex="@m.ColorHex" />
+                    <div class="flex-grow-1 text-truncate">
+                        <strong>@m.Brand</strong> @m.Type
+                        @if (!string.IsNullOrEmpty(m.ColorName))
+                        {
+                            <span class="@(isSelected ? "" : "text-muted")">– @m.ColorName</span>
+                        }
+                        @if (!string.IsNullOrEmpty(m.ProductName))
+                        {
+                            <div class="small @(isSelected ? "text-white-50" : "text-muted") text-truncate">@m.ProductName</div>
+                        }
+                    </div>
+                    @if (m.Source == "spoolmandb")
+                    {
+                        <span class="badge bg-info">DB</span>
+                    }
+                </button>
+            }
+        </div>
+
+        @if (_totalCount > _results.Count)
+        {
+            <button type="button" class="btn btn-sm btn-outline-primary w-100 mt-2" @onclick="LoadMoreAsync">
+                @L["material.picker.load.more"] (@_results.Count / @_totalCount)
+            </button>
+        }
+    }
+</div>
+
+@code {
+    [Parameter] public Guid Value { get; set; }
+    [Parameter] public EventCallback<Guid> ValueChanged { get; set; }
+    [Parameter] public EventCallback<FilamentMaterialDto?> OnMaterialSelected { get; set; }
+
+    private FilamentMaterialDto? SelectedMaterial { get; set; }
+    private string _searchQuery = "";
+    private string _selectedType = "";
+    private string _selectedBrand = "";
+    private bool _searching;
+    private List<FilamentMaterialDto> _results = [];
+    private int _totalCount;
+    private List<string> _availableBrands = [];
+    private List<string> _availableTypes = [];
+    private int _currentOffset;
+    private const int PageSize = 30;
+    private System.Timers.Timer? _debounceTimer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await SearchAsync();
+        if (Value != Guid.Empty)
+        {
+            SelectedMaterial = _results.FirstOrDefault(m => m.Id == Value);
+            if (SelectedMaterial == null)
+            {
+                SelectedMaterial = await Materials.GetByIdAsync(Value);
+            }
+        }
+    }
+
+    private void OnSearchChanged(string? value)
+    {
+        _searchQuery = value ?? "";
+        _currentOffset = 0;
+        _debounceTimer?.Stop();
+        _debounceTimer?.Dispose();
+        _debounceTimer = new System.Timers.Timer(300);
+        _debounceTimer.Elapsed += async (_, _) => { _debounceTimer?.Stop(); try { await InvokeAsync(SearchAsync); } catch { } };
+        _debounceTimer.Start();
+    }
+
+    private async Task OnTypeChanged(string value)
+    {
+        _selectedType = value;
+        await SearchAsync();
+    }
+
+    private async Task OnBrandChanged(string value)
+    {
+        _selectedBrand = value;
+        await SearchAsync();
+    }
+
+    private async Task SearchAsync()
+    {
+        _searching = true;
+        _currentOffset = 0;
+        StateHasChanged();
+
+        var result = await Materials.SearchAsync(new MaterialSearchRequest
+        {
+            Query = string.IsNullOrWhiteSpace(_searchQuery) ? null : _searchQuery,
+            MaterialType = string.IsNullOrWhiteSpace(_selectedType) ? null : _selectedType,
+            Brand = string.IsNullOrWhiteSpace(_selectedBrand) ? null : _selectedBrand,
+            Limit = PageSize,
+            Offset = 0
+        });
+
+        if (result != null)
+        {
+            _results = result.Items;
+            _totalCount = result.TotalCount;
+            _availableBrands = result.AvailableBrands;
+            _availableTypes = result.AvailableTypes;
+        }
+
+        _searching = false;
+    }
+
+    private async Task LoadMoreAsync()
+    {
+        _currentOffset += PageSize;
+        var result = await Materials.SearchAsync(new MaterialSearchRequest
+        {
+            Query = string.IsNullOrWhiteSpace(_searchQuery) ? null : _searchQuery,
+            MaterialType = string.IsNullOrWhiteSpace(_selectedType) ? null : _selectedType,
+            Brand = string.IsNullOrWhiteSpace(_selectedBrand) ? null : _selectedBrand,
+            Limit = PageSize,
+            Offset = _currentOffset
+        });
+
+        if (result != null)
+        {
+            _results.AddRange(result.Items);
+            _totalCount = result.TotalCount;
+        }
+    }
+
+    private async Task SelectMaterial(FilamentMaterialDto material)
+    {
+        SelectedMaterial = material;
+        await ValueChanged.InvokeAsync(material.Id);
+        await OnMaterialSelected.InvokeAsync(material);
+    }
+
+    private async Task ClearSelection()
+    {
+        SelectedMaterial = null;
+        await ValueChanged.InvokeAsync(Guid.Empty);
+        await OnMaterialSelected.InvokeAsync(null);
+    }
+
+    public void Dispose() => _debounceTimer?.Dispose();
+}

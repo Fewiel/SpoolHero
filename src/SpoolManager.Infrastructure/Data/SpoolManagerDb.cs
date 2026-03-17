@@ -22,4 +22,5 @@ public class SpoolManagerDb : DataConnection
     public ITable<TicketComment> TicketComments => this.GetTable<TicketComment>();
     public ITable<SmtpSettings> SmtpSettings => this.GetTable<SmtpSettings>();
     public ITable<SiteSetting> SiteSettings => this.GetTable<SiteSetting>();
+    public ITable<SlicerProfile> SlicerProfiles => this.GetTable<SlicerProfile>();
 }

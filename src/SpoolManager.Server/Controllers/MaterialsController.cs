@@ -17,16 +17,19 @@ public class MaterialsController : ControllerBase
 {
     private readonly IMaterialRepository _materials;
     private readonly IMaterialExportService _exportService;
+    private readonly IImageService _images;
     private readonly IAuditService _audit;
     private ProjectMember ProjectMember => (ProjectMember)HttpContext.Items["ProjectMember"]!;
     private string? UserName => User.FindFirst(ClaimTypes.Name)?.Value;
     private Guid UserId => Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
     private string? ClientIp => HttpContext.Connection.RemoteIpAddress?.ToString();
 
-    public MaterialsController(IMaterialRepository materials, IMaterialExportService exportService, IAuditService audit)
+    public MaterialsController(IMaterialRepository materials, IMaterialExportService exportService,
+        IImageService images, IAuditService audit)
     {
         _materials = materials;
         _exportService = exportService;
+        _images = images;
         _audit = audit;
     }
 
@@ -35,6 +38,37 @@ public class MaterialsController : ControllerBase
     {
         var materials = await _materials.GetAllAsync(ProjectMember.ProjectId, search);
         return Ok(materials.Select(MapToDto));
+    }
+
+    [HttpGet("search")]
+    public async Task<IActionResult> Search([FromQuery] MaterialSearchRequest request)
+    {
+        var (items, totalCount, brands, types) = await _materials.SearchAsync(
+            request.Query, request.MaterialType, request.Brand,
+            request.GlobalOnly, request.Limit, request.Offset,
+            ProjectMember.ProjectId);
+
+        return Ok(new MaterialSearchResult
+        {
+            Items = items.Select(MapToDto).ToList(),
+            TotalCount = totalCount,
+            AvailableBrands = brands,
+            AvailableTypes = types
+        });
+    }
+
+    [HttpGet("brands")]
+    public async Task<IActionResult> GetBrands()
+    {
+        var brands = await _materials.GetDistinctBrandsAsync(ProjectMember.ProjectId);
+        return Ok(brands);
+    }
+
+    [HttpGet("types")]
+    public async Task<IActionResult> GetTypes()
+    {
+        var types = await _materials.GetDistinctTypesAsync(ProjectMember.ProjectId);
+        return Ok(types);
     }
 
     [HttpGet("{id}")]
@@ -131,6 +165,40 @@ public class MaterialsController : ControllerBase
         return Ok(new { base64 });
     }
 
+    [HttpPost("{id}/image")]
+    [RequestSizeLimit(8_388_608)]
+    public async Task<IActionResult> UploadImage(Guid id, IFormFile file)
+    {
+        var material = await _materials.GetByIdAsync(id);
+        if (material == null) return NotFound();
+        if (material.ProjectId != null && material.ProjectId != ProjectMember.ProjectId) return NotFound();
+
+        var allowed = new[] { "image/jpeg", "image/png", "image/webp" };
+        if (!allowed.Contains(file.ContentType)) return BadRequest(new { message = "Unsupported image type." });
+
+        using var ms = new MemoryStream();
+        await file.CopyToAsync(ms);
+        material.ImageData = _images.ResizeToThumbnail(ms.ToArray());
+        material.ImageContentType = "image/jpeg";
+        material.UpdatedAt = DateTime.UtcNow;
+        await _materials.UpdateAsync(material);
+        return Ok(new { imageBase64 = Convert.ToBase64String(material.ImageData), imageContentType = material.ImageContentType });
+    }
+
+    [HttpDelete("{id}/image")]
+    public async Task<IActionResult> DeleteImage(Guid id)
+    {
+        var material = await _materials.GetByIdAsync(id);
+        if (material == null) return NotFound();
+        if (material.ProjectId != null && material.ProjectId != ProjectMember.ProjectId) return NotFound();
+
+        material.ImageData = null;
+        material.ImageContentType = null;
+        material.UpdatedAt = DateTime.UtcNow;
+        await _materials.UpdateAsync(material);
+        return NoContent();
+    }
+
     [HttpPost("import")]
     public async Task<IActionResult> Import([FromBody] ImportRequest request)
     {
@@ -149,6 +217,16 @@ public class MaterialsController : ControllerBase
         return Ok(new { imported = created.Count });
     }
 
+    internal static string? SanitizeUrl(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url)) return null;
+        url = url.Trim();
+        if (Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
+            (uri.Scheme == "http" || uri.Scheme == "https"))
+            return url;
+        return null;
+    }
+
     internal static FilamentMaterial MapFromRequest(CreateMaterialRequest r) => new()
     {
         Type = r.Type,
@@ -164,7 +242,7 @@ public class MaterialsController : ControllerBase
         DryTempCelsius = r.DryTempCelsius,
         DryTimeHours = r.DryTimeHours,
         Notes = r.Notes,
-        ReorderUrl = r.ReorderUrl,
+        ReorderUrl = SanitizeUrl(r.ReorderUrl),
         PricePerKg = r.PricePerKg,
         IsPublic = r.IsPublic
     };
@@ -184,7 +262,7 @@ public class MaterialsController : ControllerBase
         m.DryTempCelsius = r.DryTempCelsius;
         m.DryTimeHours = r.DryTimeHours;
         m.Notes = r.Notes;
-        m.ReorderUrl = r.ReorderUrl;
+        m.ReorderUrl = SanitizeUrl(r.ReorderUrl);
         m.PricePerKg = r.PricePerKg;
         m.IsPublic = r.IsPublic;
     }
@@ -198,6 +276,11 @@ public class MaterialsController : ControllerBase
         DryTempCelsius = m.DryTempCelsius, DryTimeHours = m.DryTimeHours,
         Notes = m.Notes, ReorderUrl = m.ReorderUrl, PricePerKg = m.PricePerKg,
         IsPublic = m.IsPublic, ReorderClickCount = m.ReorderClickCount,
+        Source = m.Source, ProductName = m.ProductName,
+        SpoolWeightGrams = m.SpoolWeightGrams, SpoolType = m.SpoolType,
+        Finish = m.Finish, Translucent = m.Translucent, Glow = m.Glow, Fill = m.Fill,
+        ImageBase64 = m.ImageData != null ? Convert.ToBase64String(m.ImageData) : null,
+        ImageContentType = m.ImageContentType,
         CreatedAt = m.CreatedAt, UpdatedAt = m.UpdatedAt
     };
 
@@ -209,7 +292,9 @@ public class MaterialsController : ControllerBase
         BedTempCelsius = d.BedTempCelsius, DensityGCm3 = d.DensityGCm3,
         DryTempCelsius = d.DryTempCelsius, DryTimeHours = d.DryTimeHours,
         Notes = d.Notes, ReorderUrl = d.ReorderUrl, PricePerKg = d.PricePerKg,
-        IsPublic = d.IsPublic
+        IsPublic = d.IsPublic, Source = d.Source, ProductName = d.ProductName,
+        SpoolWeightGrams = d.SpoolWeightGrams, SpoolType = d.SpoolType,
+        Finish = d.Finish, Translucent = d.Translucent, Glow = d.Glow, Fill = d.Fill
     };
 }
 

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using SpoolManager.Infrastructure.Data;
 using SpoolManager.Infrastructure.Repositories;
 using SpoolManager.Infrastructure.Services;
+using SpoolManager.Server.Services;
 using SpoolManager.Shared.DTOs.Admin;
 using SpoolManager.Shared.DTOs.Materials;
 using SpoolManager.Shared.DTOs.Tickets;
@@ -24,11 +25,12 @@ public class AdminController : ControllerBase
     private readonly IAuditService _audit;
     private readonly IEmailService _email;
     private readonly ISiteSettingsRepository _siteSettings;
+    private readonly ISpoolmanDbSyncService _syncService;
 
     public AdminController(IMaterialRepository materials, IUserRepository users,
         IProjectRepository projects, ISpoolRepository spools,
         ITicketRepository tickets, IAuditService audit, IEmailService email,
-        ISiteSettingsRepository siteSettings)
+        ISiteSettingsRepository siteSettings, ISpoolmanDbSyncService syncService)
     {
         _materials = materials;
         _users = users;
@@ -38,6 +40,7 @@ public class AdminController : ControllerBase
         _audit = audit;
         _email = email;
         _siteSettings = siteSettings;
+        _syncService = syncService;
     }
 
     private bool IsPlatformAdmin() =>
@@ -97,17 +100,8 @@ public class AdminController : ControllerBase
         return NoContent();
     }
 
-    private static FilamentMaterialDto MapMaterialToDto(FilamentMaterial m) => new()
-    {
-        Id = m.Id, Type = m.Type, ColorHex = m.ColorHex, Brand = m.Brand,
-        MinTempCelsius = m.MinTempCelsius, MaxTempCelsius = m.MaxTempCelsius,
-        ColorName = m.ColorName, DiameterMm = m.DiameterMm, WeightGrams = m.WeightGrams,
-        BedTempCelsius = m.BedTempCelsius, DensityGCm3 = m.DensityGCm3,
-        DryTempCelsius = m.DryTempCelsius, DryTimeHours = m.DryTimeHours,
-        Notes = m.Notes, ReorderUrl = m.ReorderUrl, PricePerKg = m.PricePerKg,
-        IsPublic = m.IsPublic, ReorderClickCount = m.ReorderClickCount,
-        CreatedAt = m.CreatedAt, UpdatedAt = m.UpdatedAt
-    };
+    private static FilamentMaterialDto MapMaterialToDto(FilamentMaterial m) =>
+        MaterialsController.MapToDto(m);
 
     [HttpGet("users")]
     public async Task<IActionResult> GetAllUsers()
@@ -335,16 +329,15 @@ public class AdminController : ControllerBase
     {
         if (!IsPlatformAdmin()) return Forbid();
         var now = DateTime.UtcNow;
-        var allUsers = await _users.GetAllAsync();
         var firstOfMonth = new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
         var cutoff15Min = now.AddMinutes(-15);
         var globalMaterials = await _materials.GetGlobalAsync();
         var topClicked = await _materials.GetTopClickedGlobalAsync(5);
         var stats = new AdminStatsDto
         {
-            TotalUsers = allUsers.Count,
-            ActiveUsersLast15Min = allUsers.Count(u => u.LastActiveAt.HasValue && u.LastActiveAt.Value >= cutoff15Min),
-            NewUsersThisMonth = allUsers.Count(u => u.CreatedAt >= firstOfMonth),
+            TotalUsers = await _users.GetCountAsync(),
+            ActiveUsersLast15Min = await _users.GetActiveCountSinceAsync(cutoff15Min),
+            NewUsersThisMonth = await _users.GetCreatedCountSinceAsync(firstOfMonth),
             TotalProjects = await _projects.GetTotalCountAsync(),
             ProjectsWithSpools = await _projects.GetWithSpoolsCountAsync(),
             TotalSpools = await _spools.GetTotalCountAsync(),
@@ -361,6 +354,26 @@ public class AdminController : ControllerBase
         return Ok(stats);
     }
 
+    [HttpPost("sync/spoolmandb")]
+    public async Task<IActionResult> TriggerSpoolmanDbSync()
+    {
+        if (!IsPlatformAdmin()) return Forbid();
+        using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+        var count = await _syncService.SyncNowAsync(cts.Token);
+        await _audit.LogAsync("admin.sync.spoolmandb", userId: UserId, username: UserName,
+            details: $"Synced {count} materials", ipAddress: ClientIp);
+        return Ok(new { synced = count });
+    }
+
+    [HttpGet("sync/stats")]
+    public async Task<IActionResult> GetSyncStats()
+    {
+        if (!IsPlatformAdmin()) return Forbid();
+        var syncedCount = await _materials.GetSyncedCountAsync();
+        var lastSync = await _materials.GetLastSyncTimeAsync();
+        return Ok(new { syncedCount, lastSync });
+    }
+
     [HttpGet("tickets")]
     public async Task<IActionResult> GetAllTickets([FromQuery] string? status, [FromQuery] string? search)
     {
@@ -374,12 +387,8 @@ public class AdminController : ControllerBase
             _ => null
         };
         var tickets = await _tickets.GetAllAsync(statusFilter, search);
-        var result = new List<SupportTicketDto>();
-        foreach (var t in tickets)
-        {
-            var comments = await _tickets.GetCommentsAsync(t.Id);
-            result.Add(MapTicketToDto(t, comments.Count(c => !c.IsInternal)));
-        }
+        var commentCounts = await _tickets.GetPublicCommentCountsAsync(tickets.Select(t => t.Id));
+        var result = tickets.Select(t => MapTicketToDto(t, commentCounts.GetValueOrDefault(t.Id))).ToList();
         return Ok(result);
     }
 

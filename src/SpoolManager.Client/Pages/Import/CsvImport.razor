@@ -1,0 +1,372 @@
+@page "/import/csv"
+@using System.IO
+@using System.Globalization
+@using CsvHelper
+@using CsvHelper.Configuration
+@inject CsvImportService ImportService
+@inject LocalizationService L
+@inject NavigationManager Nav
+@inject ProjectService Project
+
+<PageTitle>@L["import.csv.title"] - @L["app.name"]</PageTitle>
+
+<div class="page-header">
+    <h1><i class="bi bi-file-earmark-spreadsheet me-2"></i>@L["import.csv.title"]</h1>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-12 col-lg-10">
+
+        <div class="d-flex gap-2 mb-4">
+            <span class="badge rounded-pill @(_step == 1 ? "bg-primary" : "bg-secondary") fs-6">1</span>
+            <span class="badge rounded-pill @(_step == 2 ? "bg-primary" : "bg-secondary") fs-6">2</span>
+            <span class="badge rounded-pill @(_step == 3 ? "bg-primary" : "bg-secondary") fs-6">3</span>
+        </div>
+
+        @if (_error != null)
+        {
+            <div class="alert alert-danger">@_error</div>
+        }
+
+        @if (_step == 1)
+        {
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">@L["import.csv.step1"]</h5>
+                    <p class="text-muted">@L["import.csv.upload.hint"]</p>
+
+                    <div class="mb-3">
+                        <InputFile OnChange="OnFileSelected" class="form-control" accept=".csv,.tsv,.txt" />
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-6 col-md-3">
+                            <label class="form-label">@L["import.csv.delimiter"]</label>
+                            <select class="form-select" @bind="_delimiter">
+                                <option value=",">Comma (,)</option>
+                                <option value=";">Semicolon (;)</option>
+                                <option value="&#9;">Tab</option>
+                            </select>
+                        </div>
+                        <div class="col-6 col-md-3 d-flex align-items-end">
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="hasHeader" @bind="_hasHeader" />
+                                <label class="form-check-label" for="hasHeader">@L["import.csv.has.header"]</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-primary" @onclick="ParseCsvAsync" disabled="@(_fileContent == null || _parsing)">
+                        @if (_parsing) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                        <i class="bi bi-table me-1"></i>@L["import.csv.parse"]
+                    </button>
+                </div>
+            </div>
+        }
+
+        @if (_step == 2)
+        {
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">@L["import.csv.step2"]</h5>
+
+                    <div class="table-responsive mb-3">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>@L["import.csv.column"]</th>
+                                    <th style="min-width:12rem">@L["import.csv.maps.to"]</th>
+                                    <th>@L["import.csv.preview"]</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (var i = 0; i < _headers.Count; i++)
+                                {
+                                    var idx = i;
+                                    <tr>
+                                        <td class="fw-semibold">@_headers[idx]</td>
+                                        <td>
+                                            <select class="form-select form-select-sm" value="@_columnMappings[idx]"
+                                                    @onchange="e => _columnMappings[idx] = e.Value?.ToString() ?? CsvImportFields.Ignore">
+                                                @foreach (var (key, name) in CsvImportFields.DisplayNames)
+                                                {
+                                                    <option value="@key">@name</option>
+                                                }
+                                            </select>
+                                        </td>
+                                        <td class="text-muted small">
+                                            @if (_rawRows.Count > 0 && idx < _rawRows[0].Length)
+                                            {
+                                                @_rawRows[0][idx]
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-secondary" @onclick="() => _step = 1">
+                            <i class="bi bi-arrow-left me-1"></i>@L["import.csv.back"]
+                        </button>
+                        <button class="btn btn-primary" @onclick="BuildPreview">
+                            @L["import.csv.next"] <i class="bi bi-arrow-right ms-1"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        }
+
+        @if (_step == 3)
+        {
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">@L["import.csv.step3"]</h5>
+
+                    <div class="form-check mb-3">
+                        <input type="checkbox" class="form-check-input" id="createSpools" @bind="_createSpools" />
+                        <label class="form-check-label" for="createSpools">@L["import.csv.create.spools"]</label>
+                    </div>
+
+                    <p class="text-muted small">@L["import.csv.preview.rows"].Replace("{0}", _previewRows.Count.ToString())</p>
+
+                    <div class="table-responsive mb-3" style="max-height:400px;overflow:auto">
+                        <table class="table table-sm table-striped">
+                            <thead class="sticky-top bg-body">
+                                <tr>
+                                    <th>#</th>
+                                    <th>@L["material.brand"]</th>
+                                    <th>@L["material.type"]</th>
+                                    <th>@L["material.color.name"]</th>
+                                    <th>@L["material.color.hex"]</th>
+                                    <th>Temp</th>
+                                    <th>@L["material.diameter"]</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @{ var rowNum = 0; }
+                                @foreach (var r in _previewRows)
+                                {
+                                    rowNum++;
+                                    <tr>
+                                        <td>@rowNum</td>
+                                        <td>@r.Brand</td>
+                                        <td>@r.Type</td>
+                                        <td>@r.ColorName</td>
+                                        <td>
+                                            @if (!string.IsNullOrEmpty(r.ColorHex))
+                                            {
+                                                <div class="d-flex align-items-center gap-1">
+                                                    <div style="width:1em;height:1em;background:#@(r.ColorHex?.TrimStart('#'));border-radius:50%;border:1px solid var(--bs-border-color)"></div>
+                                                    <small class="font-monospace">@r.ColorHex</small>
+                                                </div>
+                                            }
+                                        </td>
+                                        <td>@(r.MinTempCelsius.HasValue ? $"{r.MinTempCelsius}-{r.MaxTempCelsius}" : "")</td>
+                                        <td>@r.DiameterMm</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                    @if (_result != null)
+                    {
+                        <div class="alert alert-success">
+                            @L["import.csv.success"]
+                                .Replace("{0}", _result.MaterialsCreated.ToString())
+                                .Replace("{1}", _result.SpoolsCreated.ToString())
+                                .Replace("{2}", _result.Skipped.ToString())
+                        </div>
+                    }
+
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-secondary" @onclick="() => _step = 2">
+                            <i class="bi bi-arrow-left me-1"></i>@L["import.csv.back"]
+                        </button>
+                        @if (_result == null)
+                        {
+                            <button class="btn btn-primary" @onclick="ImportAsync" disabled="@_importing">
+                                @if (_importing) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                                <i class="bi bi-cloud-upload me-1"></i>@L["import.csv.import"]
+                            </button>
+                        }
+                        else
+                        {
+                            <a href="/materials" class="btn btn-primary">
+                                <i class="bi bi-database me-1"></i>@L["material.title"]
+                            </a>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+
+    </div>
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        if (Project.CurrentProject == null) Nav.NavigateTo("/projects");
+    }
+
+    private int _step = 1;
+    private string? _error;
+    private string? _fileContent;
+    private string _delimiter = ",";
+    private bool _hasHeader = true;
+    private bool _parsing;
+    private bool _importing;
+    private bool _createSpools = true;
+
+    private List<string> _headers = [];
+    private List<string[]> _rawRows = [];
+    private List<string> _columnMappings = [];
+    private List<CsvImportRow> _previewRows = [];
+    private CsvImportResult? _result;
+
+    private async Task OnFileSelected(InputFileChangeEventArgs e)
+    {
+        _error = null;
+        _result = null;
+        try
+        {
+            var file = e.File;
+            if (file.Size > 10 * 1024 * 1024) { _error = "File too large (max 10 MB)"; return; }
+            using var reader = new StreamReader(file.OpenReadStream(10 * 1024 * 1024));
+            _fileContent = await reader.ReadToEndAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+    }
+
+    private Task ParseCsvAsync()
+    {
+        _parsing = true;
+        _error = null;
+        _result = null;
+
+        try
+        {
+            var config = new CsvConfiguration(CultureInfo.InvariantCulture)
+            {
+                Delimiter = _delimiter,
+                HasHeaderRecord = _hasHeader,
+                MissingFieldFound = null,
+                BadDataFound = null
+            };
+
+            using var reader = new StringReader(_fileContent!);
+            using var csv = new CsvReader(reader, config);
+
+            _rawRows = [];
+            _headers = [];
+
+            if (_hasHeader)
+            {
+                csv.Read();
+                csv.ReadHeader();
+                _headers = csv.HeaderRecord?.ToList() ?? [];
+            }
+
+            while (csv.Read())
+            {
+                var row = new string[csv.Parser.Count];
+                for (var i = 0; i < csv.Parser.Count; i++)
+                    row[i] = csv.GetField(i) ?? "";
+                _rawRows.Add(row);
+            }
+
+            if (!_hasHeader && _rawRows.Count > 0)
+            {
+                for (var i = 0; i < _rawRows[0].Length; i++)
+                    _headers.Add($"Column {i + 1}");
+            }
+
+            _columnMappings = new List<string>();
+            foreach (var h in _headers)
+            {
+                var clean = h.Trim().Replace(" ", "_").ToLowerInvariant();
+                _columnMappings.Add(
+                    CsvImportFields.AutoMap.TryGetValue(clean, out var mapped)
+                        ? mapped
+                        : CsvImportFields.Ignore);
+            }
+
+            _step = 2;
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+
+        _parsing = false;
+        return Task.CompletedTask;
+    }
+
+    private void BuildPreview()
+    {
+        _error = null;
+        _previewRows = [];
+
+        foreach (var raw in _rawRows)
+        {
+            var row = new CsvImportRow();
+            for (var i = 0; i < _columnMappings.Count && i < raw.Length; i++)
+            {
+                var field = _columnMappings[i];
+                var val = raw[i]?.Trim();
+                if (string.IsNullOrEmpty(val) || field == CsvImportFields.Ignore) continue;
+                SetField(row, field, val);
+            }
+            _previewRows.Add(row);
+        }
+        _step = 3;
+    }
+
+    private static void SetField(CsvImportRow row, string field, string val)
+    {
+        switch (field)
+        {
+            case CsvImportFields.Brand: row.Brand = val; break;
+            case CsvImportFields.Type: row.Type = val; break;
+            case CsvImportFields.ColorName: row.ColorName = val; break;
+            case CsvImportFields.ColorHex: row.ColorHex = val; break;
+            case CsvImportFields.MinTemp: if (int.TryParse(val, out var mint)) row.MinTempCelsius = mint; break;
+            case CsvImportFields.MaxTemp: if (int.TryParse(val, out var maxt)) row.MaxTempCelsius = maxt; break;
+            case CsvImportFields.BedTemp: if (int.TryParse(val, out var bt)) row.BedTempCelsius = bt; break;
+            case CsvImportFields.Diameter: if (decimal.TryParse(val, NumberStyles.Any, CultureInfo.InvariantCulture, out var d)) row.DiameterMm = d; break;
+            case CsvImportFields.Weight: if (int.TryParse(val, out var w)) row.WeightGrams = w; break;
+            case CsvImportFields.Density: if (decimal.TryParse(val, NumberStyles.Any, CultureInfo.InvariantCulture, out var dn)) row.DensityGCm3 = dn; break;
+            case CsvImportFields.DryTemp: if (int.TryParse(val, out var dt)) row.DryTempCelsius = dt; break;
+            case CsvImportFields.DryTime: if (int.TryParse(val, out var dth)) row.DryTimeHours = dth; break;
+            case CsvImportFields.PricePerKg: if (decimal.TryParse(val, NumberStyles.Any, CultureInfo.InvariantCulture, out var p)) row.PricePerKg = p; break;
+            case CsvImportFields.ReorderUrl: row.ReorderUrl = val; break;
+            case CsvImportFields.Notes: row.Notes = val; break;
+            case CsvImportFields.RemainingWeight: if (decimal.TryParse(val, NumberStyles.Any, CultureInfo.InvariantCulture, out var rw)) row.RemainingWeightGrams = rw; break;
+            case CsvImportFields.RemainingPercent: if (decimal.TryParse(val, NumberStyles.Any, CultureInfo.InvariantCulture, out var rp)) row.RemainingPercent = rp; break;
+            case CsvImportFields.PurchasePrice: if (decimal.TryParse(val, NumberStyles.Any, CultureInfo.InvariantCulture, out var pp)) row.PurchasePrice = pp; break;
+        }
+    }
+
+    private async Task ImportAsync()
+    {
+        _importing = true;
+        _error = null;
+
+        var request = new CsvImportRequest
+        {
+            Rows = _previewRows,
+            CreateSpools = _createSpools
+        };
+
+        _result = await ImportService.ImportAsync(request);
+        if (_result == null) _error = L["import.csv.error"];
+
+        _importing = false;
+    }
+}

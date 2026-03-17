@@ -28,6 +28,8 @@ public class SpoolDto
     public decimal? PurchasePrice { get; set; }
     public string? ReorderUrl { get; set; }
     public string? Notes { get; set; }
+    public string? ImageBase64 { get; set; }
+    public string? ImageContentType { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 }

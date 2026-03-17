@@ -27,5 +27,7 @@ builder.Services.AddScoped<AdminService>();
 builder.Services.AddScoped<TicketService>();
 builder.Services.AddScoped<SettingsService>();
 builder.Services.AddScoped<BrandingService>();
+builder.Services.AddScoped<SlicerProfileService>();
+builder.Services.AddScoped<CsvImportService>();
 
 await builder.Build().RunAsync();

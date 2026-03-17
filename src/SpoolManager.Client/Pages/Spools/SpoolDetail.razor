@@ -6,6 +6,7 @@
 @inject LocalizationService L
 @inject NavigationManager Nav
 @inject ProjectService Project
+@inject IJSRuntime JSRuntime
 @using System.Timers
 
 <PageTitle>@L["spool.title"] – @L["app.name"]</PageTitle>
@@ -179,7 +180,7 @@ else
                         {
                             <div class="col-12">
                                 <small class="text-muted d-block">@L["spool.reorder"]</small>
-                                <a href="@_spool.ReorderUrl" target="_blank">@_spool.ReorderUrl</a>
+                                <a href="@_spool.ReorderUrl" target="_blank" rel="noopener noreferrer">@_spool.ReorderUrl</a>
                             </div>
                         }
                         @if (_spool.Notes != null)
@@ -189,6 +190,37 @@ else
                                 @_spool.Notes
                             </div>
                         }
+
+                        <div class="col-12 mt-2">
+                            <small class="text-muted d-block mb-1">@L["image.title"]</small>
+                            @if (!string.IsNullOrEmpty(_spool.ImageBase64))
+                            {
+                                <div class="mb-2">
+                                    <img src="data:@(_spool.ImageContentType ?? "image/jpeg");base64,@_spool.ImageBase64"
+                                         alt="Spool" class="img-thumbnail" style="max-width:160px;max-height:160px" />
+                                </div>
+                                <div class="d-flex gap-2 flex-wrap">
+                                    <label class="btn btn-sm btn-outline-primary mb-0">
+                                        <i class="bi bi-camera me-1"></i>@L["image.change"]
+                                        <InputFile OnChange="OnSpoolImageSelected" style="display:none" accept="image/jpeg,image/png,image/webp" />
+                                    </label>
+                                    <button class="btn btn-sm btn-outline-danger" @onclick="DeleteSpoolImageAsync">
+                                        <i class="bi bi-trash me-1"></i>@L["image.delete"]
+                                    </button>
+                                </div>
+                            }
+                            else
+                            {
+                                <label class="btn btn-sm btn-outline-primary mb-0">
+                                    <i class="bi bi-camera me-1"></i>@L["image.upload"]
+                                    <InputFile OnChange="OnSpoolImageSelected" style="display:none" accept="image/jpeg,image/png,image/webp" />
+                                </label>
+                            }
+                            @if (_imageError != null)
+                            {
+                                <div class="alert alert-danger py-1 small mt-2">@_imageError</div>
+                            }
+                        </div>
                     </div>
                 </div>
             </div>
@@ -206,9 +238,9 @@ else
                                 <i class="bi bi-broadcast me-1"></i>@L["tag.nfc.write"]
                             </button>
                         }
-                        <a href="@Tags.GetDownloadUrl(Id)" class="btn btn-outline-secondary">
+                        <button class="btn btn-outline-secondary" @onclick="DownloadTagAsync">
                             <i class="bi bi-download me-1"></i>@L["tag.download.bin"]
-                        </a>
+                        </button>
                     </div>
                     @if (_nfcMessage != null)
                     {
@@ -238,10 +270,12 @@ else
     private decimal _remainingPct;
     private bool _nfcSupported;
     private bool _writingNfc;
+    private string? _imageError;
     private string? _nfcMessage;
     private bool _nfcSuccess;
     private string? _tagJson;
     private Timer? _clockTimer;
+    private DotNetObjectReference<SpoolDetail>? _dotnetRef;
 
     [JSInvokable] public void OnWriteSuccess() { _nfcMessage = L["tag.write.success"]; _nfcSuccess = true; _writingNfc = false; StateHasChanged(); }
     [JSInvokable] public void OnWriteError(string message) { _nfcMessage = message; _nfcSuccess = false; _writingNfc = false; StateHasChanged(); }
@@ -268,11 +302,11 @@ else
         _showRemainingForm = false;
     }
 
-    private async Task MarkOpenedAsync() { await Spools.MarkOpenedAsync(Id); _spool = await Spools.GetByIdAsync(Id); }
-    private async Task MarkDriedAsync() { await Spools.MarkDriedAsync(Id); _spool = await Spools.GetByIdAsync(Id); }
-    private async Task MarkRepackagedAsync() { await Spools.MarkRepackagedAsync(Id); _spool = await Spools.GetByIdAsync(Id); }
-    private async Task MarkReopenedAsync() { await Spools.MarkReopenedAsync(Id); _spool = await Spools.GetByIdAsync(Id); }
-    private async Task MarkConsumedAsync() { await Spools.MarkConsumedAsync(Id); _spool = await Spools.GetByIdAsync(Id); }
+    private async Task MarkOpenedAsync() { var r = await Spools.MarkOpenedAsync(Id); if (r.IsSuccessStatusCode) _spool = await Spools.GetByIdAsync(Id); }
+    private async Task MarkDriedAsync() { var r = await Spools.MarkDriedAsync(Id); if (r.IsSuccessStatusCode) _spool = await Spools.GetByIdAsync(Id); }
+    private async Task MarkRepackagedAsync() { var r = await Spools.MarkRepackagedAsync(Id); if (r.IsSuccessStatusCode) _spool = await Spools.GetByIdAsync(Id); }
+    private async Task MarkReopenedAsync() { var r = await Spools.MarkReopenedAsync(Id); if (r.IsSuccessStatusCode) _spool = await Spools.GetByIdAsync(Id); }
+    private async Task MarkConsumedAsync() { var r = await Spools.MarkConsumedAsync(Id); if (r.IsSuccessStatusCode) _spool = await Spools.GetByIdAsync(Id); }
 
     private async Task WriteNfcAsync()
     {
@@ -288,7 +322,44 @@ else
             return;
         }
         _tagJson = encoded.JsonPayload;
-        await Nfc.WriteAsync(encoded.JsonPayload, DotNetObjectReference.Create(this));
+        _dotnetRef ??= DotNetObjectReference.Create(this);
+        await Nfc.WriteAsync(encoded.JsonPayload, _dotnetRef);
+    }
+
+    private async Task OnSpoolImageSelected(InputFileChangeEventArgs e)
+    {
+        _imageError = null;
+        var file = e.File;
+        if (file.Size > 8 * 1024 * 1024) { _imageError = L["common.image.too.large"]; return; }
+        using var content = new MultipartFormDataContent();
+        content.Add(new StreamContent(file.OpenReadStream(8 * 1024 * 1024)), "file", file.Name);
+        content.Headers.ContentDisposition = null;
+        var resp = await Spools.UploadImageAsync(Id, content);
+        if (resp.IsSuccessStatusCode)
+            _spool = await Spools.GetByIdAsync(Id);
+        else
+            _imageError = L["common.error"];
+    }
+
+    private async Task DeleteSpoolImageAsync()
+    {
+        _imageError = null;
+        var resp = await Spools.DeleteImageAsync(Id);
+        if (resp.IsSuccessStatusCode)
+            _spool = await Spools.GetByIdAsync(Id);
+        else
+            _imageError = L["common.error"];
+    }
+
+    private async Task DownloadTagAsync()
+    {
+        var resp = await Tags.DownloadAsync(Id);
+        if (resp.IsSuccessStatusCode)
+        {
+            var bytes = await resp.Content.ReadAsByteArrayAsync();
+            var base64 = Convert.ToBase64String(bytes);
+            await JSRuntime.InvokeVoidAsync("eval", $"{{var a=document.createElement('a');a.href='data:application/octet-stream;base64,{base64}';a.download='tag_{Id}.bin';document.body.appendChild(a);a.click();a.remove();}}");
+        }
     }
 
     private static string GetBarClass(decimal p) => p >= 50 ? "high" : p >= 20 ? "medium" : "low";
@@ -302,5 +373,9 @@ else
         return (Math.Round(elapsed, 1), total, elapsed >= total);
     }
 
-    public void Dispose() => _clockTimer?.Dispose();
+    public void Dispose()
+    {
+        _clockTimer?.Dispose();
+        _dotnetRef?.Dispose();
+    }
 }

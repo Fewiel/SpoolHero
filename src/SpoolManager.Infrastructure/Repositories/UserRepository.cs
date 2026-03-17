@@ -16,6 +16,8 @@ public interface IUserRepository
     Task UpdateAsync(AppUser user);
     Task DeleteAsync(Guid id);
     Task<int> GetCountAsync();
+    Task<int> GetActiveCountSinceAsync(DateTime since);
+    Task<int> GetCreatedCountSinceAsync(DateTime since);
     Task UpdateLastActiveAsync(Guid userId, DateTime timestamp);
     Task SetAdminAsync(Guid userId, bool isAdmin, int newTokenVersion);
 }
@@ -70,6 +72,12 @@ public class UserRepository : IUserRepository
 
     public async Task<int> GetCountAsync() =>
         await _db.Users.CountAsync();
+
+    public async Task<int> GetActiveCountSinceAsync(DateTime since) =>
+        await _db.Users.Where(u => u.LastActiveAt.HasValue && u.LastActiveAt.Value >= since).CountAsync();
+
+    public async Task<int> GetCreatedCountSinceAsync(DateTime since) =>
+        await _db.Users.Where(u => u.CreatedAt >= since).CountAsync();
 
     public async Task UpdateLastActiveAsync(Guid userId, DateTime timestamp) =>
         await _db.Users

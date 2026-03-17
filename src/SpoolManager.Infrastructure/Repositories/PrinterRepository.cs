@@ -9,6 +9,7 @@ public interface IPrinterRepository
     Task<List<Printer>> GetAllAsync(Guid projectId);
     Task<List<Printer>> GetAllForInventoryAsync();
     Task<Printer?> GetByIdAsync(Guid id);
+    Task<List<Printer>> GetByIdsAsync(IEnumerable<Guid> ids);
     Task<Guid> CreateAsync(Printer printer);
     Task UpdateAsync(Printer printer);
     Task DeleteAsync(Guid id);
@@ -31,6 +32,12 @@ public class PrinterRepository : IPrinterRepository
 
     public async Task<Printer?> GetByIdAsync(Guid id) =>
         await _db.Printers.FirstOrDefaultAsync(p => p.Id == id);
+
+    public async Task<List<Printer>> GetByIdsAsync(IEnumerable<Guid> ids)
+    {
+        var idList = ids.ToList();
+        return await _db.Printers.Where(p => idList.Contains(p.Id)).ToListAsync();
+    }
 
     public async Task<Guid> CreateAsync(Printer printer)
     {

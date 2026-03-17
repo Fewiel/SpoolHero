@@ -25,6 +25,8 @@ public class Spool
     public string? ReorderUrl { get; set; }
     public string? Notes { get; set; }
     public DateTime? LowSpoolNotifiedAt { get; set; }
+    public byte[]? ImageData { get; set; }
+    public string? ImageContentType { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 }

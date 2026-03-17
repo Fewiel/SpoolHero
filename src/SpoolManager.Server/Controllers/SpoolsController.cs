@@ -16,15 +16,17 @@ namespace SpoolManager.Server.Controllers;
 public class SpoolsController : ControllerBase
 {
     private readonly ISpoolRepository _spools;
+    private readonly IImageService _images;
     private readonly IAuditService _audit;
     private ProjectMember ProjectMember => (ProjectMember)HttpContext.Items["ProjectMember"]!;
     private string? UserName => User.FindFirst(ClaimTypes.Name)?.Value;
     private Guid UserId => Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
     private string? ClientIp => HttpContext.Connection.RemoteIpAddress?.ToString();
 
-    public SpoolsController(ISpoolRepository spools, IAuditService audit)
+    public SpoolsController(ISpoolRepository spools, IImageService images, IAuditService audit)
     {
         _spools = spools;
+        _images = images;
         _audit = audit;
     }
 
@@ -63,7 +65,7 @@ public class SpoolsController : ControllerBase
             DryerId = request.DryerId,
             PurchasedAt = request.PurchasedAt,
             PurchasePrice = request.PurchasePrice,
-            ReorderUrl = request.ReorderUrl,
+            ReorderUrl = MaterialsController.SanitizeUrl(request.ReorderUrl),
             Notes = request.Notes
         };
 
@@ -87,7 +89,7 @@ public class SpoolsController : ControllerBase
         spool.DryerId = request.DryerId;
         spool.PurchasedAt = request.PurchasedAt;
         spool.PurchasePrice = request.PurchasePrice;
-        spool.ReorderUrl = request.ReorderUrl;
+        spool.ReorderUrl = MaterialsController.SanitizeUrl(request.ReorderUrl);
         spool.Notes = request.Notes;
         spool.UpdatedAt = DateTime.UtcNow;
 
@@ -189,6 +191,37 @@ public class SpoolsController : ControllerBase
         return Ok(MapToDto((await _spools.GetByIdAsync(id, ProjectMember.ProjectId))!));
     }
 
+    [HttpPost("{id}/image")]
+    [RequestSizeLimit(8_388_608)]
+    public async Task<IActionResult> UploadImage(Guid id, IFormFile file)
+    {
+        var spool = await _spools.GetByIdAsync(id, ProjectMember.ProjectId);
+        if (spool == null) return NotFound();
+
+        var allowed = new[] { "image/jpeg", "image/png", "image/webp" };
+        if (!allowed.Contains(file.ContentType)) return BadRequest(new { message = "Unsupported image type." });
+
+        using var ms = new MemoryStream();
+        await file.CopyToAsync(ms);
+        spool.ImageData = _images.ResizeToThumbnail(ms.ToArray());
+        spool.ImageContentType = "image/jpeg";
+        spool.UpdatedAt = DateTime.UtcNow;
+        await _spools.UpdateAsync(spool);
+        return Ok(new { imageBase64 = Convert.ToBase64String(spool.ImageData), imageContentType = spool.ImageContentType });
+    }
+
+    [HttpDelete("{id}/image")]
+    public async Task<IActionResult> DeleteImage(Guid id)
+    {
+        var spool = await _spools.GetByIdAsync(id, ProjectMember.ProjectId);
+        if (spool == null) return NotFound();
+        spool.ImageData = null;
+        spool.ImageContentType = null;
+        spool.UpdatedAt = DateTime.UtcNow;
+        await _spools.UpdateAsync(spool);
+        return NoContent();
+    }
+
     private static SpoolDto MapToDto(Spool s) => new()
     {
         Id = s.Id,
@@ -217,6 +250,8 @@ public class SpoolsController : ControllerBase
         PurchasePrice = s.PurchasePrice,
         ReorderUrl = s.ReorderUrl,
         Notes = s.Notes,
+        ImageBase64 = s.ImageData != null ? Convert.ToBase64String(s.ImageData) : null,
+        ImageContentType = s.ImageContentType,
         CreatedAt = s.CreatedAt,
         UpdatedAt = s.UpdatedAt
     };

@@ -57,7 +57,15 @@ else
                         <td>@m.Brand</td>
                         <td>
                             <div class="d-flex align-items-center gap-2">
-                                <div style="width:1.2em;height:1.2em;background:#@m.ColorHex;border-radius:50%;border:1px solid var(--bs-border-color);flex-shrink:0"></div>
+                                @if (!string.IsNullOrEmpty(m.ImageBase64))
+                                {
+                                    <img src="data:@(m.ImageContentType ?? "image/jpeg");base64,@m.ImageBase64"
+                                         alt="" style="width:1.8em;height:1.8em;border-radius:4px;object-fit:cover;flex-shrink:0" />
+                                }
+                                else
+                                {
+                                    <div style="width:1.2em;height:1.2em;background:#@m.ColorHex;border-radius:50%;border:1px solid var(--bs-border-color);flex-shrink:0"></div>
+                                }
                                 <small class="font-monospace">#@m.ColorHex</small>
                                 @if (m.ColorName != null) { <small class="text-muted">@m.ColorName</small> }
                             </div>
@@ -74,6 +82,9 @@ else
                                         <i class="bi bi-cart"></i>
                                     </a>
                                 }
+                                <a href="/materials/@m.Id" class="btn btn-sm btn-outline-primary" title="@L["common.details"]">
+                                    <i class="bi bi-eye"></i>
+                                </a>
                                 <a href="/materials/@m.Id/edit" class="btn btn-sm btn-outline-secondary">
                                     <i class="bi bi-pencil"></i>
                                 </a>
@@ -128,8 +139,9 @@ else
     {
         _search = e.Value?.ToString() ?? string.Empty;
         _searchTimer?.Stop();
+        _searchTimer?.Dispose();
         _searchTimer = new System.Timers.Timer(300);
-        _searchTimer.Elapsed += async (_, _) => { _searchTimer?.Stop(); await InvokeAsync(LoadAsync); };
+        _searchTimer.Elapsed += async (_, _) => { _searchTimer?.Stop(); try { await InvokeAsync(LoadAsync); } catch { } };
         _searchTimer.Start();
     }
 
@@ -138,9 +150,10 @@ else
     private async Task DeleteAsync()
     {
         if (_deleteTarget == null) return;
-        await Materials.DeleteAsync(_deleteTarget.Id);
+        var resp = await Materials.DeleteAsync(_deleteTarget.Id);
         _deleteTarget = null;
-        await LoadAsync();
+        if (resp.IsSuccessStatusCode)
+            await LoadAsync();
     }
 
     public void Dispose() => _searchTimer?.Dispose();
