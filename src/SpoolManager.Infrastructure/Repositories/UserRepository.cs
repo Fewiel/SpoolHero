@@ -67,7 +67,6 @@ public class UserRepository : IUserRepository
 
     public async Task DeleteAsync(Guid id)
     {
-        // Delete ticket comments on tickets owned by this user
         var ticketIds = await _db.Tickets
             .Where(t => t.UserId == id)
             .Select(t => t.Id)
@@ -78,38 +77,28 @@ public class UserRepository : IUserRepository
                 .Where(c => ticketIds.Contains(c.TicketId))
                 .DeleteAsync();
 
-        // Delete ticket comments written by this user (on other users' tickets)
         await _db.TicketComments.Where(c => c.UserId == id).DeleteAsync();
-
-        // Delete tickets owned by this user
         await _db.Tickets.Where(t => t.UserId == id).DeleteAsync();
 
-        // Unassign tickets assigned to this user
         await _db.Tickets
             .Where(t => t.AssignedToUserId == id)
             .Set(t => t.AssignedToUserId, (Guid?)null)
             .Set(t => t.AssignedToUsername, (string?)null)
             .UpdateAsync();
 
-        // Delete project memberships
         await _db.ProjectMembers.Where(pm => pm.UserId == id).DeleteAsync();
-
-        // Delete invitations sent by this user
         await _db.Invitations.Where(i => i.InvitedByUserId == id).DeleteAsync();
 
-        // Clear used_by reference on invitations
         await _db.Invitations
             .Where(i => i.UsedByUserId == id)
             .Set(i => i.UsedByUserId, (Guid?)null)
             .UpdateAsync();
 
-        // Nullify audit log references (preserve audit trail)
         await _db.AuditLogs
             .Where(a => a.UserId == id)
             .Set(a => a.UserId, (Guid?)null)
             .UpdateAsync();
 
-        // Finally delete the user
         await _db.Users.Where(u => u.Id == id).DeleteAsync();
     }
 
