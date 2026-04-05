@@ -65,8 +65,42 @@ public class UserRepository : IUserRepository
     public async Task UpdateAsync(AppUser user) =>
         await _db.UpdateAsync(user);
 
-    public async Task DeleteAsync(Guid id) =>
+    public async Task DeleteAsync(Guid id)
+    {
+        var ticketIds = await _db.Tickets
+            .Where(t => t.UserId == id)
+            .Select(t => t.Id)
+            .ToListAsync();
+
+        if (ticketIds.Count > 0)
+            await _db.TicketComments
+                .Where(c => ticketIds.Contains(c.TicketId))
+                .DeleteAsync();
+
+        await _db.TicketComments.Where(c => c.UserId == id).DeleteAsync();
+        await _db.Tickets.Where(t => t.UserId == id).DeleteAsync();
+
+        await _db.Tickets
+            .Where(t => t.AssignedToUserId == id)
+            .Set(t => t.AssignedToUserId, (Guid?)null)
+            .Set(t => t.AssignedToUsername, (string?)null)
+            .UpdateAsync();
+
+        await _db.ProjectMembers.Where(pm => pm.UserId == id).DeleteAsync();
+        await _db.Invitations.Where(i => i.InvitedByUserId == id).DeleteAsync();
+
+        await _db.Invitations
+            .Where(i => i.UsedByUserId == id)
+            .Set(i => i.UsedByUserId, (Guid?)null)
+            .UpdateAsync();
+
+        await _db.AuditLogs
+            .Where(a => a.UserId == id)
+            .Set(a => a.UserId, (Guid?)null)
+            .UpdateAsync();
+
         await _db.Users.Where(u => u.Id == id).DeleteAsync();
+    }
 
     public async Task<int> GetCountAsync() =>
         await _db.Users.CountAsync();
