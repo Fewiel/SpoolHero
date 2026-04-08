@@ -10,6 +10,7 @@ public class TagEncodeResponse
 {
     public string Base64 { get; set; } = string.Empty;
     public string? JsonPayload { get; set; }
+    public int? SpoolmanId { get; set; }
 }
 
 public class TagDecodeRequest
