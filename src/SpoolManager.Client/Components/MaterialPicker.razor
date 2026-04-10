@@ -1,0 +1,130 @@
+@inject LocalizationService L
+@inject IJSRuntime JS
+
+<div class="material-picker position-relative" @ref="_root">
+    <div class="form-control d-flex align-items-center gap-2 @(_open ? "border-primary" : "")"
+         style="cursor:pointer" @onclick="Open" role="combobox" aria-expanded="@_open">
+        @if (_selectedMaterial != null)
+        {
+            <span style="width:1em;height:1em;background:#@_selectedMaterial.ColorHex;border-radius:50%;border:1px solid var(--bs-border-color);flex-shrink:0"></span>
+            <span class="text-truncate">@_selectedMaterial.Brand @_selectedMaterial.Type @(_selectedMaterial.ColorName != null ? $"- {_selectedMaterial.ColorName}" : "")</span>
+        }
+        else
+        {
+            <span class="text-muted">@L["spool.material.select"]</span>
+        }
+        <i class="bi bi-chevron-down ms-auto flex-shrink-0"></i>
+    </div>
+
+    @if (_open)
+    {
+        <div class="position-absolute w-100 bg-body border rounded-bottom shadow-lg" style="z-index:1050;max-height:350px;overflow:hidden;display:flex;flex-direction:column">
+            <div class="p-2 border-bottom">
+                <input class="form-control form-control-sm" placeholder="@L["material.search"]"
+                       @ref="_searchInput" value="@_query" @oninput="OnQuery" autocomplete="off" />
+            </div>
+            <div style="overflow-y:auto;flex:1">
+                @if (_results.Count == 0)
+                {
+                    <div class="text-center text-muted py-3 small">@L["common.none"]</div>
+                }
+                else
+                {
+                    @foreach (var m in _results.Take(100))
+                    {
+                        <div class="material-picker-item d-flex align-items-center gap-2 px-3 py-2 @(m.Id == Value ? "bg-primary-subtle" : "")"
+                             role="option" @onclick="() => Select(m)" @onclick:stopPropagation>
+                            <span style="width:1.2em;height:1.2em;background:#@m.ColorHex;border-radius:50%;border:1px solid var(--bs-border-color);flex-shrink:0"></span>
+                            <div class="d-flex flex-column min-w-0">
+                                <span class="text-truncate fw-semibold small">@m.Brand @m.Type</span>
+                                <span class="text-truncate text-muted" style="font-size:.75rem">
+                                    @(m.ColorName ?? $"#{m.ColorHex}")
+                                    @if (m.MinTempCelsius > 0 || m.MaxTempCelsius > 0)
+                                    {
+                                        <span class="ms-1">@m.MinTempCelsius–@m.MaxTempCelsius °C</span>
+                                    }
+                                </span>
+                            </div>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public List<FilamentMaterialDto> Materials { get; set; } = [];
+    [Parameter] public Guid? Value { get; set; }
+    [Parameter] public EventCallback<Guid?> ValueChanged { get; set; }
+    [Parameter] public EventCallback<FilamentMaterialDto?> OnSelected { get; set; }
+
+    private bool _open;
+    private string _query = string.Empty;
+    private List<FilamentMaterialDto> _results = [];
+    private FilamentMaterialDto? _selectedMaterial;
+    private ElementReference _searchInput;
+    private ElementReference _root;
+    private DotNetObjectReference<MaterialPicker>? _selfRef;
+
+    protected override void OnParametersSet()
+    {
+        _selectedMaterial = Value.HasValue ? Materials.FirstOrDefault(m => m.Id == Value.Value) : null;
+        if (!_open) ApplyFilter();
+    }
+
+    private async Task Open()
+    {
+        _open = true;
+        _query = string.Empty;
+        ApplyFilter();
+        await Task.Yield();
+        try { await _searchInput.FocusAsync(); } catch { }
+        _selfRef ??= DotNetObjectReference.Create(this);
+        await JS.InvokeVoidAsync("materialPickerOutside.register", _root, _selfRef);
+    }
+
+    [JSInvokable]
+    public void CloseDropdown()
+    {
+        _open = false;
+        StateHasChanged();
+    }
+
+    private void ApplyFilter()
+    {
+        if (string.IsNullOrWhiteSpace(_query))
+        {
+            _results = Materials;
+            return;
+        }
+        var q = _query;
+        _results = Materials.Where(m =>
+            m.Brand.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+            m.Type.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+            (m.ColorName?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false) ||
+            m.ColorHex.Contains(q, StringComparison.OrdinalIgnoreCase)
+        ).ToList();
+    }
+
+    private void OnQuery(ChangeEventArgs e)
+    {
+        _query = e.Value?.ToString() ?? string.Empty;
+        ApplyFilter();
+    }
+
+    private async Task Select(FilamentMaterialDto m)
+    {
+        _selectedMaterial = m;
+        _open = false;
+        _query = string.Empty;
+        await JS.InvokeVoidAsync("materialPickerOutside.unregister");
+        await ValueChanged.InvokeAsync(m.Id);
+        await OnSelected.InvokeAsync(m);
+    }
+
+    public void Dispose()
+    {
+        _selfRef?.Dispose();
+    }
+}

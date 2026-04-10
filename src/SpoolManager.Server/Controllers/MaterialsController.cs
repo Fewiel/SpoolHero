@@ -17,16 +17,19 @@ public class MaterialsController : ControllerBase
 {
     private readonly IMaterialRepository _materials;
     private readonly IMaterialExportService _exportService;
+    private readonly IOrcaExportService _orcaExport;
     private readonly IAuditService _audit;
     private ProjectMember ProjectMember => (ProjectMember)HttpContext.Items["ProjectMember"]!;
     private string? UserName => User.FindFirst(ClaimTypes.Name)?.Value;
     private Guid UserId => Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
     private string? ClientIp => HttpContext.Connection.RemoteIpAddress?.ToString();
 
-    public MaterialsController(IMaterialRepository materials, IMaterialExportService exportService, IAuditService audit)
+    public MaterialsController(IMaterialRepository materials, IMaterialExportService exportService,
+        IOrcaExportService orcaExport, IAuditService audit)
     {
         _materials = materials;
         _exportService = exportService;
+        _orcaExport = orcaExport;
         _audit = audit;
     }
 
@@ -131,6 +134,43 @@ public class MaterialsController : ControllerBase
         return Ok(new { base64 });
     }
 
+    [HttpGet("export/orca")]
+    public async Task<IActionResult> ExportOrca([FromQuery] string? ids)
+    {
+        List<FilamentMaterial> materials;
+
+        if (!string.IsNullOrWhiteSpace(ids))
+        {
+            var idList = new List<Guid>();
+            foreach (var part in ids.Split(','))
+            {
+                if (!Guid.TryParse(part.Trim(), out var parsed))
+                    return BadRequest(new { message = "Invalid id list." });
+                idList.Add(parsed);
+            }
+            var all = await _materials.GetByIdsAsync(idList);
+            materials = all.Where(m => m.ProjectId == null || m.ProjectId == ProjectMember.ProjectId).ToList();
+        }
+        else
+        {
+            materials = await _materials.GetAllAsync(ProjectMember.ProjectId);
+        }
+
+        if (materials.Count == 0) return NotFound();
+
+        var dtos = materials.Select(MapToDto).ToList();
+
+        if (dtos.Count == 1)
+        {
+            var bytes = _orcaExport.ExportSingle(dtos[0]);
+            var filename = _orcaExport.BuildFileName(dtos[0]);
+            return File(bytes, "application/json", filename);
+        }
+
+        var zipBytes = _orcaExport.ExportMultipleAsZip(dtos);
+        return File(zipBytes, "application/zip", "orca_filaments.zip");
+    }
+
     [HttpPost("import")]
     public async Task<IActionResult> Import([FromBody] ImportRequest request)
     {
@@ -198,6 +238,7 @@ public class MaterialsController : ControllerBase
         DryTempCelsius = m.DryTempCelsius, DryTimeHours = m.DryTimeHours,
         Notes = m.Notes, ReorderUrl = m.ReorderUrl, PricePerKg = m.PricePerKg,
         IsPublic = m.IsPublic, ReorderClickCount = m.ReorderClickCount,
+        OfdFilamentId = m.OfdFilamentId, OfdVariantId = m.OfdVariantId,
         CreatedAt = m.CreatedAt, UpdatedAt = m.UpdatedAt
     };
 

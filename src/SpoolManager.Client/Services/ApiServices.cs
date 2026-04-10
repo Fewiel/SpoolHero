@@ -73,6 +73,18 @@ public class MaterialService
 
     public Task<HttpResponseMessage> ImportAsync(string base64) => _http.PostAsJsonAsync("api/materials/import", new { base64 });
 
+    public async Task<(byte[] Data, string Filename)?> ExportOrcaAsync(List<Guid>? ids = null)
+    {
+        var q = ids is { Count: > 0 } ? $"?ids={string.Join(",", ids)}" : string.Empty;
+        var response = await _http.GetAsync($"api/materials/export/orca{q}");
+        if (!response.IsSuccessStatusCode) return null;
+        var data = await response.Content.ReadAsByteArrayAsync();
+        var filename = response.Content.Headers.ContentDisposition?.FileNameStar
+                    ?? response.Content.Headers.ContentDisposition?.FileName?.Trim('"')
+                    ?? "orca_export.json";
+        return (data, filename);
+    }
+
     private class ExportResult { public string? Base64 { get; set; } }
 }
 

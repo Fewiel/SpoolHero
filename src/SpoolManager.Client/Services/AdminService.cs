@@ -1,5 +1,6 @@
 using System.Net.Http.Json;
 using SpoolManager.Shared.DTOs.Admin;
+using SpoolManager.Shared.DTOs.Suggestions;
 using SpoolManager.Shared.DTOs.Tickets;
 
 namespace SpoolManager.Client.Services;
@@ -82,4 +83,16 @@ public class AdminService
 
     public Task<HttpResponseMessage> SetLandingPageEnabledAsync(bool enabled) =>
         _http.PutAsJsonAsync("api/admin/settings/landing-page", new SetLandingPageRequest { Enabled = enabled });
+
+    public Task<HttpResponseMessage> SyncOfdAsync() =>
+        _http.PostAsync("api/admin/ofd-sync", null);
+
+    public Task<List<MaterialSuggestionDto>?> GetSuggestionsAsync(string? status = null)
+    {
+        var q = !string.IsNullOrEmpty(status) ? $"?status={status}" : "";
+        return _http.GetFromJsonAsync<List<MaterialSuggestionDto>>($"api/admin/suggestions{q}");
+    }
+
+    public Task<HttpResponseMessage> ReviewSuggestionAsync(Guid id, ReviewSuggestionRequest request) =>
+        _http.PostAsJsonAsync($"api/admin/suggestions/{id}/review", request);
 }

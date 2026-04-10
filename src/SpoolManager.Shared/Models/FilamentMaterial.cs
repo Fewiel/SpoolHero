@@ -21,6 +21,8 @@ public class FilamentMaterial
     public decimal? PricePerKg { get; set; }
     public bool IsPublic { get; set; }
     public int ReorderClickCount { get; set; }
+    public string? OfdFilamentId { get; set; }
+    public string? OfdVariantId { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 }
