@@ -1,5 +1,4 @@
 @page "/materials"
-@implements IDisposable
 @inject MaterialService Materials
 @inject TicketService Tickets
 @inject LocalizationService L
@@ -11,6 +10,9 @@
 <div class="page-header">
     <h1><i class="bi bi-database me-2"></i>@L["material.title"]</h1>
     <div class="d-flex gap-2">
+        <a href="/materials/suggest" class="btn btn-outline-warning" title="@L["material.suggest.new"]">
+            <i class="bi bi-lightbulb me-1"></i><span class="d-none d-md-inline">@L["material.suggest.new"]</span>
+        </a>
         <a href="/materials/share" class="btn btn-outline-secondary">
             <i class="bi bi-share me-1"></i>@L["material.share"]
         </a>
@@ -28,7 +30,7 @@
 {
     <div class="text-center py-5"><div class="spinner-border"></div></div>
 }
-else if (_materials.Count == 0)
+else if (_filtered.Count == 0)
 {
     <div class="text-center py-5 text-muted">
         <i class="bi bi-database fs-1"></i>
@@ -37,6 +39,14 @@ else if (_materials.Count == 0)
 }
 else
 {
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <small class="text-muted">@_filtered.Count @L["admin.materials.total"]</small>
+        @if (TotalPages > 1)
+        {
+            <small class="text-muted">@(_page + 1) / @TotalPages</small>
+        }
+    </div>
+
     <div class="table-responsive-card">
         <table class="table table-hover mb-0">
             <thead>
@@ -50,7 +60,7 @@ else
                 </tr>
             </thead>
             <tbody>
-                @foreach (var m in _materials)
+                @foreach (var m in PagedItems)
                 {
                     <tr>
                         <td><strong>@m.Type</strong></td>
@@ -74,6 +84,12 @@ else
                                         <i class="bi bi-cart"></i>
                                     </a>
                                 }
+                                @if (m.OfdVariantId != null)
+                                {
+                                    <a href="/materials/@m.Id/suggest" class="btn btn-sm btn-outline-warning" title="@L["material.suggest"]">
+                                        <i class="bi bi-lightbulb"></i>
+                                    </a>
+                                }
                                 <a href="/materials/@m.Id/edit" class="btn btn-sm btn-outline-secondary">
                                     <i class="bi bi-pencil"></i>
                                 </a>
@@ -87,6 +103,32 @@ else
             </tbody>
         </table>
     </div>
+
+    @if (TotalPages > 1)
+    {
+        <nav class="mt-3 d-flex justify-content-center">
+            <ul class="pagination pagination-sm mb-0">
+                <li class="page-item @(_page == 0 ? "disabled" : "")">
+                    <button class="page-link" @onclick="() => SetPage(0)"><i class="bi bi-chevron-bar-left"></i></button>
+                </li>
+                <li class="page-item @(_page == 0 ? "disabled" : "")">
+                    <button class="page-link" @onclick="() => SetPage(_page - 1)"><i class="bi bi-chevron-left"></i></button>
+                </li>
+                @foreach (var p in VisiblePages)
+                {
+                    <li class="page-item @(p == _page ? "active" : "")">
+                        <button class="page-link" @onclick="() => SetPage(p)">@(p + 1)</button>
+                    </li>
+                }
+                <li class="page-item @(_page >= TotalPages - 1 ? "disabled" : "")">
+                    <button class="page-link" @onclick="() => SetPage(_page + 1)"><i class="bi bi-chevron-right"></i></button>
+                </li>
+                <li class="page-item @(_page >= TotalPages - 1 ? "disabled" : "")">
+                    <button class="page-link" @onclick="() => SetPage(TotalPages - 1)"><i class="bi bi-chevron-bar-right"></i></button>
+                </li>
+            </ul>
+        </nav>
+    }
 }
 
 @if (_deleteTarget != null)
@@ -105,11 +147,27 @@ else
 }
 
 @code {
+    private const int PageSize = 50;
     private bool _loading = true;
-    private List<FilamentMaterialDto> _materials = [];
+    private int _page;
+    private List<FilamentMaterialDto> _allMaterials = [];
+    private List<FilamentMaterialDto> _filtered = [];
     private string _search = string.Empty;
     private FilamentMaterialDto? _deleteTarget;
-    private System.Timers.Timer? _searchTimer;
+
+    private int TotalPages => Math.Max(1, (int)Math.Ceiling(_filtered.Count / (double)PageSize));
+    private List<FilamentMaterialDto> PagedItems => _filtered.Skip(_page * PageSize).Take(PageSize).ToList();
+
+    private IEnumerable<int> VisiblePages
+    {
+        get
+        {
+            var start = Math.Max(0, _page - 2);
+            var end = Math.Min(TotalPages - 1, start + 4);
+            start = Math.Max(0, end - 4);
+            return Enumerable.Range(start, end - start + 1);
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -120,17 +178,36 @@ else
     private async Task LoadAsync()
     {
         _loading = true;
-        _materials = await Materials.GetAllAsync(string.IsNullOrWhiteSpace(_search) ? null : _search) ?? [];
+        _allMaterials = await Materials.GetAllAsync() ?? [];
+        ApplyFilter();
         _loading = false;
+    }
+
+    private void ApplyFilter()
+    {
+        _page = 0;
+        if (string.IsNullOrWhiteSpace(_search))
+        {
+            _filtered = _allMaterials;
+            return;
+        }
+        var q = _search.ToLowerInvariant();
+        _filtered = _allMaterials.Where(m =>
+            m.Type.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+            m.Brand.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+            (m.ColorName?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false)
+        ).ToList();
     }
 
     private void OnSearch(ChangeEventArgs e)
     {
         _search = e.Value?.ToString() ?? string.Empty;
-        _searchTimer?.Stop();
-        _searchTimer = new System.Timers.Timer(300);
-        _searchTimer.Elapsed += async (_, _) => { _searchTimer?.Stop(); await InvokeAsync(LoadAsync); };
-        _searchTimer.Start();
+        ApplyFilter();
+    }
+
+    private void SetPage(int page)
+    {
+        _page = Math.Clamp(page, 0, TotalPages - 1);
     }
 
     private void ConfirmDelete(FilamentMaterialDto m) => _deleteTarget = m;
@@ -139,9 +216,8 @@ else
     {
         if (_deleteTarget == null) return;
         await Materials.DeleteAsync(_deleteTarget.Id);
+        _allMaterials.Remove(_deleteTarget);
         _deleteTarget = null;
-        await LoadAsync();
+        ApplyFilter();
     }
-
-    public void Dispose() => _searchTimer?.Dispose();
 }

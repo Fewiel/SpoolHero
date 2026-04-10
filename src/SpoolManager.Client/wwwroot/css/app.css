@@ -352,6 +352,9 @@
 }
 
 /* Reduced motion */
+.material-picker-item { cursor: pointer; }
+.material-picker-item:hover { background: var(--bs-tertiary-bg); }
+
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
         animation-duration: 0.01ms !important;

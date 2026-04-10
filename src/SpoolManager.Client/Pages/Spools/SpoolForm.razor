@@ -68,14 +68,9 @@ else
 
                     <div class="mb-3">
                         <label class="form-label">@L["spool.material"] *</label>
-                        <select class="form-select" value="@_form.FilamentMaterialId"
-                                @onchange="OnMaterialChanged" required>
-                            <option value="">– @L["spool.material"] –</option>
-                            @foreach (var m in _materials)
-                            {
-                                <option value="@m.Id">@m.Brand @m.Type @(m.ColorName != null ? $"– {m.ColorName}" : $"– #{m.ColorHex}")</option>
-                            }
-                        </select>
+                        <MaterialPicker Materials="_materials"
+                                        Value="_form.FilamentMaterialId == Guid.Empty ? null : _form.FilamentMaterialId"
+                                        OnSelected="OnMaterialPicked" />
                     </div>
 
                     <div class="row g-3 mb-3">
@@ -313,13 +308,11 @@ else
     [JSInvokable]
     public void OnWriteError(string error) { }
 
-    private void OnMaterialChanged(ChangeEventArgs e)
+    private void OnMaterialPicked(FilamentMaterialDto? mat)
     {
-        if (!Guid.TryParse(e.Value?.ToString(), out var id)) return;
-        _form.FilamentMaterialId = id;
-        if (Id.HasValue) return;
-        var mat = _materials.FirstOrDefault(m => m.Id == id);
         if (mat == null) return;
+        _form.FilamentMaterialId = mat.Id;
+        if (Id.HasValue) return;
         if (mat.WeightGrams is > 0)
         {
             _form.RemainingWeightGrams = mat.WeightGrams.Value;

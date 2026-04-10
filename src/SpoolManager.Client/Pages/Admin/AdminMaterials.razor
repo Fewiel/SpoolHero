@@ -1,6 +1,8 @@
 @page "/admin/materials"
 @implements IDisposable
+@using System.Net.Http.Json
 @inject AdminMaterialService AdminMat
+@inject AdminService Admin
 @inject AuthService Auth
 @inject LocalizationService L
 @inject NavigationManager Nav
@@ -15,10 +17,24 @@ else
 {
     <div class="page-header">
         <h1><i class="bi bi-shield-check me-2"></i>@L["admin.materials.title"]</h1>
-        <a href="/admin/materials/new" class="btn btn-primary">
-            <i class="bi bi-plus-lg me-1"></i>@L["material.add"]
-        </a>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-secondary" @onclick="SyncOfdAsync" disabled="@_syncing">
+                @if (_syncing) { <span class="spinner-border spinner-border-sm me-2"></span> }
+                <i class="bi bi-cloud-download me-1"></i>@L["admin.ofd.sync.button"]
+            </button>
+            <a href="/admin/materials/new" class="btn btn-primary">
+                <i class="bi bi-plus-lg me-1"></i>@L["material.add"]
+            </a>
+        </div>
     </div>
+
+    @if (_syncResult != null)
+    {
+        <div class="alert alert-success alert-dismissible">
+            @L["admin.ofd.sync.result"].Replace("{0}", _syncResult.Created.ToString()).Replace("{1}", _syncResult.Updated.ToString()).Replace("{2}", _syncResult.Skipped.ToString())
+            <button type="button" class="btn-close" @onclick="() => _syncResult = null"></button>
+        </div>
+    }
 
     <p class="text-muted">@L["admin.materials.global"]</p>
 
@@ -30,7 +46,7 @@ else
     {
         <div class="text-center py-5"><div class="spinner-border"></div></div>
     }
-    else if (_materials.Count == 0)
+    else if (_filtered.Count == 0)
     {
         <div class="text-center py-5 text-muted">
             <i class="bi bi-database fs-1"></i>
@@ -39,6 +55,13 @@ else
     }
     else
     {
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <small class="text-muted">@_filtered.Count @L["admin.materials.total"]</small>
+            <div class="d-flex align-items-center gap-2">
+                <small class="text-muted">@(_page + 1) / @TotalPages</small>
+            </div>
+        </div>
+
         <div class="table-responsive-card">
             <table class="table table-hover mb-0">
                 <thead>
@@ -52,7 +75,7 @@ else
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (var m in _materials)
+                    @foreach (var m in PagedItems)
                     {
                         <tr>
                             <td><strong>@m.Type</strong></td>
@@ -88,6 +111,32 @@ else
                 </tbody>
             </table>
         </div>
+
+        @if (TotalPages > 1)
+        {
+            <nav class="mt-3 d-flex justify-content-center">
+                <ul class="pagination pagination-sm mb-0">
+                    <li class="page-item @(_page == 0 ? "disabled" : "")">
+                        <button class="page-link" @onclick="() => SetPage(0)"><i class="bi bi-chevron-bar-left"></i></button>
+                    </li>
+                    <li class="page-item @(_page == 0 ? "disabled" : "")">
+                        <button class="page-link" @onclick="() => SetPage(_page - 1)"><i class="bi bi-chevron-left"></i></button>
+                    </li>
+                    @foreach (var p in VisiblePages)
+                    {
+                        <li class="page-item @(p == _page ? "active" : "")">
+                            <button class="page-link" @onclick="() => SetPage(p)">@(p + 1)</button>
+                        </li>
+                    }
+                    <li class="page-item @(_page >= TotalPages - 1 ? "disabled" : "")">
+                        <button class="page-link" @onclick="() => SetPage(_page + 1)"><i class="bi bi-chevron-right"></i></button>
+                    </li>
+                    <li class="page-item @(_page >= TotalPages - 1 ? "disabled" : "")">
+                        <button class="page-link" @onclick="() => SetPage(TotalPages - 1)"><i class="bi bi-chevron-bar-right"></i></button>
+                    </li>
+                </ul>
+            </nav>
+        }
     }
 
     @if (_deleteTarget != null)
@@ -107,37 +156,90 @@ else
 }
 
 @code {
+    private const int PageSize = 50;
     private bool _loading = true;
-    private List<FilamentMaterialDto> _materials = [];
+    private bool _syncing;
+    private int _page;
+    private OfdSyncResultDto? _syncResult;
+    private List<FilamentMaterialDto> _allMaterials = [];
+    private List<FilamentMaterialDto> _filtered = [];
     private string _search = string.Empty;
     private FilamentMaterialDto? _deleteTarget;
-    private System.Timers.Timer? _searchTimer;
+
+    private int TotalPages => Math.Max(1, (int)Math.Ceiling(_filtered.Count / (double)PageSize));
+    private List<FilamentMaterialDto> PagedItems => _filtered.Skip(_page * PageSize).Take(PageSize).ToList();
+
+    private IEnumerable<int> VisiblePages
+    {
+        get
+        {
+            var start = Math.Max(0, _page - 2);
+            var end = Math.Min(TotalPages - 1, start + 4);
+            start = Math.Max(0, end - 4);
+            return Enumerable.Range(start, end - start + 1);
+        }
+    }
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task SyncOfdAsync()
+    {
+        _syncing = true;
+        StateHasChanged();
+        var response = await Admin.SyncOfdAsync();
+        if (response.IsSuccessStatusCode)
+        {
+            _syncResult = await response.Content.ReadFromJsonAsync<OfdSyncResultDto>();
+            await LoadAsync();
+        }
+        _syncing = false;
+    }
+
+    private record OfdSyncResultDto(int Created, int Updated, int Skipped);
 
     private async Task LoadAsync()
     {
         _loading = true;
-        _materials = await AdminMat.GetAllAsync(string.IsNullOrWhiteSpace(_search) ? null : _search) ?? [];
+        _allMaterials = await AdminMat.GetAllAsync() ?? [];
+        ApplyFilter();
         _loading = false;
+    }
+
+    private void ApplyFilter()
+    {
+        _page = 0;
+        if (string.IsNullOrWhiteSpace(_search))
+        {
+            _filtered = _allMaterials;
+            return;
+        }
+        var q = _search.ToLowerInvariant();
+        _filtered = _allMaterials.Where(m =>
+            m.Type.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+            m.Brand.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+            (m.ColorName?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false)
+        ).ToList();
     }
 
     private void OnSearch(ChangeEventArgs e)
     {
         _search = e.Value?.ToString() ?? string.Empty;
-        _searchTimer?.Stop();
-        _searchTimer = new System.Timers.Timer(300);
-        _searchTimer.Elapsed += async (_, _) => { _searchTimer?.Stop(); await InvokeAsync(LoadAsync); };
-        _searchTimer.Start();
+        ApplyFilter();
+    }
+
+    private void SetPage(int page)
+    {
+        _page = Math.Clamp(page, 0, TotalPages - 1);
     }
 
     private async Task DeleteAsync()
     {
         if (_deleteTarget == null) return;
         await AdminMat.DeleteAsync(_deleteTarget.Id);
+        _allMaterials.Remove(_deleteTarget);
         _deleteTarget = null;
-        await LoadAsync();
+        ApplyFilter();
     }
 
-    public void Dispose() => _searchTimer?.Dispose();
+    public void Dispose() { }
 }

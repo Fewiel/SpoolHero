@@ -38,6 +38,9 @@ builder.Services.AddScoped<IInvitationRepository, InvitationRepository>();
 builder.Services.AddScoped<IOpenSpoolService, OpenSpoolService>();
 builder.Services.AddScoped<IImageService, ImageService>();
 builder.Services.AddScoped<IMaterialExportService, MaterialExportService>();
+builder.Services.AddScoped<IOrcaExportService, OrcaExportService>();
+builder.Services.AddScoped<ISuggestionRepository, SuggestionRepository>();
+builder.Services.AddHttpClient<IOfdSyncService, OfdSyncService>();
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IAuditLogRepository, AuditLogRepository>();
 builder.Services.AddScoped<IAuditService, AuditService>();
@@ -152,8 +155,20 @@ app.MapControllers();
 var webRoot = app.Environment.WebRootPath
     ?? Path.Combine(app.Environment.ContentRootPath, "wwwroot");
 var indexHtmlPath = Path.Combine(webRoot, "index.html");
+if (!File.Exists(indexHtmlPath))
+{
+    var clientWwwroot = Path.GetFullPath(Path.Combine(app.Environment.ContentRootPath,
+        "..", "SpoolManager.Client", "wwwroot", "index.html"));
+    if (File.Exists(clientWwwroot))
+        indexHtmlPath = clientWwwroot;
+}
 app.MapFallback(async (HttpContext ctx) =>
 {
+    if (!File.Exists(indexHtmlPath))
+    {
+        ctx.Response.StatusCode = 404;
+        return;
+    }
     var html = await File.ReadAllTextAsync(indexHtmlPath);
     var origin = $"{ctx.Request.Scheme}://{ctx.Request.Host}";
     html = html.Replace("__ORIGIN__", origin);

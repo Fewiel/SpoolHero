@@ -1,0 +1,197 @@
+@page "/materials/suggest"
+@page "/materials/{MaterialId:guid}/suggest"
+@inject SuggestionService Suggestions
+@inject MaterialService Materials
+@inject LocalizationService L
+@inject NavigationManager Nav
+@inject ProjectService Project
+
+<PageTitle>@L["material.suggest.title"] – @L["app.name"]</PageTitle>
+
+<div class="page-header">
+    <h1><i class="bi bi-lightbulb me-2"></i>@L["material.suggest.title"]</h1>
+    <a href="/materials" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i>@L["common.cancel"]
+    </a>
+</div>
+
+@if (_existingMaterial != null)
+{
+    <div class="alert alert-info">
+        @L["material.suggest.existing"].Replace("{0}", $"{_existingMaterial.Brand} {_existingMaterial.Type}")
+    </div>
+}
+
+@if (_success)
+{
+    <div class="alert alert-success">
+        <i class="bi bi-check-circle me-1"></i>@L["material.suggest.success"]
+    </div>
+}
+else
+{
+    <div class="card">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-6 col-md-4">
+                    <label class="form-label">@L["material.type"]</label>
+                    <input class="form-control" @bind="_type" list="typeList" />
+                    <datalist id="typeList">
+                        <option value="PLA" />
+                        <option value="PETG" />
+                        <option value="ABS" />
+                        <option value="ASA" />
+                        <option value="TPU" />
+                        <option value="Nylon" />
+                        <option value="PC" />
+                        <option value="PVA" />
+                        <option value="HIPS" />
+                    </datalist>
+                </div>
+                <div class="col-6 col-md-4">
+                    <label class="form-label">@L["material.brand"]</label>
+                    <input class="form-control" @bind="_brand" />
+                </div>
+                <div class="col-6 col-md-4">
+                    <label class="form-label">@L["material.color.name"]</label>
+                    <input class="form-control" @bind="_colorName" />
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label">@L["material.color.hex"]</label>
+                    <div class="input-group">
+                        <span class="input-group-text">#</span>
+                        <input class="form-control" @bind="_colorHex" maxlength="6" />
+                        <input type="color" class="form-control form-control-color" value="@("#" + _colorHex)"
+                               @onchange='e => _colorHex = (e.Value?.ToString() ?? "#FFFFFF").TrimStart("#".ToCharArray())' />
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label">@L["material.temp.min"]</label>
+                    <div class="input-group">
+                        <input type="number" class="form-control" @bind="_minTemp" />
+                        <span class="input-group-text">°C</span>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label">@L["material.temp.max"]</label>
+                    <div class="input-group">
+                        <input type="number" class="form-control" @bind="_maxTemp" />
+                        <span class="input-group-text">°C</span>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label">@L["material.temp.bed"]</label>
+                    <div class="input-group">
+                        <input type="number" class="form-control" @bind="_bedTemp" />
+                        <span class="input-group-text">°C</span>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label">@L["material.density"]</label>
+                    <input type="number" step="0.01" class="form-control" @bind="_density" />
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label">@L["material.diameter"]</label>
+                    <div class="input-group">
+                        <input type="number" step="0.01" class="form-control" @bind="_diameter" />
+                        <span class="input-group-text">mm</span>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label">@L["material.dry.temp"]</label>
+                    <div class="input-group">
+                        <input type="number" class="form-control" @bind="_dryTemp" />
+                        <span class="input-group-text">°C</span>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label">@L["material.dry.hours"]</label>
+                    <div class="input-group">
+                        <input type="number" class="form-control" @bind="_dryHours" />
+                        <span class="input-group-text">h</span>
+                    </div>
+                </div>
+                <div class="col-12">
+                    <label class="form-label">@L["material.notes"]</label>
+                    <textarea class="form-control" rows="2" @bind="_notes"></textarea>
+                </div>
+            </div>
+
+            <div class="mt-3">
+                <button class="btn btn-primary" @onclick="SubmitAsync" disabled="@(_submitting || string.IsNullOrWhiteSpace(_type) || string.IsNullOrWhiteSpace(_brand))">
+                    @if (_submitting) { <span class="spinner-border spinner-border-sm me-2"></span> }
+                    <i class="bi bi-send me-1"></i>@L["material.suggest"]
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public Guid? MaterialId { get; set; }
+
+    private FilamentMaterialDto? _existingMaterial;
+    private bool _submitting;
+    private bool _success;
+
+    private string _type = string.Empty;
+    private string _brand = string.Empty;
+    private string _colorHex = "FFFFFF";
+    private string? _colorName;
+    private int _minTemp;
+    private int _maxTemp;
+    private int? _bedTemp;
+    private decimal _diameter = 1.75m;
+    private decimal? _density;
+    private int? _dryTemp;
+    private int? _dryHours;
+    private string? _notes;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (MaterialId.HasValue)
+        {
+            _existingMaterial = await Materials.GetByIdAsync(MaterialId.Value);
+            if (_existingMaterial != null)
+            {
+                _type = _existingMaterial.Type;
+                _brand = _existingMaterial.Brand;
+                _colorHex = _existingMaterial.ColorHex;
+                _colorName = _existingMaterial.ColorName;
+                _minTemp = _existingMaterial.MinTempCelsius;
+                _maxTemp = _existingMaterial.MaxTempCelsius;
+                _bedTemp = _existingMaterial.BedTempCelsius;
+                _diameter = _existingMaterial.DiameterMm;
+                _density = _existingMaterial.DensityGCm3;
+                _dryTemp = _existingMaterial.DryTempCelsius;
+                _dryHours = _existingMaterial.DryTimeHours;
+                _notes = _existingMaterial.Notes;
+            }
+        }
+    }
+
+    private async Task SubmitAsync()
+    {
+        _submitting = true;
+        var request = new CreateSuggestionRequest
+        {
+            MaterialId = MaterialId,
+            Type = _type,
+            Brand = _brand,
+            ColorHex = _colorHex,
+            ColorName = _colorName,
+            MinTempCelsius = _minTemp,
+            MaxTempCelsius = _maxTemp,
+            BedTempCelsius = _bedTemp,
+            DiameterMm = _diameter,
+            DensityGCm3 = _density,
+            DryTempCelsius = _dryTemp,
+            DryTimeHours = _dryHours,
+            Notes = _notes
+        };
+        var response = await Suggestions.CreateAsync(request);
+        _submitting = false;
+        if (response.IsSuccessStatusCode)
+            _success = true;
+    }
+}

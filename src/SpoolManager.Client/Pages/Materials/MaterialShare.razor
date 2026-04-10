@@ -90,6 +90,46 @@
             </div>
         </div>
     </div>
+
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title"><i class="bi bi-box-seam me-2"></i>@L["material.export.orca"]</h5>
+                <p class="text-muted small">@L["material.export.orca.hint"]</p>
+                <p class="text-muted small">@L["material.export.orca.info"]</p>
+
+                @if (OrcaWarningMaterials.Count > 0)
+                {
+                    <div class="alert alert-warning py-2 mb-3">
+                        <i class="bi bi-exclamation-triangle me-1"></i>@L["material.export.orca.warning"]
+                        <ul class="mb-0 mt-1 small">
+                            @foreach (var w in OrcaWarningMaterials)
+                            {
+                                <li>
+                                    @w.Brand @w.Type @(w.ColorName != null ? $"- {w.ColorName}" : "")
+                                    @if (w.OfdVariantId != null)
+                                    {
+                                        <a href="/materials/@w.Id/suggest" class="ms-1">@L["material.suggest"]</a>
+                                    }
+                                </li>
+                            }
+                        </ul>
+                    </div>
+                }
+
+                <button class="btn btn-primary" @onclick="ExportOrcaAsync" disabled="@(_exportingOrca)">
+                    @if (_exportingOrca) { <span class="spinner-border spinner-border-sm me-2"></span> }
+                    <i class="bi bi-download me-1"></i>@L["material.export.orca.button"]
+                    @if (_selected.Count > 0) { <span>(@_selected.Count)</span> }
+                </button>
+
+                @if (_orcaError != null)
+                {
+                    <div class="alert alert-danger mt-2 py-2">@_orcaError</div>
+                }
+            </div>
+        </div>
+    </div>
 </div>
 
 @code {
@@ -148,6 +188,39 @@
         {
             _importError = await resp.Content.ReadAsStringAsync();
         }
+    }
+
+    private bool _exportingOrca;
+    private string? _orcaError;
+
+    private List<FilamentMaterialDto> OrcaWarningMaterials
+    {
+        get
+        {
+            var source = _selected.Count > 0
+                ? _allMaterials.Where(m => _selected.Contains(m.Id))
+                : _allMaterials.AsEnumerable();
+            return source.Where(m => m.MinTempCelsius == 0 || m.MaxTempCelsius == 0).ToList();
+        }
+    }
+
+    private async Task ExportOrcaAsync()
+    {
+        _exportingOrca = true;
+        _orcaError = null;
+        try
+        {
+            var result = await Materials.ExportOrcaAsync(_selected.Count > 0 ? _selected.ToList() : null);
+            if (result.HasValue)
+                await JS.InvokeVoidAsync("downloadHelper.saveAs", result.Value.Data, result.Value.Filename);
+            else
+                _orcaError = "Export failed.";
+        }
+        catch (Exception ex)
+        {
+            _orcaError = ex.Message;
+        }
+        _exportingOrca = false;
     }
 
     private record ImportResult(int Imported);

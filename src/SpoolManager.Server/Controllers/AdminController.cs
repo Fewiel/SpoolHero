@@ -6,6 +6,7 @@ using SpoolManager.Infrastructure.Repositories;
 using SpoolManager.Infrastructure.Services;
 using SpoolManager.Shared.DTOs.Admin;
 using SpoolManager.Shared.DTOs.Materials;
+using SpoolManager.Shared.DTOs.Suggestions;
 using SpoolManager.Shared.DTOs.Tickets;
 using SpoolManager.Shared.Models;
 
@@ -24,11 +25,14 @@ public class AdminController : ControllerBase
     private readonly IAuditService _audit;
     private readonly IEmailService _email;
     private readonly ISiteSettingsRepository _siteSettings;
+    private readonly IOfdSyncService _ofdSync;
+    private readonly ISuggestionRepository _suggestions;
 
     public AdminController(IMaterialRepository materials, IUserRepository users,
         IProjectRepository projects, ISpoolRepository spools,
         ITicketRepository tickets, IAuditService audit, IEmailService email,
-        ISiteSettingsRepository siteSettings)
+        ISiteSettingsRepository siteSettings, IOfdSyncService ofdSync,
+        ISuggestionRepository suggestions)
     {
         _materials = materials;
         _users = users;
@@ -38,6 +42,8 @@ public class AdminController : ControllerBase
         _audit = audit;
         _email = email;
         _siteSettings = siteSettings;
+        _ofdSync = ofdSync;
+        _suggestions = suggestions;
     }
 
     private bool IsPlatformAdmin() =>
@@ -106,6 +112,7 @@ public class AdminController : ControllerBase
         DryTempCelsius = m.DryTempCelsius, DryTimeHours = m.DryTimeHours,
         Notes = m.Notes, ReorderUrl = m.ReorderUrl, PricePerKg = m.PricePerKg,
         IsPublic = m.IsPublic, ReorderClickCount = m.ReorderClickCount,
+        OfdFilamentId = m.OfdFilamentId, OfdVariantId = m.OfdVariantId,
         CreatedAt = m.CreatedAt, UpdatedAt = m.UpdatedAt
     };
 
@@ -329,6 +336,130 @@ public class AdminController : ControllerBase
         await _siteSettings.SetAsync("landing_page_enabled", request.Enabled ? "true" : "false");
         return NoContent();
     }
+
+    [HttpPost("ofd-sync")]
+    public async Task<IActionResult> SyncOfd()
+    {
+        if (!IsPlatformAdmin()) return Forbid();
+        var result = await _ofdSync.SyncAsync();
+        await _audit.LogAsync("admin.ofd.sync", userId: UserId, username: UserName,
+            details: $"Created: {result.Created}, Updated: {result.Updated}, Skipped: {result.Skipped}",
+            ipAddress: ClientIp);
+        return Ok(result);
+    }
+
+    [HttpGet("suggestions")]
+    public async Task<IActionResult> GetSuggestions([FromQuery] string? status)
+    {
+        if (!IsPlatformAdmin()) return Forbid();
+        var suggestions = await _suggestions.GetAllAsync(status);
+        var result = new List<MaterialSuggestionDto>();
+        foreach (var s in suggestions)
+        {
+            string? materialName = null;
+            if (s.MaterialId.HasValue)
+            {
+                var mat = await _materials.GetByIdAsync(s.MaterialId.Value);
+                if (mat != null) materialName = $"{mat.Brand} {mat.Type}";
+            }
+            result.Add(MapSuggestionToDto(s, materialName));
+        }
+        return Ok(result);
+    }
+
+    [HttpGet("suggestions/count")]
+    public async Task<IActionResult> GetSuggestionCount()
+    {
+        if (!IsPlatformAdmin()) return Forbid();
+        return Ok(new { count = await _suggestions.CountPendingAsync() });
+    }
+
+    [HttpPost("suggestions/{id}/review")]
+    public async Task<IActionResult> ReviewSuggestion(Guid id, [FromBody] ReviewSuggestionRequest request)
+    {
+        if (!IsPlatformAdmin()) return Forbid();
+        var suggestion = await _suggestions.GetByIdAsync(id);
+        if (suggestion == null) return NotFound();
+
+        suggestion.Status = request.Status;
+        suggestion.AdminNotes = request.AdminNotes;
+        suggestion.ReviewedAt = DateTime.UtcNow;
+        suggestion.ReviewedByUserId = UserId;
+        await _suggestions.UpdateAsync(suggestion);
+
+        if (request.Status == MaterialSuggestion.StatusApproved)
+        {
+            if (suggestion.MaterialId.HasValue)
+            {
+                var existing = await _materials.GetByIdAsync(suggestion.MaterialId.Value);
+                if (existing != null)
+                {
+                    existing.Type = suggestion.Type;
+                    existing.Brand = suggestion.Brand;
+                    existing.ColorHex = suggestion.ColorHex;
+                    existing.ColorName = suggestion.ColorName;
+                    existing.MinTempCelsius = suggestion.MinTempCelsius;
+                    existing.MaxTempCelsius = suggestion.MaxTempCelsius;
+                    existing.BedTempCelsius = suggestion.BedTempCelsius;
+                    existing.DiameterMm = suggestion.DiameterMm;
+                    existing.DensityGCm3 = suggestion.DensityGCm3;
+                    existing.DryTempCelsius = suggestion.DryTempCelsius;
+                    existing.DryTimeHours = suggestion.DryTimeHours;
+                    existing.Notes = suggestion.Notes;
+                    existing.ReorderUrl = suggestion.ReorderUrl;
+                    existing.PricePerKg = suggestion.PricePerKg;
+                    existing.UpdatedAt = DateTime.UtcNow;
+                    await _materials.UpdateAsync(existing);
+                }
+            }
+            else
+            {
+                var newMaterial = new FilamentMaterial
+                {
+                    Type = suggestion.Type,
+                    Brand = suggestion.Brand,
+                    ColorHex = suggestion.ColorHex,
+                    ColorName = suggestion.ColorName,
+                    MinTempCelsius = suggestion.MinTempCelsius,
+                    MaxTempCelsius = suggestion.MaxTempCelsius,
+                    BedTempCelsius = suggestion.BedTempCelsius,
+                    DiameterMm = suggestion.DiameterMm,
+                    DensityGCm3 = suggestion.DensityGCm3,
+                    DryTempCelsius = suggestion.DryTempCelsius,
+                    DryTimeHours = suggestion.DryTimeHours,
+                    Notes = suggestion.Notes,
+                    ReorderUrl = suggestion.ReorderUrl,
+                    PricePerKg = suggestion.PricePerKg,
+                    ProjectId = null,
+                    IsPublic = true,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+                await _materials.CreateAsync(newMaterial);
+            }
+        }
+
+        await _audit.LogAsync($"admin.suggestion.{request.Status}", userId: UserId, username: UserName,
+            entityType: "suggestion", entityId: id.ToString(),
+            entityName: $"{suggestion.Brand} {suggestion.Type}",
+            ipAddress: ClientIp);
+
+        return NoContent();
+    }
+
+    private static MaterialSuggestionDto MapSuggestionToDto(MaterialSuggestion s, string? materialName) => new()
+    {
+        Id = s.Id, MaterialId = s.MaterialId, MaterialName = materialName,
+        UserId = s.UserId, Username = s.Username,
+        Type = s.Type, Brand = s.Brand, ColorHex = s.ColorHex, ColorName = s.ColorName,
+        MinTempCelsius = s.MinTempCelsius, MaxTempCelsius = s.MaxTempCelsius,
+        BedTempCelsius = s.BedTempCelsius, DiameterMm = s.DiameterMm,
+        DensityGCm3 = s.DensityGCm3, DryTempCelsius = s.DryTempCelsius,
+        DryTimeHours = s.DryTimeHours, Notes = s.Notes,
+        ReorderUrl = s.ReorderUrl, PricePerKg = s.PricePerKg,
+        Status = s.Status, AdminNotes = s.AdminNotes,
+        CreatedAt = s.CreatedAt, ReviewedAt = s.ReviewedAt
+    };
 
     [HttpGet("stats")]
     public async Task<IActionResult> GetStats()

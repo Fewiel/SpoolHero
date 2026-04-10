@@ -1,0 +1,144 @@
+@page "/admin/suggestions"
+@inject AdminService Admin
+@inject AuthService Auth
+@inject LocalizationService L
+
+<PageTitle>@L["admin.suggestions.title"] – @L["app.name"]</PageTitle>
+
+@if (Auth.CurrentUser?.IsPlatformAdmin != true)
+{
+    <div class="alert alert-danger mt-3">@L["common.access.denied"]</div>
+}
+else
+{
+    <div class="page-header">
+        <h1><i class="bi bi-lightbulb me-2"></i>@L["admin.suggestions.title"]</h1>
+    </div>
+
+    <ul class="nav nav-tabs mb-3">
+        <li class="nav-item">
+            <button class="nav-link @(_filter == "pending" ? "active" : "")" @onclick='() => SetFilter("pending")'>
+                @L["suggestion.status.pending"]
+                @if (_pendingCount > 0) { <span class="badge bg-warning ms-1">@_pendingCount</span> }
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link @(_filter == "approved" ? "active" : "")" @onclick='() => SetFilter("approved")'>
+                @L["suggestion.status.approved"]
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link @(_filter == "rejected" ? "active" : "")" @onclick='() => SetFilter("rejected")'>
+                @L["suggestion.status.rejected"]
+            </button>
+        </li>
+    </ul>
+
+    @if (_loading)
+    {
+        <div class="text-center py-5"><div class="spinner-border"></div></div>
+    }
+    else if (_suggestions.Count == 0)
+    {
+        <div class="text-center py-5 text-muted">
+            <i class="bi bi-lightbulb fs-1"></i>
+            <p class="mt-2">@L["admin.suggestions.empty"]</p>
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive-card">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>@L["admin.suggestions.user"]</th>
+                        <th>@L["material.type"]</th>
+                        <th>@L["material.brand"]</th>
+                        <th>@L["material.color.hex"]</th>
+                        <th class="d-none d-md-table-cell">Temp</th>
+                        <th class="d-none d-md-table-cell">@L["admin.suggestions.material"]</th>
+                        <th>@L["common.actions"]</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var s in _suggestions)
+                    {
+                        <tr>
+                            <td>@s.Username</td>
+                            <td><strong>@s.Type</strong></td>
+                            <td>@s.Brand</td>
+                            <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    <div style="width:1.2em;height:1.2em;background:#@s.ColorHex;border-radius:50%;border:1px solid var(--bs-border-color)"></div>
+                                    @if (s.ColorName != null) { <small>@s.ColorName</small> }
+                                </div>
+                            </td>
+                            <td class="d-none d-md-table-cell">@s.MinTempCelsius–@s.MaxTempCelsius °C</td>
+                            <td class="d-none d-md-table-cell">
+                                @if (s.MaterialName != null) { <small class="text-muted">@s.MaterialName</small> }
+                                else { <span class="badge bg-info">Neu</span> }
+                            </td>
+                            <td>
+                                @if (s.Status == "pending")
+                                {
+                                    <div class="d-flex gap-1">
+                                        <button class="btn btn-sm btn-success" @onclick="() => Review(s.Id, true)"
+                                                disabled="@_reviewing">
+                                            <i class="bi bi-check-lg"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-danger" @onclick="() => Review(s.Id, false)"
+                                                disabled="@_reviewing">
+                                            <i class="bi bi-x-lg"></i>
+                                        </button>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <span class="badge @(s.Status == "approved" ? "bg-success" : "bg-danger")">
+                                        @(s.Status == "approved" ? L["suggestion.status.approved"] : L["suggestion.status.rejected"])
+                                    </span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+}
+
+@code {
+    private bool _loading = true;
+    private bool _reviewing;
+    private string _filter = "pending";
+    private int _pendingCount;
+    private List<MaterialSuggestionDto> _suggestions = [];
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _suggestions = await Admin.GetSuggestionsAsync(_filter) ?? [];
+        var allPending = await Admin.GetSuggestionsAsync("pending");
+        _pendingCount = allPending?.Count ?? 0;
+        _loading = false;
+    }
+
+    private async Task SetFilter(string filter)
+    {
+        _filter = filter;
+        await LoadAsync();
+    }
+
+    private async Task Review(Guid id, bool approve)
+    {
+        _reviewing = true;
+        await Admin.ReviewSuggestionAsync(id, new ReviewSuggestionRequest
+        {
+            Status = approve ? "approved" : "rejected"
+        });
+        _reviewing = false;
+        await LoadAsync();
+    }
+}
