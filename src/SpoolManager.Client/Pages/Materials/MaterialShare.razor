@@ -20,36 +20,29 @@
             <div class="card-body">
                 <h5 class="card-title"><i class="bi bi-box-arrow-up me-2"></i>@L["material.export"]</h5>
 
-                @if (_allMaterials.Count == 0 && !_loadingMaterials)
+                <div class="mb-3">
+                    <MaterialPicker Materials="_allMaterials" Value="_exportPickerId" OnSelected="OnExportPicked" />
+                </div>
+
+                @if (_selected.Count > 0)
                 {
-                    <div class="text-muted">@L["common.none"]</div>
-                }
-                else
-                {
-                    <div class="mb-3">
-                        <div class="d-flex gap-2 mb-2">
-                            <button class="btn btn-sm btn-outline-secondary" @onclick="SelectAll">@L["common.confirm"]</button>
-                            <button class="btn btn-sm btn-outline-secondary" @onclick="() => _selected.Clear()">@L["common.cancel"]</button>
-                        </div>
-                        @foreach (var m in _allMaterials)
+                    <div class="d-flex flex-wrap gap-1 mb-3">
+                        @foreach (var m in _allMaterials.Where(x => _selected.Contains(x.Id)))
                         {
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="m_@m.Id"
-                                       checked="@_selected.Contains(m.Id)"
-                                       @onchange="e => ToggleSelect(m.Id, (bool)(e.Value ?? false))" />
-                                <label class="form-check-label" for="m_@m.Id">
-                                    <span style="width:0.9em;height:0.9em;background:#@m.ColorHex;border-radius:50%;display:inline-block;vertical-align:middle;border:1px solid var(--bs-border-color);margin-right:4px"></span>
-                                    @m.Brand @m.Type @(m.ColorName != null ? $"– {m.ColorName}" : "")
-                                </label>
-                            </div>
+                            <span class="badge bg-body-secondary text-body border d-flex align-items-center gap-1 py-1 px-2" style="font-size:.75rem">
+                                <span style="width:.7em;height:.7em;background:#@m.ColorHex;border-radius:50%;border:1px solid var(--bs-border-color)"></span>
+                                @m.Brand @m.Type
+                                <button type="button" class="btn-close ms-1" style="font-size:.5rem"
+                                        @onclick="() => _selected.Remove(m.Id)"></button>
+                            </span>
                         }
                     </div>
-
-                    <button class="btn btn-primary" @onclick="ExportAsync" disabled="@(_selected.Count == 0 || _exporting)">
-                        @if (_exporting) { <span class="spinner-border spinner-border-sm me-2"></span> }
-                        <i class="bi bi-download me-1"></i>@L["material.export"] (@_selected.Count)
-                    </button>
                 }
+
+                <button class="btn btn-primary" @onclick="ExportAsync" disabled="@(_selected.Count == 0 || _exporting)">
+                    @if (_exporting) { <span class="spinner-border spinner-border-sm me-2"></span> }
+                    <i class="bi bi-download me-1"></i>@L["material.export"] (@_selected.Count)
+                </button>
 
                 @if (_exportBase64 != null)
                 {
@@ -90,53 +83,13 @@
             </div>
         </div>
     </div>
-
-    <div class="col-12">
-        <div class="card">
-            <div class="card-body">
-                <h5 class="card-title"><i class="bi bi-box-seam me-2"></i>@L["material.export.orca"]</h5>
-                <p class="text-muted small">@L["material.export.orca.hint"]</p>
-                <p class="text-muted small">@L["material.export.orca.info"]</p>
-
-                @if (OrcaWarningMaterials.Count > 0)
-                {
-                    <div class="alert alert-warning py-2 mb-3">
-                        <i class="bi bi-exclamation-triangle me-1"></i>@L["material.export.orca.warning"]
-                        <ul class="mb-0 mt-1 small">
-                            @foreach (var w in OrcaWarningMaterials)
-                            {
-                                <li>
-                                    @w.Brand @w.Type @(w.ColorName != null ? $"- {w.ColorName}" : "")
-                                    @if (w.OfdVariantId != null)
-                                    {
-                                        <a href="/materials/@w.Id/suggest" class="ms-1">@L["material.suggest"]</a>
-                                    }
-                                </li>
-                            }
-                        </ul>
-                    </div>
-                }
-
-                <button class="btn btn-primary" @onclick="ExportOrcaAsync" disabled="@(_exportingOrca)">
-                    @if (_exportingOrca) { <span class="spinner-border spinner-border-sm me-2"></span> }
-                    <i class="bi bi-download me-1"></i>@L["material.export.orca.button"]
-                    @if (_selected.Count > 0) { <span>(@_selected.Count)</span> }
-                </button>
-
-                @if (_orcaError != null)
-                {
-                    <div class="alert alert-danger mt-2 py-2">@_orcaError</div>
-                }
-            </div>
-        </div>
-    </div>
 </div>
 
 @code {
-    private bool _loadingMaterials = true;
     private bool _exporting;
     private bool _importing;
     private bool _copied;
+    private Guid? _exportPickerId;
     private List<FilamentMaterialDto> _allMaterials = [];
     private HashSet<Guid> _selected = [];
     private string? _exportBase64;
@@ -148,11 +101,14 @@
     {
         if (Project.CurrentProject == null) return;
         _allMaterials = await Materials.GetAllAsync() ?? [];
-        _loadingMaterials = false;
     }
 
-    private void SelectAll() => _selected = _allMaterials.Select(m => m.Id).ToHashSet();
-    private void ToggleSelect(Guid id, bool add) { if (add) _selected.Add(id); else _selected.Remove(id); }
+    private void OnExportPicked(FilamentMaterialDto? m)
+    {
+        if (m == null) return;
+        _selected.Add(m.Id);
+        _exportPickerId = null;
+    }
 
     private async Task ExportAsync()
     {
@@ -188,39 +144,6 @@
         {
             _importError = await resp.Content.ReadAsStringAsync();
         }
-    }
-
-    private bool _exportingOrca;
-    private string? _orcaError;
-
-    private List<FilamentMaterialDto> OrcaWarningMaterials
-    {
-        get
-        {
-            var source = _selected.Count > 0
-                ? _allMaterials.Where(m => _selected.Contains(m.Id))
-                : _allMaterials.AsEnumerable();
-            return source.Where(m => m.MinTempCelsius == 0 || m.MaxTempCelsius == 0).ToList();
-        }
-    }
-
-    private async Task ExportOrcaAsync()
-    {
-        _exportingOrca = true;
-        _orcaError = null;
-        try
-        {
-            var result = await Materials.ExportOrcaAsync(_selected.Count > 0 ? _selected.ToList() : null);
-            if (result.HasValue)
-                await JS.InvokeVoidAsync("downloadHelper.saveAs", result.Value.Data, result.Value.Filename);
-            else
-                _orcaError = "Export failed.";
-        }
-        catch (Exception ex)
-        {
-            _orcaError = ex.Message;
-        }
-        _exportingOrca = false;
     }
 
     private record ImportResult(int Imported);

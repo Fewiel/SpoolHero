@@ -1,0 +1,16 @@
+**/bin/
+**/obj/
+**/publish/
+**/.vs/
+**/.vscode/
+**/.claude/
+**/node_modules/
+.git
+.gitignore
+*.md
+*.pfx
+docker-compose.yml
+Dockerfile
+.dockerignore
+.mcp.json
+PLAN_NEW_FEATURES.md

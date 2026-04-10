@@ -1,0 +1,36 @@
+services:
+  db:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-SpoolHero2024!}
+      MYSQL_DATABASE: SpoolManager
+    volumes:
+      - mysql_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_ROOT_PASSWORD:-SpoolHero2024!}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  app:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      ConnectionStrings__Default: "Server=db;Port=3306;Database=SpoolManager;User=root;Password=${MYSQL_ROOT_PASSWORD:-SpoolHero2024!};"
+      Jwt__SecretKey: ${JWT_SECRET_KEY:-ChangeThisToASecureRandomKeyAtLeast32Characters!}
+      Jwt__Issuer: SpoolManager
+      Jwt__Audience: SpoolManager
+      Jwt__ExpiresInHours: 24
+      ASPNETCORE_URLS: http://+:5000
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  mysql_data:
