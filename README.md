@@ -14,13 +14,74 @@ SpoolHero is a self-hosted filament management tool for 3D printing. It allows y
 - Email notifications for spool levels, dryer cycles, and ticket replies
 - Self-hostable, open source, no external dependencies
 
-## Requirements
+## Quick Start with Docker
+
+The easiest way to run SpoolHero is with Docker Compose:
+
+```bash
+git clone https://github.com/Fewiel/SpoolHero.git
+cd SpoolHero
+docker compose up -d
+```
+
+SpoolHero will be available at `http://localhost:5000`. A MySQL 8 database is included and configured automatically.
+
+**Default admin account:**
+- Email: `admin@localhost`
+- Password: `admin`
+
+Change the password immediately after first login.
+
+### Configuration
+
+Set environment variables in a `.env` file next to `docker-compose.yml`:
+
+```env
+MYSQL_ROOT_PASSWORD=YourSecureDatabasePassword
+JWT_SECRET_KEY=YourRandomStringAtLeast32Characters
+```
+
+### HTTPS (required for NFC on Android)
+
+SpoolHero supports NFC tag reading and writing via the Web NFC API. **Web NFC only works over HTTPS** (except on localhost). If you want to use NFC features from your phone, you must put a reverse proxy with SSL in front of SpoolHero.
+
+Example with **nginx** and Let's Encrypt:
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name spoolhero.example.com;
+
+    ssl_certificate /etc/letsencrypt/live/spoolhero.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/spoolhero.example.com/privkey.pem;
+
+    location / {
+        proxy_pass http://localhost:5000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+Alternatively, you can use [Caddy](https://caddyserver.com/) which handles SSL certificates automatically:
+
+```
+spoolhero.example.com {
+    reverse_proxy localhost:5000
+}
+```
+
+## Manual Setup (without Docker)
+
+### Requirements
 
 - .NET 10.0 Runtime
 - MySQL 8.0 or MariaDB 10.6+
 - A reverse proxy (Apache or nginx recommended)
 
-## Setup
+### Installation
 
 Download the latest release zip from the [Releases](https://github.com/Fewiel/SpoolHero/releases) page and extract it to your server. Then create an `appsettings.json` based on the included `appsettings.example.json`:
 
