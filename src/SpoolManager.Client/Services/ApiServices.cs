@@ -58,6 +58,16 @@ public class MaterialService
 
     public Task<FilamentMaterialDto?> GetByIdAsync(Guid id) => _http.GetFromJsonAsync<FilamentMaterialDto>($"api/materials/{id}");
 
+    public Task<List<FilamentMaterialDto>?> SearchAsync(string query, int limit = 50) =>
+        _http.GetFromJsonAsync<List<FilamentMaterialDto>>($"api/materials/search?q={Uri.EscapeDataString(query)}&limit={limit}");
+
+    public async Task<int> GetCountAsync()
+    {
+        var r = await _http.GetFromJsonAsync<CountResult>("api/materials/count");
+        return r?.Count ?? 0;
+    }
+    private record CountResult(int Count);
+
     public Task<HttpResponseMessage> CreateAsync(CreateMaterialRequest request) => _http.PostAsJsonAsync("api/materials", request);
 
     public Task<HttpResponseMessage> UpdateAsync(Guid id, UpdateMaterialRequest request) => _http.PutAsJsonAsync($"api/materials/{id}", request);

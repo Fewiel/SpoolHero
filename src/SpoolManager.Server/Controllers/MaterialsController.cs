@@ -40,6 +40,18 @@ public class MaterialsController : ControllerBase
         return Ok(materials.Select(MapToDto));
     }
 
+    [HttpGet("search")]
+    public async Task<IActionResult> Search([FromQuery] string q, [FromQuery] int limit = 50)
+    {
+        if (string.IsNullOrWhiteSpace(q)) return Ok(Array.Empty<FilamentMaterialDto>());
+        var materials = await _materials.SearchAsync(ProjectMember.ProjectId, q, Math.Min(limit, 100));
+        return Ok(materials.Select(MapToDto));
+    }
+
+    [HttpGet("count")]
+    public async Task<IActionResult> Count() =>
+        Ok(new { count = await _materials.CountAsync(ProjectMember.ProjectId) });
+
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(Guid id)
     {

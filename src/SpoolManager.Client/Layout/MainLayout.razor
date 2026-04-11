@@ -294,6 +294,7 @@ else
     }
 
     <footer class="text-center text-muted py-3" style="font-size:.8rem; border-top: 1px solid var(--bs-border-color);">
+        <a href="/changelog" class="text-muted me-3">@L["nav.changelog"]</a>
         <a href="/privacy" class="text-muted me-3">@L["legal.privacy.title"]</a>
         <a href="/imprint" class="text-muted me-3">@L["legal.imprint.title"]</a>
         <a href="/terms" class="text-muted">@L["legal.terms.title"]</a>
@@ -392,7 +393,7 @@ else
     }
 
     private static readonly string[] AllowedWithoutProject =
-        ["/projects", "/settings", "/admin", "/tickets", "/login", "/register", "/verify-email", "/privacy", "/imprint", "/terms"];
+        ["/projects", "/settings", "/admin", "/tickets", "/login", "/register", "/verify-email", "/privacy", "/imprint", "/terms", "/changelog"];
 
     private void CheckProjectRedirect()
     {
@@ -402,11 +403,7 @@ else
         var path = new Uri(Nav.Uri).AbsolutePath;
 
         if (Project.CurrentProject != null)
-        {
-            if (path.Equals("/projects/new", StringComparison.OrdinalIgnoreCase))
-                Nav.NavigateTo("/");
             return;
-        }
 
         if (AllowedWithoutProject.Any(a => path.StartsWith(a, StringComparison.OrdinalIgnoreCase)))
             return;

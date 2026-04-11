@@ -15,18 +15,12 @@
 
 <p class="text-muted">@L["material.export.orca.hint"]</p>
 
-@if (_loading)
-{
-    <div class="text-center py-5"><div class="spinner-border"></div></div>
-}
-else
-{
-    <div class="card mb-4">
+<div class="card mb-4">
         <div class="card-body">
             <h6 class="card-title">@L["material.export.orca.select"]</h6>
 
             <div class="mb-3">
-                <MaterialPicker Materials="_allMaterials" Value="_pickerId" OnSelected="OnPicked" />
+                <MaterialPicker Value="_pickerId" OnSelected="OnPicked" />
             </div>
 
             @if (_selectedMaterials.Count > 0)
@@ -99,23 +93,13 @@ else
             <i class="bi bi-check-circle me-1"></i>@L["material.export.orca.done"]
         </div>
     }
-}
 
 @code {
-    private bool _loading = true;
     private bool _exporting;
     private bool _orcaSuccess;
     private string? _orcaError;
     private Guid? _pickerId;
-    private List<FilamentMaterialDto> _allMaterials = [];
     private List<FilamentMaterialDto> _selectedMaterials = [];
-
-    protected override async Task OnInitializedAsync()
-    {
-        if (Project.CurrentProject == null) return;
-        _allMaterials = await Materials.GetAllAsync() ?? [];
-        _loading = false;
-    }
 
     private void OnPicked(FilamentMaterialDto? m)
     {

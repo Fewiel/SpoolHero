@@ -1,5 +1,6 @@
 @inject LocalizationService L
 @inject IJSRuntime JS
+@inject MaterialService MaterialSvc
 
 <div class="material-picker position-relative" @ref="_root">
     <div class="form-control d-flex align-items-center gap-2 @(_open ? "border-primary" : "")"
@@ -24,13 +25,21 @@
                        @ref="_searchInput" value="@_query" @oninput="OnQuery" autocomplete="off" />
             </div>
             <div style="overflow-y:auto;flex:1">
-                @if (_results.Count == 0)
+                @if (_searching)
+                {
+                    <div class="text-center py-3"><div class="spinner-border spinner-border-sm"></div></div>
+                }
+                else if (string.IsNullOrWhiteSpace(_query))
+                {
+                    <div class="text-center text-muted py-3 small">@L["material.picker.hint"]</div>
+                }
+                else if (_results.Count == 0)
                 {
                     <div class="text-center text-muted py-3 small">@L["common.none"]</div>
                 }
                 else
                 {
-                    @foreach (var m in _results.Take(100))
+                    @foreach (var m in _results)
                     {
                         <div class="material-picker-item d-flex align-items-center gap-2 px-3 py-2 @(m.Id == Value ? "bg-primary-subtle" : "")"
                              role="option" @onclick="() => Select(m)" @onclick:stopPropagation>
@@ -54,30 +63,33 @@
 </div>
 
 @code {
-    [Parameter] public List<FilamentMaterialDto> Materials { get; set; } = [];
     [Parameter] public Guid? Value { get; set; }
     [Parameter] public EventCallback<Guid?> ValueChanged { get; set; }
     [Parameter] public EventCallback<FilamentMaterialDto?> OnSelected { get; set; }
 
     private bool _open;
+    private bool _searching;
     private string _query = string.Empty;
     private List<FilamentMaterialDto> _results = [];
     private FilamentMaterialDto? _selectedMaterial;
     private ElementReference _searchInput;
     private ElementReference _root;
     private DotNetObjectReference<MaterialPicker>? _selfRef;
+    private System.Timers.Timer? _debounce;
 
-    protected override void OnParametersSet()
+    protected override async Task OnParametersSetAsync()
     {
-        _selectedMaterial = Value.HasValue ? Materials.FirstOrDefault(m => m.Id == Value.Value) : null;
-        if (!_open) ApplyFilter();
+        if (Value.HasValue && (_selectedMaterial == null || _selectedMaterial.Id != Value.Value))
+            _selectedMaterial = await MaterialSvc.GetByIdAsync(Value.Value);
+        else if (!Value.HasValue)
+            _selectedMaterial = null;
     }
 
     private async Task Open()
     {
         _open = true;
         _query = string.Empty;
-        ApplyFilter();
+        _results = [];
         await Task.Yield();
         try { await _searchInput.FocusAsync(); } catch { }
         _selfRef ??= DotNetObjectReference.Create(this);
@@ -88,29 +100,28 @@
     public void CloseDropdown()
     {
         _open = false;
+        _debounce?.Stop();
         StateHasChanged();
-    }
-
-    private void ApplyFilter()
-    {
-        if (string.IsNullOrWhiteSpace(_query))
-        {
-            _results = Materials;
-            return;
-        }
-        var q = _query;
-        _results = Materials.Where(m =>
-            m.Brand.Contains(q, StringComparison.OrdinalIgnoreCase) ||
-            m.Type.Contains(q, StringComparison.OrdinalIgnoreCase) ||
-            (m.ColorName?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false) ||
-            m.ColorHex.Contains(q, StringComparison.OrdinalIgnoreCase)
-        ).ToList();
     }
 
     private void OnQuery(ChangeEventArgs e)
     {
         _query = e.Value?.ToString() ?? string.Empty;
-        ApplyFilter();
+        _debounce?.Stop();
+        if (string.IsNullOrWhiteSpace(_query)) { _results = []; return; }
+        _debounce = new System.Timers.Timer(250);
+        _debounce.Elapsed += async (_, _) => { _debounce?.Stop(); await InvokeAsync(DoSearch); };
+        _debounce.Start();
+    }
+
+    private async Task DoSearch()
+    {
+        if (string.IsNullOrWhiteSpace(_query)) return;
+        _searching = true;
+        StateHasChanged();
+        _results = await MaterialSvc.SearchAsync(_query) ?? [];
+        _searching = false;
+        StateHasChanged();
     }
 
     private async Task Select(FilamentMaterialDto m)
@@ -125,6 +136,7 @@
 
     public void Dispose()
     {
+        _debounce?.Dispose();
         _selfRef?.Dispose();
     }
 }

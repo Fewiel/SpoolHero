@@ -85,8 +85,9 @@ public class DryersController : ControllerBase
 
         using var ms = new MemoryStream();
         await file.CopyToAsync(ms);
-        dryer.ImageData = _images.ResizeToThumbnail(ms.ToArray());
-        dryer.ImageContentType = "image/jpeg";
+        var (data, ct) = _images.ResizeToThumbnail(ms.ToArray(), file.ContentType);
+        dryer.ImageData = data;
+        dryer.ImageContentType = ct;
         dryer.UpdatedAt = DateTime.UtcNow;
         await _dryers.UpdateAsync(dryer);
         return Ok(MapToDto(dryer));

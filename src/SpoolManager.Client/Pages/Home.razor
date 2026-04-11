@@ -201,8 +201,7 @@ else
         _loading = true;
         StateHasChanged();
 
-        var materials = await Materials.GetAllAsync() ?? [];
-        _materialsCount = materials.Count;
+        _materialsCount = await Materials.GetCountAsync();
 
         var printers = await Printers.GetAllAsync() ?? [];
         _printersCount = printers.Count;

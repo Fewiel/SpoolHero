@@ -17,7 +17,8 @@
 }
 
 .main-content {
-    min-height: calc(100vh - 4.5rem);
+    min-height: calc(100dvh - 4.5rem);
+    box-sizing: border-box;
 }
 
 /* Location scroll list */
@@ -115,6 +116,7 @@
     margin: 0;
     font-size: 1.5rem;
     font-weight: 600;
+    outline: none;
 }
 
 .stat-card {

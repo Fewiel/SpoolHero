@@ -85,8 +85,9 @@ public class PrintersController : ControllerBase
 
         using var ms = new MemoryStream();
         await file.CopyToAsync(ms);
-        printer.ImageData = _images.ResizeToThumbnail(ms.ToArray());
-        printer.ImageContentType = "image/jpeg";
+        var (data, ct) = _images.ResizeToThumbnail(ms.ToArray(), file.ContentType);
+        printer.ImageData = data;
+        printer.ImageContentType = ct;
         printer.UpdatedAt = DateTime.UtcNow;
         await _printers.UpdateAsync(printer);
         return Ok(MapToDto(printer));
