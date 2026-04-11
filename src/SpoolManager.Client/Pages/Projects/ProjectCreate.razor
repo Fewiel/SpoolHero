@@ -17,11 +17,14 @@
 
                 <div class="mb-3">
                     <label class="form-label">@L["project.name"] *</label>
-                    <input class="form-control" @bind="_form.Name" placeholder="Meine Printfarm" />
+                    <input class="form-control" @bind="_form.Name" maxlength="200"
+                           placeholder="@L["project.name.placeholder"]" />
+                    <small class="text-muted">@((_form.Name?.Length ?? 0)) / 200</small>
                 </div>
                 <div class="mb-4">
                     <label class="form-label">@L["project.description"] @L["common.optional"]</label>
-                    <textarea class="form-control" rows="3" @bind="_form.Description" placeholder="Beschreibung des Projekts"></textarea>
+                    <textarea class="form-control" rows="3" @bind="_form.Description"
+                              placeholder="@L["project.description.placeholder"]"></textarea>
                 </div>
 
                 <div class="d-flex gap-2">
@@ -29,7 +32,10 @@
                         @if (_saving) { <span class="spinner-border spinner-border-sm me-2"></span> }
                         @L["project.create"]
                     </button>
-                    <a href="/projects" class="btn btn-secondary">@L["common.cancel"]</a>
+                    @if (_hasProjects)
+                    {
+                        <a href="/projects" class="btn btn-secondary">@L["common.cancel"]</a>
+                    }
                 </div>
             </div>
         </div>
@@ -39,11 +45,19 @@
 @code {
     private CreateProjectRequest _form = new();
     private bool _saving;
+    private bool _hasProjects;
     private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var projects = await Project.GetMyProjectsAsync();
+        _hasProjects = projects is { Count: > 0 };
+    }
 
     private async Task SaveAsync()
     {
-        if (string.IsNullOrWhiteSpace(_form.Name)) { _error = "Name erforderlich."; return; }
+        if (string.IsNullOrWhiteSpace(_form.Name)) { _error = L["project.name.required"]; return; }
+        if (_form.Name.Length > 200) { _error = L["project.name.too.long"]; return; }
         _saving = true;
         _error = null;
         var resp = await Project.CreateAsync(_form);

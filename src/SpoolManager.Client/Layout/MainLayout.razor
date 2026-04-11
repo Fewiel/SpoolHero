@@ -402,11 +402,7 @@ else
         var path = new Uri(Nav.Uri).AbsolutePath;
 
         if (Project.CurrentProject != null)
-        {
-            if (path.Equals("/projects/new", StringComparison.OrdinalIgnoreCase))
-                Nav.NavigateTo("/");
             return;
-        }
 
         if (AllowedWithoutProject.Any(a => path.StartsWith(a, StringComparison.OrdinalIgnoreCase)))
             return;

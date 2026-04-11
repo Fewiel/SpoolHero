@@ -53,6 +53,11 @@ public class ProjectsController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create(CreateProjectRequest request)
     {
+        if (string.IsNullOrWhiteSpace(request.Name))
+            return BadRequest(new { message = "Name is required." });
+        if (request.Name.Length > 200)
+            return BadRequest(new { message = "Name must not exceed 200 characters." });
+
         var project = new Project
         {
             Name = request.Name,

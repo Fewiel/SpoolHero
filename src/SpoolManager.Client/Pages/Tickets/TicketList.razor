@@ -11,9 +11,12 @@
 
 <div class="page-header">
     <h1><i class="bi bi-headset me-2"></i>@L["ticket.your.tickets"]</h1>
-    <button class="btn btn-primary" @onclick="() => _showForm = !_showForm">
-        <i class="bi bi-plus-lg me-1"></i>@L["ticket.new"]
-    </button>
+    @if (!_showForm)
+    {
+        <button class="btn btn-primary" @onclick="() => _showForm = true">
+            <i class="bi bi-plus-lg me-1"></i>@L["ticket.new"]
+        </button>
+    }
 </div>
 
 @if (_showForm)

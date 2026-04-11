@@ -85,8 +85,9 @@ public class StorageLocationsController : ControllerBase
 
         using var ms = new MemoryStream();
         await file.CopyToAsync(ms);
-        location.ImageData = _images.ResizeToThumbnail(ms.ToArray());
-        location.ImageContentType = "image/jpeg";
+        var (data, ct) = _images.ResizeToThumbnail(ms.ToArray(), file.ContentType);
+        location.ImageData = data;
+        location.ImageContentType = ct;
         location.UpdatedAt = DateTime.UtcNow;
         await _storage.UpdateAsync(location);
         return Ok(MapToDto(location));
