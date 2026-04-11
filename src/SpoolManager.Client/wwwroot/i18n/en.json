@@ -80,6 +80,7 @@
   "spool.delete.confirm": "Delete this spool?",
   "spool.material": "Material",
   "spool.material.select": "Select material...",
+  "material.picker.hint": "Type to search (brand, type or color)",
   "spool.brand": "Brand",
   "spool.color": "Color",
   "spool.remaining": "Remaining",

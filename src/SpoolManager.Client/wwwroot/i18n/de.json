@@ -80,6 +80,7 @@
   "spool.delete.confirm": "Spule wirklich löschen?",
   "spool.material": "Material",
   "spool.material.select": "Material auswaehlen...",
+  "material.picker.hint": "Suchbegriff eingeben (Marke, Typ oder Farbe)",
   "spool.brand": "Marke",
   "spool.color": "Farbe",
   "spool.remaining": "Restmenge",

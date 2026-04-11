@@ -68,8 +68,7 @@ else
 
                     <div class="mb-3">
                         <label class="form-label">@L["spool.material"] *</label>
-                        <MaterialPicker Materials="_materials"
-                                        Value="_form.FilamentMaterialId == Guid.Empty ? null : _form.FilamentMaterialId"
+                        <MaterialPicker Value="_form.FilamentMaterialId == Guid.Empty ? null : _form.FilamentMaterialId"
                                         OnSelected="OnMaterialPicked" />
                     </div>
 
@@ -170,7 +169,7 @@ else
     private bool _saving;
     private string? _error;
     private CreateSpoolRequest _form = new() { RemainingPercent = 100 };
-    private List<FilamentMaterialDto> _materials = [];
+    private FilamentMaterialDto? _selectedMaterial;
     private List<PrinterDto> _printers = [];
     private List<StorageLocationDto> _storages = [];
     private List<DryerDto> _dryerList = [];
@@ -184,12 +183,10 @@ else
     protected override async Task OnInitializedAsync()
     {
         if (Project.CurrentProject == null) return;
-        var mt = Materials.GetAllAsync();
         var pt = Printers.GetAllAsync();
         var st = Storage.GetAllAsync();
         var dt = Dryers.GetAllAsync();
-        await Task.WhenAll(mt, pt, st, dt);
-        _materials = await mt ?? [];
+        await Task.WhenAll(pt, st, dt);
         _printers = await pt ?? [];
         _storages = await st ?? [];
         _dryerList = await dt ?? [];
@@ -236,7 +233,7 @@ else
     }
 
     [JSInvokable]
-    public void OnTagRead(string json)
+    public async void OnTagRead(string json)
     {
         _nfcReading = false;
         _nfcImportError = null;
@@ -251,17 +248,21 @@ else
 
             if (!string.IsNullOrEmpty(brand) || !string.IsNullOrEmpty(type))
             {
-                var match = _materials.FirstOrDefault(m =>
+                var searchQ = $"{brand} {type}".Trim();
+                var candidates = await Materials.SearchAsync(searchQ, 20) ?? [];
+
+                var match = candidates.FirstOrDefault(m =>
                     string.Equals(m.Brand, brand, StringComparison.OrdinalIgnoreCase) &&
                     string.Equals(m.Type, type, StringComparison.OrdinalIgnoreCase) &&
                     (colorHex == null || string.Equals(m.ColorHex, colorHex, StringComparison.OrdinalIgnoreCase)));
 
-                match ??= _materials.FirstOrDefault(m =>
+                match ??= candidates.FirstOrDefault(m =>
                     string.Equals(m.Brand, brand, StringComparison.OrdinalIgnoreCase) &&
                     string.Equals(m.Type, type, StringComparison.OrdinalIgnoreCase));
 
                 if (match != null)
                 {
+                    _selectedMaterial = match;
                     _form.FilamentMaterialId = match.Id;
                     if (match.WeightGrams is > 0)
                     {
@@ -311,6 +312,7 @@ else
     private void OnMaterialPicked(FilamentMaterialDto? mat)
     {
         if (mat == null) return;
+        _selectedMaterial = mat;
         _form.FilamentMaterialId = mat.Id;
         if (Id.HasValue) return;
         if (mat.WeightGrams is > 0)
@@ -336,17 +338,15 @@ else
     private void SetWeight(decimal value)
     {
         _form.RemainingWeightGrams = value;
-        var material = _materials.FirstOrDefault(m => m.Id == _form.FilamentMaterialId);
-        if (material?.WeightGrams is > 0)
-            _form.RemainingPercent = Math.Round(value / material.WeightGrams.Value * 100m, 1);
+        if (_selectedMaterial?.WeightGrams is > 0)
+            _form.RemainingPercent = Math.Round(value / _selectedMaterial.WeightGrams.Value * 100m, 1);
     }
 
     private void SetPercent(decimal value)
     {
         _form.RemainingPercent = value;
-        var material = _materials.FirstOrDefault(m => m.Id == _form.FilamentMaterialId);
-        if (material?.WeightGrams is > 0)
-            _form.RemainingWeightGrams = Math.Round(value / 100m * material.WeightGrams.Value, 1);
+        if (_selectedMaterial?.WeightGrams is > 0)
+            _form.RemainingWeightGrams = Math.Round(value / 100m * _selectedMaterial.WeightGrams.Value, 1);
     }
 
     private async Task SaveAsync()

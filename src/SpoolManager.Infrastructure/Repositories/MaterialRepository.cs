@@ -7,6 +7,8 @@ namespace SpoolManager.Infrastructure.Repositories;
 public interface IMaterialRepository
 {
     Task<List<FilamentMaterial>> GetAllAsync(Guid projectId, string? search = null);
+    Task<List<FilamentMaterial>> SearchAsync(Guid projectId, string query, int limit = 50);
+    Task<int> CountAsync(Guid projectId);
     Task<List<FilamentMaterial>> GetGlobalAsync(string? search = null);
     Task<FilamentMaterial?> GetByIdAsync(Guid id);
     Task<Guid> CreateAsync(FilamentMaterial material);
@@ -36,12 +38,25 @@ public class MaterialRepository : IMaterialRepository
         return await query.OrderBy(m => m.Brand).ThenBy(m => m.Type).ToListAsync();
     }
 
+    public async Task<List<FilamentMaterial>> SearchAsync(Guid projectId, string query, int limit = 50)
+    {
+        return await _db.FilamentMaterials
+            .Where(m => m.ProjectId == projectId || m.ProjectId == null)
+            .Where(m => m.Brand.Contains(query) || m.Type.Contains(query) || (m.ColorName != null && m.ColorName.Contains(query)))
+            .OrderBy(m => m.Brand).ThenBy(m => m.Type)
+            .Take(limit)
+            .ToListAsync();
+    }
+
+    public async Task<int> CountAsync(Guid projectId) =>
+        await _db.FilamentMaterials.CountAsync(m => m.ProjectId == projectId || m.ProjectId == null);
+
     public async Task<List<FilamentMaterial>> GetGlobalAsync(string? search = null)
     {
         var query = _db.FilamentMaterials.Where(m => m.ProjectId == null);
 
         if (!string.IsNullOrWhiteSpace(search))
-            query = query.Where(m => m.Brand.Contains(search) || m.Type.Contains(search));
+            query = query.Where(m => m.Brand.Contains(search) || m.Type.Contains(search) || (m.ColorName != null && m.ColorName.Contains(search)));
 
         return await query.OrderBy(m => m.Brand).ThenBy(m => m.Type).ToListAsync();
     }

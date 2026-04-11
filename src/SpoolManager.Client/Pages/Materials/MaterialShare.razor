@@ -21,27 +21,27 @@
                 <h5 class="card-title"><i class="bi bi-box-arrow-up me-2"></i>@L["material.export"]</h5>
 
                 <div class="mb-3">
-                    <MaterialPicker Materials="_allMaterials" Value="_exportPickerId" OnSelected="OnExportPicked" />
+                    <MaterialPicker Value="_exportPickerId" OnSelected="OnExportPicked" />
                 </div>
 
-                @if (_selected.Count > 0)
+                @if (_selectedMaterials.Count > 0)
                 {
                     <div class="d-flex flex-wrap gap-1 mb-3">
-                        @foreach (var m in _allMaterials.Where(x => _selected.Contains(x.Id)))
+                        @foreach (var m in _selectedMaterials)
                         {
                             <span class="badge bg-body-secondary text-body border d-flex align-items-center gap-1 py-1 px-2" style="font-size:.75rem">
                                 <span style="width:.7em;height:.7em;background:#@m.ColorHex;border-radius:50%;border:1px solid var(--bs-border-color)"></span>
                                 @m.Brand @m.Type
                                 <button type="button" class="btn-close ms-1" style="font-size:.5rem"
-                                        @onclick="() => _selected.Remove(m.Id)"></button>
+                                        @onclick="() => _selectedMaterials.RemoveAll(x => x.Id == m.Id)"></button>
                             </span>
                         }
                     </div>
                 }
 
-                <button class="btn btn-primary" @onclick="ExportAsync" disabled="@(_selected.Count == 0 || _exporting)">
+                <button class="btn btn-primary" @onclick="ExportAsync" disabled="@(_selectedMaterials.Count == 0 || _exporting)">
                     @if (_exporting) { <span class="spinner-border spinner-border-sm me-2"></span> }
-                    <i class="bi bi-download me-1"></i>@L["material.export"] (@_selected.Count)
+                    <i class="bi bi-download me-1"></i>@L["material.export"] (@_selectedMaterials.Count)
                 </button>
 
                 @if (_exportBase64 != null)
@@ -90,30 +90,23 @@
     private bool _importing;
     private bool _copied;
     private Guid? _exportPickerId;
-    private List<FilamentMaterialDto> _allMaterials = [];
-    private HashSet<Guid> _selected = [];
+    private List<FilamentMaterialDto> _selectedMaterials = [];
     private string? _exportBase64;
     private string _importBase64 = string.Empty;
     private string? _importError;
     private string? _importSuccess;
 
-    protected override async Task OnInitializedAsync()
-    {
-        if (Project.CurrentProject == null) return;
-        _allMaterials = await Materials.GetAllAsync() ?? [];
-    }
-
     private void OnExportPicked(FilamentMaterialDto? m)
     {
-        if (m == null) return;
-        _selected.Add(m.Id);
+        if (m == null || _selectedMaterials.Any(x => x.Id == m.Id)) return;
+        _selectedMaterials.Add(m);
         _exportPickerId = null;
     }
 
     private async Task ExportAsync()
     {
         _exporting = true;
-        _exportBase64 = await Materials.ExportAsync(_selected.ToList());
+        _exportBase64 = await Materials.ExportAsync(_selectedMaterials.Select(x => x.Id).ToList());
         _exporting = false;
     }
 
@@ -138,7 +131,6 @@
             var result = await resp.Content.ReadFromJsonAsync<ImportResult>();
             _importSuccess = L["material.import.success"].Replace("{0}", (result?.Imported ?? 0).ToString());
             _importBase64 = string.Empty;
-            _allMaterials = await Materials.GetAllAsync() ?? [];
         }
         else
         {
