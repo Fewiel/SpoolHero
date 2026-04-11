@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace SpoolManager.Shared.DTOs.Tickets;
 
 public class SupportTicketDto
@@ -33,7 +35,10 @@ public class TicketCommentDto
 
 public class CreateTicketRequest
 {
+    [Required, MaxLength(200)]
     public string Subject { get; set; } = string.Empty;
+
+    [Required, MaxLength(5000)]
     public string Description { get; set; } = string.Empty;
 }
 

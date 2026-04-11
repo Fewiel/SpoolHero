@@ -32,7 +32,9 @@ public class TicketsController : ControllerBase
     public async Task<IActionResult> CreateTicket([FromBody] CreateTicketRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.Subject)) return BadRequest("Subject required.");
+        if (request.Subject.Length > 200) return BadRequest("Subject must not exceed 200 characters.");
         if (string.IsNullOrWhiteSpace(request.Description)) return BadRequest("Description required.");
+        if (request.Description.Length > 5000) return BadRequest("Description must not exceed 5000 characters.");
 
         var ticket = new SupportTicket
         {
