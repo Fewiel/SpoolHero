@@ -1,27 +1,43 @@
 using FluentMigrator;
+using MySqlConnector;
 
 namespace SpoolManager.Infrastructure.Migrations;
 
-[Migration(14)]
-public class M014_UnicodeAndFixes : Migration
+[Migration(14, TransactionBehavior.None)]
+public class M014_UnicodeAndFixes : ForwardOnlyMigration
 {
+    private static readonly string[] Tables =
+    [
+        "users", "projects", "project_members", "invitations",
+        "filament_materials", "spools", "printers", "storage_locations",
+        "dryers", "support_tickets", "ticket_comments",
+        "material_suggestions", "audit_logs", "site_settings", "smtp_settings"
+    ];
+
     public override void Up()
     {
-        Execute.Sql("ALTER TABLE `projects` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;");
-        Execute.Sql("ALTER TABLE `filament_materials` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;");
-        Execute.Sql("ALTER TABLE `spools` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;");
-        Execute.Sql("ALTER TABLE `printers` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;");
-        Execute.Sql("ALTER TABLE `storage_locations` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;");
-        Execute.Sql("ALTER TABLE `dryers` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;");
-        Execute.Sql("ALTER TABLE `users` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;");
-        Execute.Sql("ALTER TABLE `support_tickets` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;");
-        Execute.Sql("ALTER TABLE `ticket_comments` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;");
-        Execute.Sql("ALTER TABLE `material_suggestions` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;");
-        Execute.Sql("ALTER TABLE `audit_logs` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;");
-        Execute.Sql("ALTER TABLE `site_settings` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;");
-    }
+        Execute.WithConnection((conn, _) =>
+        {
+            var mysqlConn = (MySqlConnection)conn;
+            using var cmd = new MySqlCommand { Connection = mysqlConn };
 
-    public override void Down()
-    {
+            cmd.CommandText = "SET FOREIGN_KEY_CHECKS=0";
+            cmd.ExecuteNonQuery();
+
+            foreach (var table in Tables)
+            {
+                try
+                {
+                    cmd.CommandText = $"ALTER TABLE `{table}` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci";
+                    cmd.ExecuteNonQuery();
+                }
+                catch
+                {
+                }
+            }
+
+            cmd.CommandText = "SET FOREIGN_KEY_CHECKS=1";
+            cmd.ExecuteNonQuery();
+        });
     }
 }
