@@ -8,6 +8,7 @@ public interface IUserRepository
     Task<AppUser?> GetByEmailAsync(string email);
     Task<AppUser?> GetByIdAsync(Guid id);
     Task<AppUser?> GetByVerificationTokenAsync(string token);
+    Task<AppUser?> GetByResetTokenAsync(string token);
     Task<List<AppUser>> GetAllAsync();
     Task<List<AppUser>> GetAdminsAsync();
     Task<List<AppUser>> GetProjectMembersAsync(Guid projectId);
@@ -34,6 +35,9 @@ public class UserRepository : IUserRepository
 
     public async Task<AppUser?> GetByVerificationTokenAsync(string token) =>
         await _db.Users.FirstOrDefaultAsync(u => u.EmailVerificationToken == token);
+
+    public async Task<AppUser?> GetByResetTokenAsync(string token) =>
+        await _db.Users.FirstOrDefaultAsync(u => u.PasswordResetToken == token);
 
     public async Task<List<AppUser>> GetAllAsync() =>
         await _db.Users.OrderBy(u => u.Username).ToListAsync();

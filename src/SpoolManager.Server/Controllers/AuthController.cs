@@ -86,8 +86,19 @@ public class AuthController : ControllerBase
     [HttpPost("resend-verification")]
     public async Task<IActionResult> ResendVerification([FromBody] ResendVerificationRequest request)
     {
+        var ipKey = $"resend:{ClientIp}";
+        if (_rateLimiter.IsBlocked(ipKey))
+            return StatusCode(429, new { message = "Too many requests. Please try again later." });
+
         var user = await _users.GetByEmailAsync(request.Email);
         if (user == null || user.EmailVerified) return Ok();
+
+        if (user.EmailVerificationTokenExpires.HasValue &&
+            user.EmailVerificationTokenExpires.Value > DateTime.UtcNow.AddMinutes(-2))
+        {
+            _rateLimiter.RecordFailure(ipKey);
+            return Ok(new { message = "Verification email sent." });
+        }
 
         user.EmailVerificationToken = GenerateToken();
         user.EmailVerificationTokenExpires = DateTime.UtcNow.AddHours(24);
@@ -95,6 +106,71 @@ public class AuthController : ControllerBase
         await _email.SendVerificationEmailAsync(user);
 
         return Ok(new { message = "Verification email sent." });
+    }
+
+    [HttpPost("forgot-password")]
+    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request)
+    {
+        var ipKey = $"forgot:{ClientIp}";
+        if (_rateLimiter.IsBlocked(ipKey))
+            return StatusCode(429, new { message = "Too many requests. Please try again later." });
+
+        var user = await _users.GetByEmailAsync(request.Email);
+        if (user != null)
+        {
+            if (user.PasswordResetTokenExpires.HasValue &&
+                user.PasswordResetTokenExpires.Value > DateTime.UtcNow.AddMinutes(58))
+            {
+                return Ok(new { message = "If the email exists, a reset link has been sent." });
+            }
+
+            user.PasswordResetToken = GenerateToken();
+            user.PasswordResetTokenExpires = DateTime.UtcNow.AddHours(1);
+            await _users.UpdateAsync(user);
+            await _email.SendPasswordResetEmailAsync(user);
+
+            await _audit.LogAsync("auth.password.reset.request", username: request.Email,
+                entityType: "user", entityName: request.Email, ipAddress: ClientIp);
+        }
+
+        _rateLimiter.RecordFailure(ipKey);
+        return Ok(new { message = "If the email exists, a reset link has been sent." });
+    }
+
+    [HttpPost("reset-password")]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
+    {
+        var ipKey = $"reset:{ClientIp}";
+        if (_rateLimiter.IsBlocked(ipKey))
+            return StatusCode(429, new { message = "Too many requests. Please try again later." });
+
+        if (string.IsNullOrWhiteSpace(request.Token)) return BadRequest(new { message = "Token required." });
+        if (string.IsNullOrWhiteSpace(request.NewPassword) || request.NewPassword.Length < 8)
+            return BadRequest(new { message = "Password must be at least 8 characters." });
+
+        var user = await _users.GetByResetTokenAsync(request.Token);
+        if (user == null)
+        {
+            _rateLimiter.RecordFailure(ipKey);
+            return BadRequest(new { message = "Invalid or expired token." });
+        }
+        if (user.PasswordResetTokenExpires < DateTime.UtcNow)
+        {
+            _rateLimiter.RecordFailure(ipKey);
+            return BadRequest(new { message = "Token expired." });
+        }
+
+        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
+        user.PasswordResetToken = null;
+        user.PasswordResetTokenExpires = null;
+        user.TokenVersion++;
+        await _users.UpdateAsync(user);
+
+        await _audit.LogAsync("auth.password.reset.complete", userId: user.Id, username: user.Username,
+            entityType: "user", entityId: user.Id.ToString(), entityName: user.Username,
+            ipAddress: ClientIp);
+
+        return Ok(new { message = "Password has been reset." });
     }
 
     [HttpPost("login")]

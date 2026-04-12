@@ -65,6 +65,35 @@ public static class EmailTemplates
                 Falls du dich nicht registriert hast, kannst du diese E-Mail ignorieren.</p>
                 """, "de");
 
+    public static string PasswordReset(string username, string resetUrl, string lang = "en") =>
+        lang == "en"
+            ? Wrap("Reset your password",
+                $"""
+                <p>Hello <strong>{username}</strong>,</p>
+                <p>we received a request to reset your password. Click the link below to set a new password:</p>
+                <p style="margin:25px 0;text-align:center">
+                  <a href="{resetUrl}"
+                     style="background:#0d6efd;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:bold">
+                    Reset Password
+                  </a>
+                </p>
+                <p style="color:#6c757d;font-size:13px">The link is valid for 1 hour.<br>
+                If you did not request a password reset, you can safely ignore this email.</p>
+                """, "en")
+            : Wrap("Passwort zuruecksetzen",
+                $"""
+                <p>Hallo <strong>{username}</strong>,</p>
+                <p>wir haben eine Anfrage zum Zuruecksetzen deines Passworts erhalten. Klicke auf den folgenden Link, um ein neues Passwort festzulegen:</p>
+                <p style="margin:25px 0;text-align:center">
+                  <a href="{resetUrl}"
+                     style="background:#0d6efd;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:bold">
+                    Passwort zuruecksetzen
+                  </a>
+                </p>
+                <p style="color:#6c757d;font-size:13px">Der Link ist 1 Stunde gueltig.<br>
+                Falls du kein Passwort-Reset angefordert hast, kannst du diese E-Mail ignorieren.</p>
+                """, "de");
+
     public static string NewTicket(string subject, string username, string description, string ticketUrl, string lang = "en") =>
         lang == "en"
             ? Wrap("New Support Ticket",
