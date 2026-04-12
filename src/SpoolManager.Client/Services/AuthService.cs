@@ -122,6 +122,15 @@ public class AuthService
             new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", Token);
     }
 
+    public Task<HttpResponseMessage> ForgotPasswordAsync(string email) =>
+        _http.PostAsJsonAsync("api/auth/forgot-password", new { email });
+
+    public Task<HttpResponseMessage> ResetPasswordAsync(string token, string newPassword) =>
+        _http.PostAsJsonAsync("api/auth/reset-password", new { token, newPassword });
+
+    public Task<HttpResponseMessage> ResendVerificationAsync(string email) =>
+        _http.PostAsJsonAsync("api/auth/resend-verification", new { email });
+
     private static bool IsTokenExpired(string token)
     {
         try

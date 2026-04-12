@@ -14,6 +14,7 @@ public interface IEmailService
     Task SaveSettingsAsync(SmtpSettings settings);
     Task<bool> SendAsync(string toEmail, string toName, string subject, string htmlBody);
     Task SendVerificationEmailAsync(AppUser user);
+    Task SendPasswordResetEmailAsync(AppUser user);
     Task NotifyAdminsNewTicketAsync(SupportTicket ticket, IEnumerable<AppUser> admins);
     Task NotifyTicketReplyAsync(SupportTicket ticket, AppUser recipient, string replyContent, bool replyIsFromAdmin);
     Task NotifyDryerDoneAsync(Dryer dryer, IEnumerable<AppUser> recipients);
@@ -74,6 +75,19 @@ public class EmailService : IEmailService
         var subject = lang == "en"
             ? "Confirm your email address – SpoolHero"
             : "E-Mail-Adresse bestätigen – SpoolHero";
+        await SendAsync(user.Email, user.Username, subject, body);
+    }
+
+    public async Task SendPasswordResetEmailAsync(AppUser user)
+    {
+        var cfg = await _repo.GetAsync();
+        if (cfg == null || !cfg.IsEnabled) return;
+        var url = $"{cfg.BaseUrl.TrimEnd('/')}/reset-password?token={user.PasswordResetToken}";
+        var lang = user.PreferredLanguage;
+        var body = EmailTemplates.PasswordReset(user.Username, url, lang);
+        var subject = lang == "en"
+            ? "Reset your password – SpoolHero"
+            : "Passwort zuruecksetzen – SpoolHero";
         await SendAsync(user.Email, user.Username, subject, body);
     }
 
