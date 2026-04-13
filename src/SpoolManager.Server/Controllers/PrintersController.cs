@@ -35,7 +35,8 @@ public class PrintersController : ControllerBase
     public async Task<IActionResult> GetById(Guid id)
     {
         var printer = await _printers.GetByIdAsync(id);
-        if (printer == null || printer.ProjectId != ProjectMember.ProjectId) return NotFound();
+        if (printer == null || printer.ProjectId != ProjectMember.ProjectId)
+            return NotFound();
         return Ok(MapToDto(printer));
     }
 
@@ -57,7 +58,8 @@ public class PrintersController : ControllerBase
     public async Task<IActionResult> Update(Guid id, UpdatePrinterRequest request)
     {
         var printer = await _printers.GetByIdAsync(id);
-        if (printer == null || printer.ProjectId != ProjectMember.ProjectId) return NotFound();
+        if (printer == null || printer.ProjectId != ProjectMember.ProjectId)
+            return NotFound();
         printer.Name = request.Name;
         printer.Notes = request.Notes;
         printer.RfidTagUid = request.RfidTagUid;
@@ -69,9 +71,11 @@ public class PrintersController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(Guid id)
     {
-        if (ProjectMember.Role != "admin") return StatusCode(403, new { message = "Only admins can delete." });
+        if (ProjectMember.Role != "admin")
+            return StatusCode(403, new { message = "Only admins can delete." });
         var printer = await _printers.GetByIdAsync(id);
-        if (printer == null || printer.ProjectId != ProjectMember.ProjectId) return NotFound();
+        if (printer == null || printer.ProjectId != ProjectMember.ProjectId)
+            return NotFound();
         await _printers.DeleteAsync(id);
         return NoContent();
     }
@@ -81,7 +85,8 @@ public class PrintersController : ControllerBase
     public async Task<IActionResult> UploadImage(Guid id, IFormFile file)
     {
         var printer = await _printers.GetByIdAsync(id);
-        if (printer == null || printer.ProjectId != ProjectMember.ProjectId) return NotFound();
+        if (printer == null || printer.ProjectId != ProjectMember.ProjectId)
+            return NotFound();
 
         using var ms = new MemoryStream();
         await file.CopyToAsync(ms);
@@ -97,7 +102,8 @@ public class PrintersController : ControllerBase
     public async Task<IActionResult> DeleteImage(Guid id)
     {
         var printer = await _printers.GetByIdAsync(id);
-        if (printer == null || printer.ProjectId != ProjectMember.ProjectId) return NotFound();
+        if (printer == null || printer.ProjectId != ProjectMember.ProjectId)
+            return NotFound();
         printer.ImageData = null;
         printer.ImageContentType = null;
         printer.UpdatedAt = DateTime.UtcNow;

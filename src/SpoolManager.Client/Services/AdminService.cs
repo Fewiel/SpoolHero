@@ -30,9 +30,12 @@ public class AdminService
     {
         var url = "api/admin/tickets";
         var qs = new List<string>();
-        if (!string.IsNullOrEmpty(status)) qs.Add($"status={Uri.EscapeDataString(status)}");
-        if (!string.IsNullOrEmpty(search)) qs.Add($"search={Uri.EscapeDataString(search)}");
-        if (qs.Count > 0) url += "?" + string.Join("&", qs);
+        if (!string.IsNullOrEmpty(status))
+            qs.Add($"status={Uri.EscapeDataString(status)}");
+        if (!string.IsNullOrEmpty(search))
+            qs.Add($"search={Uri.EscapeDataString(search)}");
+        if (qs.Count > 0)
+            url += "?" + string.Join("&", qs);
         return _http.GetFromJsonAsync<List<SupportTicketDto>>(url);
     }
 

@@ -102,7 +102,8 @@ public class SpoolRepository : ISpoolRepository
 
     private async Task<Spool?> LoadNavPropsAsync(Spool? spool)
     {
-        if (spool == null) return null;
+        if (spool == null)
+            return null;
         spool.FilamentMaterial = await _db.FilamentMaterials.FirstOrDefaultAsync(m => m.Id == spool.FilamentMaterialId);
         if (spool.PrinterId.HasValue)
             spool.Printer = await _db.Printers.FirstOrDefaultAsync(p => p.Id == spool.PrinterId.Value);

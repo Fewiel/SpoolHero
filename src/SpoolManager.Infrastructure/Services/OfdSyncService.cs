@@ -54,14 +54,17 @@ public class OfdSyncService : IOfdSyncService
         foreach (var variant in variants)
         {
             var filamentId = variant["filament_id"];
-            if (!filamentMap.TryGetValue(filamentId, out var filament)) continue;
+            if (!filamentMap.TryGetValue(filamentId, out var filament))
+                continue;
 
             var brandId = filament["brand_id"];
-            if (!brandMap.TryGetValue(brandId, out var brandName)) continue;
+            if (!brandMap.TryGetValue(brandId, out var brandName))
+                continue;
 
             var variantId = variant["id"];
             var colorHex = (variant.GetValueOrDefault("color_hex") ?? "FFFFFF").TrimStart('#');
-            if (string.IsNullOrWhiteSpace(colorHex)) colorHex = "FFFFFF";
+            if (string.IsNullOrWhiteSpace(colorHex))
+                colorHex = "FFFFFF";
 
             var materialType = filament.GetValueOrDefault("material") ?? "PLA";
             var minTemp = ParseInt(filament.GetValueOrDefault("min_print_temperature"));
@@ -107,7 +110,8 @@ public class OfdSyncService : IOfdSyncService
     private static List<Dictionary<string, string>> ParseCsv(string csv)
     {
         var lines = csv.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-        if (lines.Length < 2) return [];
+        if (lines.Length < 2)
+            return [];
 
         var headers = ParseCsvLine(lines[0]);
         var rows = new List<Dictionary<string, string>>();

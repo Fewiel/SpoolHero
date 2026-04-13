@@ -1,7 +1,4 @@
 @page "/settings/notifications"
-@inject SettingsService Settings
-@inject AuthService Auth
-@inject LocalizationService L
 
 <PageTitle>@L["settings.notifications.title"] – @L["app.name"]</PageTitle>
 
@@ -51,25 +48,3 @@ else if (_prefs != null)
     </div>
 }
 
-@code {
-    private bool _loading = true;
-    private NotificationPrefsDto? _prefs;
-    private bool _saving;
-    private bool _saved;
-
-    protected override async Task OnInitializedAsync()
-    {
-        _prefs = await Settings.GetNotificationPrefsAsync();
-        _loading = false;
-    }
-
-    private async Task SaveAsync()
-    {
-        if (_prefs == null) return;
-        _saving = true;
-        _saved = false;
-        await Settings.SaveNotificationPrefsAsync(_prefs);
-        _saving = false;
-        _saved = true;
-    }
-}

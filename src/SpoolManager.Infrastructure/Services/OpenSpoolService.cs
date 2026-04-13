@@ -11,7 +11,7 @@ public interface IOpenSpoolService
     byte[] EncodeEntityTag(string entityType, Guid entityId);
     (FilamentMaterial material, bool isValid) Decode(byte[] ndefBytes);
     string ToJson(FilamentMaterial material, Guid? spoolId = null);
-    (FilamentMaterial? material, bool isValid, string rawJson, Guid? spoolId) FromJson(string json);
+    OpenSpoolParseResult FromJson(string json);
 }
 
 public class OpenSpoolService : IOpenSpoolService
@@ -42,7 +42,8 @@ public class OpenSpoolService : IOpenSpoolService
     private static string NearestOpenSpoolHex(string colorHex)
     {
         var clean = colorHex.TrimStart('#');
-        if (clean.Length != 6) return colorHex;
+        if (clean.Length != 6)
+            return colorHex;
 
         if (_openSpoolColors.Contains(clean.ToUpperInvariant()))
             return clean.ToUpperInvariant();
@@ -54,7 +55,8 @@ public class OpenSpoolService : IOpenSpoolService
         var bestDist = double.MaxValue;
         foreach (var hex in _openSpoolColors)
         {
-            if (!TryParseHex(hex, out var cr, out var cg, out var cb)) continue;
+            if (!TryParseHex(hex, out var cr, out var cg, out var cb))
+                continue;
             var dist = Math.Pow(r - cr, 2) + Math.Pow(g - cg, 2) + Math.Pow(b - cb, 2);
             if (dist < bestDist) { bestDist = dist; best = hex; }
         }
@@ -64,7 +66,8 @@ public class OpenSpoolService : IOpenSpoolService
     private static bool TryParseHex(string hex, out int r, out int g, out int b)
     {
         r = g = b = 0;
-        if (hex.Length != 6) return false;
+        if (hex.Length != 6)
+            return false;
         try
         {
             r = Convert.ToInt32(hex[..2], 16);
@@ -83,12 +86,13 @@ public class OpenSpoolService : IOpenSpoolService
         "FCECD6", "D3C5A3", "AF7933", "898989", "BCBCBC", "161616"
     ];
 
-    public (FilamentMaterial? material, bool isValid, string rawJson, Guid? spoolId) FromJson(string json)
+    public OpenSpoolParseResult FromJson(string json)
     {
         try
         {
             var payload = JsonSerializer.Deserialize<OpenSpoolPayload>(json, _jsonOptions);
-            if (payload?.Protocol != "openspool") return (null, false, json, null);
+            if (payload?.Protocol != "openspool")
+                return new OpenSpoolParseResult(null, false, json, null);
 
             var material = new FilamentMaterial
             {
@@ -99,11 +103,11 @@ public class OpenSpoolService : IOpenSpoolService
                 MaxTempCelsius = payload.MaxTemp ?? 0
             };
             Guid? spoolId = Guid.TryParse(payload.SmSpoolId, out var parsed) ? parsed : null;
-            return (material, true, json, spoolId);
+            return new OpenSpoolParseResult(material, true, json, spoolId);
         }
         catch
         {
-            return (null, false, json, null);
+            return new OpenSpoolParseResult(null, false, json, null);
         }
     }
 
@@ -129,10 +133,11 @@ public class OpenSpoolService : IOpenSpoolService
         try
         {
             var json = ExtractJsonFromNdef(ndefBytes);
-            if (json == null) return (new FilamentMaterial(), false);
+            if (json == null)
+                return (new FilamentMaterial(), false);
 
-            var (material, isValid, _, _) = FromJson(json);
-            return (material ?? new FilamentMaterial(), isValid);
+            var result = FromJson(json);
+            return (result.Material ?? new FilamentMaterial(), result.IsValid);
         }
         catch
         {
@@ -158,7 +163,8 @@ public class OpenSpoolService : IOpenSpoolService
         else
         {
             var lenBytes = BitConverter.GetBytes(payload.Length);
-            if (BitConverter.IsLittleEndian) Array.Reverse(lenBytes);
+            if (BitConverter.IsLittleEndian)
+                Array.Reverse(lenBytes);
             ms.Write(lenBytes, 0, 4);
         }
 
@@ -169,7 +175,8 @@ public class OpenSpoolService : IOpenSpoolService
 
     private static string? ExtractJsonFromNdef(byte[] data)
     {
-        if (data.Length < 3) return null;
+        if (data.Length < 3)
+            return null;
 
         var pos = 0;
         var flags = data[pos++];
@@ -183,13 +190,15 @@ public class OpenSpoolService : IOpenSpoolService
         }
         else
         {
-            if (pos + 4 > data.Length) return null;
+            if (pos + 4 > data.Length)
+                return null;
             payloadLength = (data[pos] << 24) | (data[pos + 1] << 16) | (data[pos + 2] << 8) | data[pos + 3];
             pos += 4;
         }
 
         pos += typeLength;
-        if (pos + payloadLength > data.Length) return null;
+        if (pos + payloadLength > data.Length)
+            return null;
 
         return Encoding.UTF8.GetString(data, pos, payloadLength);
     }

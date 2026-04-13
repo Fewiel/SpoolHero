@@ -41,7 +41,8 @@ public class EmailService : IEmailService
     public async Task<bool> SendAsync(string toEmail, string toName, string subject, string htmlBody)
     {
         var cfg = await _repo.GetAsync();
-        if (cfg == null || !cfg.IsEnabled || string.IsNullOrWhiteSpace(cfg.Host)) return false;
+        if (cfg == null || !cfg.IsEnabled || string.IsNullOrWhiteSpace(cfg.Host))
+            return false;
 
         try
         {
@@ -68,7 +69,8 @@ public class EmailService : IEmailService
     public async Task SendVerificationEmailAsync(AppUser user)
     {
         var cfg = await _repo.GetAsync();
-        if (cfg == null || !cfg.IsEnabled) return;
+        if (cfg == null || !cfg.IsEnabled)
+            return;
         var url = $"{cfg.BaseUrl.TrimEnd('/')}/verify-email?token={user.EmailVerificationToken}";
         var lang = user.PreferredLanguage;
         var body = EmailTemplates.Verification(user.Username, url, lang);
@@ -81,7 +83,8 @@ public class EmailService : IEmailService
     public async Task SendPasswordResetEmailAsync(AppUser user)
     {
         var cfg = await _repo.GetAsync();
-        if (cfg == null || !cfg.IsEnabled) return;
+        if (cfg == null || !cfg.IsEnabled)
+            return;
         var url = $"{cfg.BaseUrl.TrimEnd('/')}/reset-password?token={user.PasswordResetToken}";
         var lang = user.PreferredLanguage;
         var body = EmailTemplates.PasswordReset(user.Username, url, lang);
@@ -94,7 +97,8 @@ public class EmailService : IEmailService
     public async Task NotifyAdminsNewTicketAsync(SupportTicket ticket, IEnumerable<AppUser> admins)
     {
         var cfg = await _repo.GetAsync();
-        if (cfg == null || !cfg.IsEnabled) return;
+        if (cfg == null || !cfg.IsEnabled)
+            return;
         var url = $"{cfg.BaseUrl.TrimEnd('/')}/admin/tickets/{ticket.Id}";
         foreach (var admin in admins)
         {
@@ -109,9 +113,11 @@ public class EmailService : IEmailService
 
     public async Task NotifyTicketReplyAsync(SupportTicket ticket, AppUser recipient, string replyContent, bool replyIsFromAdmin)
     {
-        if (!recipient.NotifyTicketReply) return;
+        if (!recipient.NotifyTicketReply)
+            return;
         var cfg = await _repo.GetAsync();
-        if (cfg == null || !cfg.IsEnabled) return;
+        if (cfg == null || !cfg.IsEnabled)
+            return;
         var url = $"{cfg.BaseUrl.TrimEnd('/')}/tickets/{ticket.Id}";
         var lang = recipient.PreferredLanguage;
         var body = EmailTemplates.TicketReply(ticket.Subject, recipient.Username, replyContent, replyIsFromAdmin, url, lang);
@@ -124,7 +130,8 @@ public class EmailService : IEmailService
     public async Task NotifyDryerDoneAsync(Dryer dryer, IEnumerable<AppUser> recipients)
     {
         var cfg = await _repo.GetAsync();
-        if (cfg == null || !cfg.IsEnabled) return;
+        if (cfg == null || !cfg.IsEnabled)
+            return;
         foreach (var u in recipients.Where(r => r.NotifyDryerDone))
         {
             var lang = u.PreferredLanguage;
@@ -139,7 +146,8 @@ public class EmailService : IEmailService
     public async Task NotifySpoolLowAsync(Spool spool, IEnumerable<AppUser> recipients)
     {
         var cfg = await _repo.GetAsync();
-        if (cfg == null || !cfg.IsEnabled) return;
+        if (cfg == null || !cfg.IsEnabled)
+            return;
         var materialName = spool.FilamentMaterial != null
             ? $"{spool.FilamentMaterial.Brand} {spool.FilamentMaterial.Type}"
             : "Unknown";

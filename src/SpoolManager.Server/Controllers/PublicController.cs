@@ -99,11 +99,13 @@ public class PublicController : ControllerBase
             return Redirect("/favicon.ico");
 
         var commaIdx = dataUrl.IndexOf(',');
-        if (commaIdx < 0) return Redirect("/favicon.ico");
+        if (commaIdx < 0)
+            return Redirect("/favicon.ico");
 
         var mimeStart = dataUrl.IndexOf(':') + 1;
         var mimeEnd = dataUrl.IndexOf(';');
-        if (mimeStart <= 0 || mimeEnd <= mimeStart) return Redirect("/favicon.ico");
+        if (mimeStart <= 0 || mimeEnd <= mimeStart)
+            return Redirect("/favicon.ico");
 
         var mime = dataUrl[mimeStart..mimeEnd];
         var bytes = Convert.FromBase64String(dataUrl[(commaIdx + 1)..]);

@@ -10,8 +10,10 @@ public class LoginRateLimiter
 
     public bool IsBlocked(string key)
     {
-        if (!_attempts.TryGetValue(key, out var entry)) return false;
-        if (entry.BlockedUntil > DateTime.UtcNow) return true;
+        if (!_attempts.TryGetValue(key, out var entry))
+            return false;
+        if (entry.BlockedUntil > DateTime.UtcNow)
+            return true;
         if (entry.BlockedUntil != default && entry.BlockedUntil <= DateTime.UtcNow)
         {
             _attempts.TryRemove(key, out _);
@@ -21,7 +23,8 @@ public class LoginRateLimiter
 
     public TimeSpan? GetRemainingLockout(string key)
     {
-        if (!_attempts.TryGetValue(key, out var entry)) return null;
+        if (!_attempts.TryGetValue(key, out var entry))
+            return null;
         if (entry.BlockedUntil > DateTime.UtcNow)
             return entry.BlockedUntil - DateTime.UtcNow;
         return null;

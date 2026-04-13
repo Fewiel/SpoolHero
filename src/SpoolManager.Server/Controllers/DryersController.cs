@@ -35,7 +35,8 @@ public class DryersController : ControllerBase
     public async Task<IActionResult> GetById(Guid id)
     {
         var dryer = await _dryers.GetByIdAsync(id);
-        if (dryer == null || dryer.ProjectId != ProjectMember.ProjectId) return NotFound();
+        if (dryer == null || dryer.ProjectId != ProjectMember.ProjectId)
+            return NotFound();
         return Ok(MapToDto(dryer));
     }
 
@@ -57,7 +58,8 @@ public class DryersController : ControllerBase
     public async Task<IActionResult> Update(Guid id, UpdateDryerRequest request)
     {
         var dryer = await _dryers.GetByIdAsync(id);
-        if (dryer == null || dryer.ProjectId != ProjectMember.ProjectId) return NotFound();
+        if (dryer == null || dryer.ProjectId != ProjectMember.ProjectId)
+            return NotFound();
         dryer.Name = request.Name;
         dryer.Description = request.Description;
         dryer.RfidTagUid = request.RfidTagUid;
@@ -69,9 +71,11 @@ public class DryersController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(Guid id)
     {
-        if (ProjectMember.Role != "admin") return StatusCode(403, new { message = "Only admins can delete." });
+        if (ProjectMember.Role != "admin")
+            return StatusCode(403, new { message = "Only admins can delete." });
         var dryer = await _dryers.GetByIdAsync(id);
-        if (dryer == null || dryer.ProjectId != ProjectMember.ProjectId) return NotFound();
+        if (dryer == null || dryer.ProjectId != ProjectMember.ProjectId)
+            return NotFound();
         await _dryers.DeleteAsync(id);
         return NoContent();
     }
@@ -81,7 +85,8 @@ public class DryersController : ControllerBase
     public async Task<IActionResult> UploadImage(Guid id, IFormFile file)
     {
         var dryer = await _dryers.GetByIdAsync(id);
-        if (dryer == null || dryer.ProjectId != ProjectMember.ProjectId) return NotFound();
+        if (dryer == null || dryer.ProjectId != ProjectMember.ProjectId)
+            return NotFound();
 
         using var ms = new MemoryStream();
         await file.CopyToAsync(ms);
@@ -97,7 +102,8 @@ public class DryersController : ControllerBase
     public async Task<IActionResult> DeleteImage(Guid id)
     {
         var dryer = await _dryers.GetByIdAsync(id);
-        if (dryer == null || dryer.ProjectId != ProjectMember.ProjectId) return NotFound();
+        if (dryer == null || dryer.ProjectId != ProjectMember.ProjectId)
+            return NotFound();
         dryer.ImageData = null;
         dryer.ImageContentType = null;
         dryer.UpdatedAt = DateTime.UtcNow;

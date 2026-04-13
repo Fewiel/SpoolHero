@@ -93,9 +93,11 @@ public class ProjectsController : ControllerBase
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(Guid id)
     {
-        if (!await _members.IsMemberAsync(id, UserId)) return Forbid();
+        if (!await _members.IsMemberAsync(id, UserId))
+            return Forbid();
         var project = await _projects.GetByIdAsync(id);
-        if (project == null) return NotFound();
+        if (project == null)
+            return NotFound();
         var member = await _members.GetAsync(id, UserId);
         return Ok(new ProjectDto { Id = project.Id, Name = project.Name, Description = project.Description, MyRole = member?.Role ?? "member", CreatedAt = project.CreatedAt });
     }
@@ -104,11 +106,14 @@ public class ProjectsController : ControllerBase
     public async Task<IActionResult> Update(Guid id, UpdateProjectRequest request)
     {
         var member = await _members.GetAsync(id, UserId);
-        if (member == null) return Forbid();
-        if (member.Role != "admin") return StatusCode(403, new { message = "Only admins can update the project." });
+        if (member == null)
+            return Forbid();
+        if (member.Role != "admin")
+            return StatusCode(403, new { message = "Only admins can update the project." });
 
         var project = await _projects.GetByIdAsync(id);
-        if (project == null) return NotFound();
+        if (project == null)
+            return NotFound();
         project.Name = request.Name;
         project.Description = request.Description;
         await _projects.UpdateAsync(project);
@@ -119,11 +124,14 @@ public class ProjectsController : ControllerBase
     public async Task<IActionResult> Delete(Guid id)
     {
         var member = await _members.GetAsync(id, UserId);
-        if (member == null) return Forbid();
-        if (member.Role != "admin") return StatusCode(403, new { message = "Only admins can delete the project." });
+        if (member == null)
+            return Forbid();
+        if (member.Role != "admin")
+            return StatusCode(403, new { message = "Only admins can delete the project." });
 
         var project = await _projects.GetByIdAsync(id);
-        if (project == null) return NotFound();
+        if (project == null)
+            return NotFound();
 
         await _audit.LogAsync("project.delete",
             userId: UserId, username: UserName,
@@ -138,7 +146,8 @@ public class ProjectsController : ControllerBase
     [HttpGet("{id}/members")]
     public async Task<IActionResult> GetMembers(Guid id)
     {
-        if (!await _members.IsMemberAsync(id, UserId)) return Forbid();
+        if (!await _members.IsMemberAsync(id, UserId))
+            return Forbid();
         var members = await _members.GetByProjectAsync(id);
         var dtos = members.Select(m => new ProjectMemberDto
         {
@@ -156,13 +165,16 @@ public class ProjectsController : ControllerBase
     public async Task<IActionResult> UpdateMemberRole(Guid id, Guid userId, UpdateMemberRoleRequest request)
     {
         var myMember = await _members.GetAsync(id, UserId);
-        if (myMember == null) return Forbid();
-        if (myMember.Role != "admin") return StatusCode(403, new { message = "Only admins can change roles." });
+        if (myMember == null)
+            return Forbid();
+        if (myMember.Role != "admin")
+            return StatusCode(403, new { message = "Only admins can change roles." });
         if (!new[] { "admin", "manager", "member" }.Contains(request.Role))
             return BadRequest(new { message = "Invalid role." });
 
         var target = await _members.GetAsync(id, userId);
-        if (target == null) return NotFound();
+        if (target == null)
+            return NotFound();
 
         if (target.Role == "admin" && request.Role != "admin")
         {
@@ -190,11 +202,14 @@ public class ProjectsController : ControllerBase
     public async Task<IActionResult> RemoveMember(Guid id, Guid userId)
     {
         var myMember = await _members.GetAsync(id, UserId);
-        if (myMember == null) return Forbid();
-        if (myMember.Role != "admin" && UserId != userId) return StatusCode(403, new { message = "Only admins can remove members." });
+        if (myMember == null)
+            return Forbid();
+        if (myMember.Role != "admin" && UserId != userId)
+            return StatusCode(403, new { message = "Only admins can remove members." });
 
         var target = await _members.GetAsync(id, userId);
-        if (target == null) return NotFound();
+        if (target == null)
+            return NotFound();
 
         if (target.Role == "admin")
         {
@@ -219,8 +234,10 @@ public class ProjectsController : ControllerBase
     public async Task<IActionResult> CreateInvitation(Guid id, CreateInvitationRequest request)
     {
         var myMember = await _members.GetAsync(id, UserId);
-        if (myMember == null) return Forbid();
-        if (myMember.Role == "member") return StatusCode(403, new { message = "Only admins and managers can invite." });
+        if (myMember == null)
+            return Forbid();
+        if (myMember.Role == "member")
+            return StatusCode(403, new { message = "Only admins and managers can invite." });
         if (!new[] { "admin", "manager", "member" }.Contains(request.Role))
             return BadRequest(new { message = "Invalid role." });
         if (request.Role == "admin" && myMember.Role != "admin")
@@ -260,8 +277,10 @@ public class ProjectsController : ControllerBase
     public async Task<IActionResult> GetInvitations(Guid id)
     {
         var myMember = await _members.GetAsync(id, UserId);
-        if (myMember == null) return Forbid();
-        if (myMember.Role == "member") return StatusCode(403, new { message = "Only admins and managers can view invitations." });
+        if (myMember == null)
+            return Forbid();
+        if (myMember.Role == "member")
+            return StatusCode(403, new { message = "Only admins and managers can view invitations." });
         var invitations = await _invitations.GetByProjectAsync(id);
         var dtos = invitations.Select(i => new InvitationDto
         {

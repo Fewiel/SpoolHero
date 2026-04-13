@@ -20,12 +20,15 @@ public class UserActivityMiddleware
     {
         await _next(context);
 
-        if (context.User.Identity?.IsAuthenticated != true) return;
+        if (context.User.Identity?.IsAuthenticated != true)
+            return;
         var userIdStr = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (!Guid.TryParse(userIdStr, out var userId)) return;
+        if (!Guid.TryParse(userIdStr, out var userId))
+            return;
 
         var now = DateTime.UtcNow;
-        if (_lastPersisted.TryGetValue(userId, out var last) && (now - last).TotalMinutes < 5) return;
+        if (_lastPersisted.TryGetValue(userId, out var last) && (now - last).TotalMinutes < 5)
+            return;
 
         _lastPersisted[userId] = now;
         try

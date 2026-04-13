@@ -24,7 +24,8 @@ public class InvitationRepository : IInvitationRepository
     public async Task<Invitation?> GetByTokenAsync(string token)
     {
         var inv = await _db.Invitations.FirstOrDefaultAsync(i => i.Token == token);
-        if (inv == null) return null;
+        if (inv == null)
+            return null;
         var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == inv.ProjectId);
         var inviter = await _db.Users.FirstOrDefaultAsync(u => u.Id == inv.InvitedByUserId);
         inv.ProjectName = project?.Name;

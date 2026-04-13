@@ -39,7 +39,8 @@ public class SuggestionsController : ControllerBase
             if (s.MaterialId.HasValue)
             {
                 var mat = await _materials.GetByIdAsync(s.MaterialId.Value);
-                if (mat != null) materialName = $"{mat.Brand} {mat.Type}";
+                if (mat != null)
+                    materialName = $"{mat.Brand} {mat.Type}";
             }
             result.Add(MapToDto(s, materialName));
         }
@@ -85,14 +86,17 @@ public class SuggestionsController : ControllerBase
     public async Task<IActionResult> GetById(Guid id)
     {
         var suggestion = await _suggestions.GetByIdAsync(id);
-        if (suggestion == null) return NotFound();
-        if (suggestion.UserId != UserId) return NotFound();
+        if (suggestion == null)
+            return NotFound();
+        if (suggestion.UserId != UserId)
+            return NotFound();
 
         string? materialName = null;
         if (suggestion.MaterialId.HasValue)
         {
             var mat = await _materials.GetByIdAsync(suggestion.MaterialId.Value);
-            if (mat != null) materialName = $"{mat.Brand} {mat.Type}";
+            if (mat != null)
+                materialName = $"{mat.Brand} {mat.Type}";
         }
 
         return Ok(MapToDto(suggestion, materialName));

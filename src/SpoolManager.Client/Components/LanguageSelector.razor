@@ -1,7 +1,3 @@
-@inject LocalizationService L
-@inject AuthService Auth
-@inject SettingsService Settings
-
 <div class="dropdown">
     <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
         <i class="bi bi-globe me-1"></i>@L.CurrentLanguage.ToUpper()
@@ -12,12 +8,3 @@
     </ul>
 </div>
 
-@code {
-    private async Task SetLang(string lang)
-    {
-        await L.SetManualLanguageAsync(lang);
-        if (Auth.IsAuthenticated)
-            _ = Settings.UpdateLanguageAsync(lang);
-        StateHasChanged();
-    }
-}

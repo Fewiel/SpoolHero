@@ -1,8 +1,4 @@
 @page "/materials/orca"
-@inject MaterialService Materials
-@inject LocalizationService L
-@inject IJSRuntime JS
-@inject ProjectService Project
 
 <PageTitle>@L["material.export.orca"] – @L["app.name"]</PageTitle>
 
@@ -93,56 +89,3 @@
             <i class="bi bi-check-circle me-1"></i>@L["material.export.orca.done"]
         </div>
     }
-
-@code {
-    private bool _exporting;
-    private bool _orcaSuccess;
-    private string? _orcaError;
-    private Guid? _pickerId;
-    private List<FilamentMaterialDto> _selectedMaterials = [];
-
-    private void OnPicked(FilamentMaterialDto? m)
-    {
-        if (m == null) return;
-        if (_selectedMaterials.Any(x => x.Id == m.Id)) return;
-        _selectedMaterials.Add(m);
-        _pickerId = null;
-    }
-
-    private void Remove(Guid id) => _selectedMaterials.RemoveAll(m => m.Id == id);
-
-    private async Task ExportSelectedAsync()
-    {
-        await DoExport(_selectedMaterials.Select(m => m.Id).ToList());
-    }
-
-    private async Task ExportAllAsync()
-    {
-        await DoExport(null);
-    }
-
-    private async Task DoExport(List<Guid>? ids)
-    {
-        _exporting = true;
-        _orcaError = null;
-        _orcaSuccess = false;
-        try
-        {
-            var result = await Materials.ExportOrcaAsync(ids);
-            if (result.HasValue)
-            {
-                await JS.InvokeVoidAsync("downloadHelper.saveAs", result.Value.Data, result.Value.Filename);
-                _orcaSuccess = true;
-            }
-            else
-            {
-                _orcaError = "Export failed.";
-            }
-        }
-        catch (Exception ex)
-        {
-            _orcaError = ex.Message;
-        }
-        _exporting = false;
-    }
-}

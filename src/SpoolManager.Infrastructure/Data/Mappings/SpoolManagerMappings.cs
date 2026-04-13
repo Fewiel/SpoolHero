@@ -260,6 +260,13 @@ public static class SpoolManagerMappings
             .Property(x => x.IsEnabled).HasColumnName("is_enabled")
             .Property(x => x.BaseUrl).HasColumnName("base_url");
 
+        builder.Entity<UserMaterialFavorite>()
+            .HasTableName("user_material_favorites")
+            .HasPrimaryKey(x => new { x.UserId, x.MaterialId })
+            .Property(x => x.UserId).HasColumnName("user_id")
+            .Property(x => x.MaterialId).HasColumnName("material_id")
+            .Property(x => x.CreatedAt).HasColumnName("created_at");
+
         builder.Build();
         return schema;
     }

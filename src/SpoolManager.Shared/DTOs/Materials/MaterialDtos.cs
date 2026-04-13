@@ -26,6 +26,29 @@ public class FilamentMaterialDto
     public DateTime UpdatedAt { get; set; }
 }
 
+public class MaterialSummaryDto
+{
+    public Guid Id { get; set; }
+    public string Type { get; set; } = string.Empty;
+    public string Brand { get; set; } = string.Empty;
+    public string ColorHex { get; set; } = "FFFFFF";
+    public string? ColorName { get; set; }
+    public int MinTempCelsius { get; set; }
+    public int MaxTempCelsius { get; set; }
+    public decimal DiameterMm { get; set; }
+    public string? ReorderUrl { get; set; }
+    public string? OfdVariantId { get; set; }
+}
+
+public class PaginatedResult<T>
+{
+    public List<T> Items { get; set; } = [];
+    public int TotalCount { get; set; }
+    public List<string> Types { get; set; } = [];
+    public List<string> Brands { get; set; } = [];
+    public List<string> Colors { get; set; } = [];
+}
+
 public class CreateMaterialRequest
 {
     public string Type { get; set; } = string.Empty;
