@@ -402,6 +402,7 @@
   "tag.nfc.not.supported": "Web NFC is not supported by this browser.",
   "tag.download.bin": "Download .bin File",
   "tag.download.json": "Download JSON",
+  "tag.show.json": "Show JSON",
   "tag.upload.bin": "Upload .bin File",
   "tag.select.spool": "Select Spool",
   "tag.select.material": "Select Material",

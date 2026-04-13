@@ -16,6 +16,7 @@ public partial class SpoolDetail : IDisposable
     [Inject] private LocalizationService L { get; set; } = default!;
     [Inject] private NavigationManager Nav { get; set; } = default!;
     [Inject] private ProjectService Project { get; set; } = default!;
+    [Inject] private IJSRuntime JS { get; set; } = default!;
 
     private bool _loading = true;
     private SpoolDto? _spool;
@@ -27,6 +28,7 @@ public partial class SpoolDetail : IDisposable
     private string? _nfcMessage;
     private bool _nfcSuccess;
     private string? _tagJson;
+    private bool _tagCopied;
     private Timer? _clockTimer;
 
     [JSInvokable] public void OnWriteSuccess() { _nfcMessage = L["tag.write.success"]; _nfcSuccess = true; _writingNfc = false; StateHasChanged(); }
@@ -80,6 +82,21 @@ public partial class SpoolDetail : IDisposable
         }
         _tagJson = encoded.JsonPayload;
         await Nfc.WriteAsync(encoded.JsonPayload, DotNetObjectReference.Create(this));
+    }
+
+    private async Task ShowTagJsonAsync()
+    {
+        _tagCopied = false;
+        var encoded = await Tags.EncodeAsync(new TagEncodeRequest { SpoolId = Id });
+        _tagJson = encoded?.JsonPayload;
+    }
+
+    private async Task CopyTagJsonAsync()
+    {
+        if (_tagJson == null)
+            return;
+        await JS.InvokeVoidAsync("clipboardHelper.copy", _tagJson);
+        _tagCopied = true;
     }
 
     private static string GetBarClass(decimal p) => p >= 50 ? "high" : p >= 20 ? "medium" : "low";

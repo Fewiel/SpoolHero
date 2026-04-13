@@ -14,6 +14,7 @@ public partial class DryerList
     [Inject] private NfcService Nfc { get; set; } = default!;
     [Inject] private LocalizationService L { get; set; } = default!;
     [Inject] private ProjectService Project { get; set; } = default!;
+    [Inject] private IJSRuntime JS { get; set; } = default!;
 
     private bool _loading = true;
     private List<DryerDto> _dryers = [];
@@ -26,6 +27,9 @@ public partial class DryerList
     private Guid? _tagDryerId;
     private string? _imageError;
     private Guid? _imageTargetId;
+    private Guid? _jsonTarget;
+    private string? _jsonPayload;
+    private bool _jsonCopied;
 
     [JSInvokable] public void OnWriteSuccess() { _tagMessage = L["tag.write.success"]; _tagSuccess = true; StateHasChanged(); }
     [JSInvokable] public void OnWriteError(string message) { _tagMessage = message; _tagSuccess = false; StateHasChanged(); }
@@ -127,6 +131,27 @@ public partial class DryerList
             return;
         }
         await Nfc.WriteAsync(encoded.JsonPayload, DotNetObjectReference.Create(this));
+    }
+
+    private async Task ShowEntityJsonAsync(Guid entityId)
+    {
+        if (_jsonTarget == entityId)
+        {
+            _jsonTarget = null;
+            _jsonPayload = null;
+            return;
+        }
+        _jsonCopied = false;
+        _jsonPayload = $"{{\"protocol\":\"spoolmanager\",\"type\":\"dryer\",\"id\":\"{entityId}\"}}";
+        _jsonTarget = entityId;
+    }
+
+    private async Task CopyJsonAsync()
+    {
+        if (_jsonPayload == null)
+            return;
+        await JS.InvokeVoidAsync("clipboardHelper.copy", _jsonPayload);
+        _jsonCopied = true;
     }
 
 }

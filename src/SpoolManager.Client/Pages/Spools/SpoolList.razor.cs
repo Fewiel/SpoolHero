@@ -29,6 +29,11 @@ public partial class SpoolList : IDisposable
     private bool _nfcWriting;
     private bool _nfcSuccess;
     private string? _nfcMessage;
+    private Guid? _jsonTarget;
+    private string? _jsonPayload;
+    private bool _jsonCopied;
+
+    [Inject] private IJSRuntime JS { get; set; } = default!;
 
     [JSInvokable]
     public void OnWriteSuccess()
@@ -139,6 +144,28 @@ public partial class SpoolList : IDisposable
         var elapsed = (DateTime.UtcNow - s.DriedAt.Value.ToUniversalTime()).TotalHours;
         var total = (double)s.MaterialDryTimeHours.Value;
         return (Math.Round(elapsed, 1), total, elapsed >= total);
+    }
+
+    private async Task ShowSpoolJsonAsync(Guid spoolId)
+    {
+        if (_jsonTarget == spoolId)
+        {
+            _jsonTarget = null;
+            _jsonPayload = null;
+            return;
+        }
+        _jsonCopied = false;
+        var encoded = await Tags.EncodeAsync(new TagEncodeRequest { SpoolId = spoolId });
+        _jsonTarget = spoolId;
+        _jsonPayload = encoded?.JsonPayload;
+    }
+
+    private async Task CopyJsonAsync()
+    {
+        if (_jsonPayload == null)
+            return;
+        await JS.InvokeVoidAsync("clipboardHelper.copy", _jsonPayload);
+        _jsonCopied = true;
     }
 
     public void Dispose() { _searchTimer?.Dispose(); _clockTimer?.Dispose(); }
