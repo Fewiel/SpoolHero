@@ -74,6 +74,15 @@ else
                                 <button class="btn btn-sm btn-outline-primary" @onclick="() => WriteTagAsync(loc)" title="@L["tag.write"]">
                                     <i class="bi bi-broadcast"></i>
                                 </button>
+                                <button class="btn btn-sm btn-outline-secondary" @onclick="@(() => Tags.DownloadEntityBinAsync("storage", loc.Id))" title="@L["tag.download.bin"]">
+                                    <i class="bi bi-download"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary" @onclick="@(() => Tags.DownloadEntityJsonAsync("storage", loc.Id))" title="@L["tag.download.json"]">
+                                    <i class="bi bi-file-text"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary" @onclick="@(() => ShowEntityJsonAsync(loc.Id))" title="@L["tag.show.json"]">
+                                    <i class="bi bi-code"></i>
+                                </button>
                                 <label class="btn btn-sm btn-outline-secondary mb-0" title="@L["common.image.upload"]" style="cursor:pointer">
                                     <i class="bi bi-image"></i>
                                     <InputFile accept="image/*" style="display:none" OnChange="e => UploadImageAsync(loc.Id, e)" />
@@ -88,6 +97,15 @@ else
                                     <i class="bi bi-trash"></i>
                                 </button>
                             </div>
+                            @if (_jsonTarget == loc.Id && _jsonPayload != null)
+                            {
+                                <div class="position-relative mt-2">
+                                    <pre class="small bg-body-secondary text-body border rounded p-2 pe-5 mb-0" style="font-size:0.7rem;word-break:break-all;white-space:pre-wrap;">@_jsonPayload</pre>
+                                    <button class="btn btn-sm btn-outline-secondary position-absolute top-0 end-0 m-1" @onclick="CopyJsonAsync" title="@L["common.copy"]">
+                                        <i class="bi @(_jsonCopied ? "bi-check-lg text-success" : "bi-clipboard")"></i>
+                                    </button>
+                                </div>
+                            }
                             @if (_tagMessage != null && _tagLocationId == loc.Id)
                             {
                                 <div class="alert @(_tagSuccess ? "alert-success" : "alert-danger") alert-sm py-1 mt-2 mb-0 small">@_tagMessage</div>

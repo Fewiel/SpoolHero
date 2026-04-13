@@ -152,4 +152,67 @@ public class TagsController : ControllerBase
         var filename = $"openspool_{spool.FilamentMaterial.Brand}_{spool.FilamentMaterial.Type}_{spoolId}.bin".Replace(" ", "_");
         return File(bytes, "application/octet-stream", filename);
     }
+
+    [HttpGet("download/{spoolId}/json")]
+    public async Task<IActionResult> DownloadJson(Guid spoolId)
+    {
+        var spool = await _spools.GetByIdAsync(spoolId, ProjectMember.ProjectId);
+        if (spool?.FilamentMaterial == null)
+            return NotFound();
+
+        var json = _openSpool.ToJson(spool.FilamentMaterial, spool.Id);
+        var filename = $"openspool_{spool.FilamentMaterial.Brand}_{spool.FilamentMaterial.Type}_{spoolId}.json".Replace(" ", "_");
+        return File(System.Text.Encoding.UTF8.GetBytes(json), "application/json", filename);
+    }
+
+    [HttpGet("download/entity/{entityType}/{entityId}")]
+    public async Task<IActionResult> DownloadEntity(string entityType, Guid entityId)
+    {
+        if (!await ValidateEntityAccessAsync(entityType, entityId))
+            return NotFound();
+
+        var ndefBytes = _openSpool.EncodeEntityTag(entityType, entityId);
+        var filename = $"spoolmanager_{entityType}_{entityId}.bin";
+        return File(ndefBytes, "application/octet-stream", filename);
+    }
+
+    [HttpGet("download/entity/{entityType}/{entityId}/json")]
+    public async Task<IActionResult> DownloadEntityJson(string entityType, Guid entityId)
+    {
+        if (!await ValidateEntityAccessAsync(entityType, entityId))
+            return NotFound();
+
+        var json = $"{{\"protocol\":\"spoolmanager\",\"type\":\"{entityType}\",\"id\":\"{entityId}\"}}";
+        var filename = $"spoolmanager_{entityType}_{entityId}.json";
+        return File(System.Text.Encoding.UTF8.GetBytes(json), "application/json", filename);
+    }
+
+    private async Task<bool> ValidateEntityAccessAsync(string entityType, Guid entityId)
+    {
+        if (!ValidEntityTypes.Contains(entityType))
+            return false;
+
+        var projectId = ProjectMember.ProjectId;
+        switch (entityType)
+        {
+            case "printer":
+                var printer = await _printers.GetByIdAsync(entityId);
+                if (printer == null || printer.ProjectId != projectId)
+                    return false;
+                break;
+            case "storage":
+                var storage = await _storageLocations.GetByIdAsync(entityId);
+                if (storage == null || storage.ProjectId != projectId)
+                    return false;
+                break;
+            case "dryer":
+                var dryer = await _dryers.GetByIdAsync(entityId);
+                if (dryer == null || dryer.ProjectId != projectId)
+                    return false;
+                break;
+            default:
+                return false;
+        }
+        return true;
+    }
 }

@@ -198,9 +198,15 @@ else
                                 <i class="bi bi-broadcast me-1"></i>@L["tag.nfc.write"]
                             </button>
                         }
-                        <a href="@Tags.GetDownloadUrl(Id)" class="btn btn-outline-secondary">
+                        <button class="btn btn-outline-secondary" @onclick="@(() => Tags.DownloadSpoolBinAsync(Id))">
                             <i class="bi bi-download me-1"></i>@L["tag.download.bin"]
-                        </a>
+                        </button>
+                        <button class="btn btn-outline-secondary" @onclick="@(() => Tags.DownloadSpoolJsonAsync(Id))">
+                            <i class="bi bi-file-text me-1"></i>@L["tag.download.json"]
+                        </button>
+                        <button class="btn btn-outline-secondary" @onclick="ShowTagJsonAsync">
+                            <i class="bi bi-code me-1"></i>@L["tag.show.json"]
+                        </button>
                     </div>
                     @if (_nfcMessage != null)
                     {
@@ -208,7 +214,12 @@ else
                     }
                     @if (_tagJson != null)
                     {
-                        <pre class="small bg-light border rounded p-2 mt-2 mb-0" style="font-size:0.7rem;word-break:break-all;white-space:pre-wrap;">@_tagJson</pre>
+                        <div class="position-relative mt-2">
+                            <pre class="small bg-body-secondary text-body border rounded p-2 pe-5 mb-0" style="font-size:0.75rem;word-break:break-all;white-space:pre-wrap;">@_tagJson</pre>
+                            <button class="btn btn-sm btn-outline-secondary position-absolute top-0 end-0 m-1" @onclick="CopyTagJsonAsync" title="@L["common.copy"]">
+                                <i class="bi @(_tagCopied ? "bi-check-lg text-success" : "bi-clipboard")"></i>
+                            </button>
+                        </div>
                     }
                     @if (!_nfcSupported)
                     {

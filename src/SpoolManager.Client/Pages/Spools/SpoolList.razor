@@ -112,6 +112,16 @@ else
                         </div>
                     }
 
+                    @if (_jsonTarget == spool.Id && _jsonPayload != null)
+                    {
+                        <div class="position-relative mt-2">
+                            <pre class="small bg-body-secondary text-body border rounded p-2 pe-5 mb-0" style="font-size:0.7rem;word-break:break-all;white-space:pre-wrap;">@_jsonPayload</pre>
+                            <button class="btn btn-sm btn-outline-secondary position-absolute top-0 end-0 m-1" @onclick="CopyJsonAsync" title="@L["common.copy"]">
+                                <i class="bi @(_jsonCopied ? "bi-check-lg text-success" : "bi-clipboard")"></i>
+                            </button>
+                        </div>
+                    }
+
                     <div class="mt-2 d-flex gap-1">
                         <a href="/spools/@spool.Id" class="btn btn-sm btn-outline-primary flex-fill">
                             <i class="bi bi-eye"></i>
@@ -127,6 +137,14 @@ else
                                 <i class="bi bi-broadcast"></i>
                             </button>
                         }
+                        <button class="btn btn-sm btn-outline-secondary" title="@L["tag.download.bin"]"
+                                @onclick="@(() => Tags.DownloadSpoolBinAsync(spool.Id))">
+                            <i class="bi bi-download"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-secondary" title="@L["tag.show.json"]"
+                                @onclick="@(() => ShowSpoolJsonAsync(spool.Id))">
+                            <i class="bi bi-code"></i>
+                        </button>
                         <button class="btn btn-sm btn-outline-secondary" title="@L["common.copy"]" @onclick="() => CopyAsync(spool)">
                             <i class="bi bi-copy"></i>
                         </button>
