@@ -69,9 +69,11 @@ public class AuthController : ControllerBase
     [HttpGet("verify-email")]
     public async Task<IActionResult> VerifyEmail([FromQuery] string token)
     {
-        if (string.IsNullOrWhiteSpace(token)) return BadRequest(new { message = "Token required." });
+        if (string.IsNullOrWhiteSpace(token))
+            return BadRequest(new { message = "Token required." });
         var user = await _users.GetByVerificationTokenAsync(token);
-        if (user == null) return BadRequest(new { message = "Invalid or expired token." });
+        if (user == null)
+            return BadRequest(new { message = "Invalid or expired token." });
         if (user.EmailVerificationTokenExpires < DateTime.UtcNow)
             return BadRequest(new { message = "Token expired." });
 
@@ -91,7 +93,8 @@ public class AuthController : ControllerBase
             return StatusCode(429, new { message = "Too many requests. Please try again later." });
 
         var user = await _users.GetByEmailAsync(request.Email);
-        if (user == null || user.EmailVerified) return Ok();
+        if (user == null || user.EmailVerified)
+            return Ok();
 
         if (user.EmailVerificationTokenExpires.HasValue &&
             user.EmailVerificationTokenExpires.Value > DateTime.UtcNow.AddMinutes(-2))
@@ -144,7 +147,8 @@ public class AuthController : ControllerBase
         if (_rateLimiter.IsBlocked(ipKey))
             return StatusCode(429, new { message = "Too many requests. Please try again later." });
 
-        if (string.IsNullOrWhiteSpace(request.Token)) return BadRequest(new { message = "Token required." });
+        if (string.IsNullOrWhiteSpace(request.Token))
+            return BadRequest(new { message = "Token required." });
         if (string.IsNullOrWhiteSpace(request.NewPassword) || request.NewPassword.Length < 8)
             return BadRequest(new { message = "Password must be at least 8 characters." });
 
@@ -199,6 +203,7 @@ public class AuthController : ControllerBase
         if (!user.EmailVerified && user.EmailVerificationToken != null)
             return Unauthorized(new { message = "email_not_verified" });
 
+
         _rateLimiter.RecordSuccess(rateLimitKey);
         var token = _jwt.GenerateToken(user);
 
@@ -220,10 +225,12 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> ChangePassword(ChangePasswordRequest request)
     {
         var idClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (!Guid.TryParse(idClaim, out var userId)) return Unauthorized();
+        if (!Guid.TryParse(idClaim, out var userId))
+            return Unauthorized();
 
         var user = await _users.GetByIdAsync(userId);
-        if (user == null) return NotFound();
+        if (user == null)
+            return NotFound();
 
         if (!BCrypt.Net.BCrypt.Verify(request.CurrentPassword, user.PasswordHash))
             return BadRequest(new { message = "Current password is incorrect." });
@@ -245,10 +252,12 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> Me()
     {
         var idClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (!Guid.TryParse(idClaim, out var userId)) return Unauthorized();
+        if (!Guid.TryParse(idClaim, out var userId))
+            return Unauthorized();
 
         var user = await _users.GetByIdAsync(userId);
-        if (user == null) return NotFound();
+        if (user == null)
+            return NotFound();
 
         return Ok(new UserDto
         {
@@ -267,10 +276,12 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> SetDashboardOnboarding([FromBody] SetDashboardOnboardingRequest request)
     {
         var idClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (!Guid.TryParse(idClaim, out var userId)) return Unauthorized();
+        if (!Guid.TryParse(idClaim, out var userId))
+            return Unauthorized();
 
         var user = await _users.GetByIdAsync(userId);
-        if (user == null) return NotFound();
+        if (user == null)
+            return NotFound();
 
         user.DashboardOnboardingDismissed = request.Dismissed;
         await _users.UpdateAsync(user);
@@ -282,9 +293,11 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> GetNotificationPrefs()
     {
         var idClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (!Guid.TryParse(idClaim, out var userId)) return Unauthorized();
+        if (!Guid.TryParse(idClaim, out var userId))
+            return Unauthorized();
         var user = await _users.GetByIdAsync(userId);
-        if (user == null) return NotFound();
+        if (user == null)
+            return NotFound();
         return Ok(new { notifySpoolLow = user.NotifySpoolLow, notifyDryerDone = user.NotifyDryerDone, notifyTicketReply = user.NotifyTicketReply });
     }
 
@@ -293,9 +306,11 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> SaveNotificationPrefs([FromBody] SpoolManager.Shared.DTOs.Admin.NotificationPrefsDto prefs)
     {
         var idClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (!Guid.TryParse(idClaim, out var userId)) return Unauthorized();
+        if (!Guid.TryParse(idClaim, out var userId))
+            return Unauthorized();
         var user = await _users.GetByIdAsync(userId);
-        if (user == null) return NotFound();
+        if (user == null)
+            return NotFound();
         user.NotifySpoolLow = prefs.NotifySpoolLow;
         user.NotifyDryerDone = prefs.NotifyDryerDone;
         user.NotifyTicketReply = prefs.NotifyTicketReply;
@@ -308,11 +323,14 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> SetLanguage([FromBody] SetLanguageRequest request)
     {
         var idClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (!Guid.TryParse(idClaim, out var userId)) return Unauthorized();
+        if (!Guid.TryParse(idClaim, out var userId))
+            return Unauthorized();
         var user = await _users.GetByIdAsync(userId);
-        if (user == null) return NotFound();
+        if (user == null)
+            return NotFound();
         var lang = request.Language?.ToLowerInvariant();
-        if (lang != "de" && lang != "en") return BadRequest();
+        if (lang != "de" && lang != "en")
+            return BadRequest();
         user.PreferredLanguage = lang;
         await _users.UpdateAsync(user);
         return NoContent();
@@ -323,10 +341,12 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> DeleteAccount([FromBody] DeleteAccountRequest request)
     {
         var idClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (!Guid.TryParse(idClaim, out var userId)) return Unauthorized();
+        if (!Guid.TryParse(idClaim, out var userId))
+            return Unauthorized();
 
         var user = await _users.GetByIdAsync(userId);
-        if (user == null) return NotFound();
+        if (user == null)
+            return NotFound();
 
         if (user.IsSuperAdmin)
             return BadRequest(new { message = "The main admin account cannot be deleted." });

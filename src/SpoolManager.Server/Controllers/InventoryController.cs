@@ -136,7 +136,8 @@ public class InventoryController : ControllerBase
         if (first.EntityType == "spool" && validLocations.Contains(second.EntityType))
         {
             var spool = await _spools.GetByIdAsync(first.EntityId, projectId);
-            if (spool == null) return NotFound(new InventoryActionResult { Success = false, Description = "Spule nicht gefunden." });
+            if (spool == null)
+                return NotFound(new InventoryActionResult { Success = false, Description = "Spule nicht gefunden." });
 
             spool.PrinterId = null;
             spool.StorageLocationId = null;
@@ -145,19 +146,22 @@ public class InventoryController : ControllerBase
             if (second.EntityType == "printer")
             {
                 var printer = await _printers.GetByIdAsync(second.EntityId);
-                if (printer == null || printer.ProjectId != projectId) return NotFound(new InventoryActionResult { Success = false, Description = "Drucker nicht gefunden." });
+                if (printer == null || printer.ProjectId != projectId)
+                    return NotFound(new InventoryActionResult { Success = false, Description = "Drucker nicht gefunden." });
                 spool.PrinterId = second.EntityId;
             }
             else if (second.EntityType == "storage")
             {
                 var storage = await _storageLocations.GetByIdAsync(second.EntityId);
-                if (storage == null || storage.ProjectId != projectId) return NotFound(new InventoryActionResult { Success = false, Description = "Lagerort nicht gefunden." });
+                if (storage == null || storage.ProjectId != projectId)
+                    return NotFound(new InventoryActionResult { Success = false, Description = "Lagerort nicht gefunden." });
                 spool.StorageLocationId = second.EntityId;
             }
             else if (second.EntityType == "dryer")
             {
                 var dryer = await _dryers.GetByIdAsync(second.EntityId);
-                if (dryer == null || dryer.ProjectId != projectId) return NotFound(new InventoryActionResult { Success = false, Description = "Trockner nicht gefunden." });
+                if (dryer == null || dryer.ProjectId != projectId)
+                    return NotFound(new InventoryActionResult { Success = false, Description = "Trockner nicht gefunden." });
                 spool.DryerId = second.EntityId;
             }
 
@@ -169,7 +173,8 @@ public class InventoryController : ControllerBase
         if (validLocations.Contains(first.EntityType) && second.EntityType == "spool")
         {
             var spool = await _spools.GetByIdAsync(second.EntityId, projectId);
-            if (spool == null) return NotFound(new InventoryActionResult { Success = false, Description = "Spule nicht gefunden." });
+            if (spool == null)
+                return NotFound(new InventoryActionResult { Success = false, Description = "Spule nicht gefunden." });
 
             spool.PrinterId = null;
             spool.StorageLocationId = null;
@@ -178,19 +183,22 @@ public class InventoryController : ControllerBase
             if (first.EntityType == "printer")
             {
                 var printer = await _printers.GetByIdAsync(first.EntityId);
-                if (printer == null || printer.ProjectId != projectId) return NotFound(new InventoryActionResult { Success = false, Description = "Drucker nicht gefunden." });
+                if (printer == null || printer.ProjectId != projectId)
+                    return NotFound(new InventoryActionResult { Success = false, Description = "Drucker nicht gefunden." });
                 spool.PrinterId = first.EntityId;
             }
             else if (first.EntityType == "storage")
             {
                 var storage = await _storageLocations.GetByIdAsync(first.EntityId);
-                if (storage == null || storage.ProjectId != projectId) return NotFound(new InventoryActionResult { Success = false, Description = "Lagerort nicht gefunden." });
+                if (storage == null || storage.ProjectId != projectId)
+                    return NotFound(new InventoryActionResult { Success = false, Description = "Lagerort nicht gefunden." });
                 spool.StorageLocationId = first.EntityId;
             }
             else if (first.EntityType == "dryer")
             {
                 var dryer = await _dryers.GetByIdAsync(first.EntityId);
-                if (dryer == null || dryer.ProjectId != projectId) return NotFound(new InventoryActionResult { Success = false, Description = "Trockner nicht gefunden." });
+                if (dryer == null || dryer.ProjectId != projectId)
+                    return NotFound(new InventoryActionResult { Success = false, Description = "Trockner nicht gefunden." });
                 spool.DryerId = first.EntityId;
             }
 

@@ -1,7 +1,5 @@
 @page "/changelog"
 @using Markdig
-@inject HttpClient Http
-@inject LocalizationService L
 
 <PageTitle>@L["nav.changelog"] – @L["app.name"]</PageTitle>
 
@@ -25,29 +23,3 @@ else
     }
 }
 
-@code {
-    private bool _loading = true;
-    private List<string> _entries = [];
-    private static readonly MarkdownPipeline _pipeline = new MarkdownPipelineBuilder().UseAdvancedExtensions().Build();
-
-    protected override async Task OnInitializedAsync()
-    {
-        try
-        {
-            var versions = await Http.GetFromJsonAsync<List<string>>("changelog/index.json") ?? [];
-            var lang = L.CurrentLanguage == "de" ? "de" : "en";
-
-            foreach (var v in versions)
-            {
-                try
-                {
-                    var md = await Http.GetStringAsync($"changelog/{v}_{lang}.md");
-                    _entries.Add(md);
-                }
-                catch { }
-            }
-        }
-        catch { }
-        _loading = false;
-    }
-}

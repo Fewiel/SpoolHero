@@ -1,7 +1,4 @@
 @page "/admin"
-@inject AdminService Admin
-@inject AuthService Auth
-@inject LocalizationService L
 
 <PageTitle>@L["admin.dashboard.title"] – @L["app.name"]</PageTitle>
 
@@ -132,17 +129,5 @@ else
                 </div>
             </div>
         }
-    }
-}
-
-@code {
-    private bool _loading = true;
-    private AdminStatsDto? _stats;
-
-    protected override async Task OnInitializedAsync()
-    {
-        if (Auth.CurrentUser?.IsPlatformAdmin != true) return;
-        _stats = await Admin.GetStatsAsync();
-        _loading = false;
     }
 }

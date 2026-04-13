@@ -41,7 +41,8 @@ public class TagsController : ControllerBase
         if (request.SpoolId.HasValue)
         {
             var spool = await _spools.GetByIdAsync(request.SpoolId.Value, ProjectMember.ProjectId);
-            if (spool?.FilamentMaterial == null) return NotFound();
+            if (spool?.FilamentMaterial == null)
+                return NotFound();
 
             var ndefBytes = _openSpool.Encode(spool.FilamentMaterial, spool.Id);
             var json = _openSpool.ToJson(spool.FilamentMaterial, spool.Id);
@@ -50,8 +51,10 @@ public class TagsController : ControllerBase
         else if (request.MaterialId.HasValue)
         {
             var material = await _materials.GetByIdAsync(request.MaterialId.Value);
-            if (material == null) return NotFound();
-            if (material.ProjectId != null && material.ProjectId != ProjectMember.ProjectId) return NotFound();
+            if (material == null)
+                return NotFound();
+            if (material.ProjectId != null && material.ProjectId != ProjectMember.ProjectId)
+                return NotFound();
 
             var ndefBytes = _openSpool.Encode(material);
             var json = _openSpool.ToJson(material);
@@ -75,19 +78,23 @@ public class TagsController : ControllerBase
         {
             case "spool":
                 var spool = await _spools.GetByIdAsync(request.EntityId, projectId);
-                if (spool == null) return NotFound();
+                if (spool == null)
+                    return NotFound();
                 break;
             case "printer":
                 var printer = await _printers.GetByIdAsync(request.EntityId);
-                if (printer == null || printer.ProjectId != projectId) return NotFound();
+                if (printer == null || printer.ProjectId != projectId)
+                    return NotFound();
                 break;
             case "storage":
                 var storage = await _storageLocations.GetByIdAsync(request.EntityId);
-                if (storage == null || storage.ProjectId != projectId) return NotFound();
+                if (storage == null || storage.ProjectId != projectId)
+                    return NotFound();
                 break;
             case "dryer":
                 var dryer = await _dryers.GetByIdAsync(request.EntityId);
-                if (dryer == null || dryer.ProjectId != projectId) return NotFound();
+                if (dryer == null || dryer.ProjectId != projectId)
+                    return NotFound();
                 break;
         }
 
@@ -109,7 +116,9 @@ public class TagsController : ControllerBase
             if (isValid)
             {
                 var json = _openSpool.ToJson(material);
-                var (_, _, rj, sid) = _openSpool.FromJson(json);
+                var parseResult = _openSpool.FromJson(json);
+                var rj = parseResult.RawJson;
+                var sid = parseResult.SpoolId;
                 rawJson = rj;
                 spoolId = sid;
             }
@@ -136,7 +145,8 @@ public class TagsController : ControllerBase
     public async Task<IActionResult> Download(Guid spoolId)
     {
         var spool = await _spools.GetByIdAsync(spoolId, ProjectMember.ProjectId);
-        if (spool?.FilamentMaterial == null) return NotFound();
+        if (spool?.FilamentMaterial == null)
+            return NotFound();
 
         var bytes = _openSpool.Encode(spool.FilamentMaterial, spool.Id);
         var filename = $"openspool_{spool.FilamentMaterial.Brand}_{spool.FilamentMaterial.Type}_{spoolId}.bin".Replace(" ", "_");

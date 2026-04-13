@@ -1,7 +1,3 @@
-@inject LocalizationService L
-@inject IJSRuntime JS
-@inject MaterialService MaterialSvc
-
 <div class="material-picker position-relative" @ref="_root">
     <div class="form-control d-flex align-items-center gap-2 @(_open ? "border-primary" : "")"
          style="cursor:pointer" @onclick="Open" role="combobox" aria-expanded="@_open">
@@ -31,7 +27,28 @@
                 }
                 else if (string.IsNullOrWhiteSpace(_query))
                 {
-                    <div class="text-center text-muted py-3 small">@L["material.picker.hint"]</div>
+                    @if (_favorites.Count > 0)
+                    {
+                        <div class="px-3 py-1 text-muted small fw-semibold">@L["material.favorites"]</div>
+                        @foreach (var m in _favorites)
+                        {
+                            <div class="material-picker-item d-flex align-items-center gap-2 px-3 py-2 @(m.Id == Value ? "bg-primary-subtle" : "")"
+                                 role="option" @onclick="() => Select(m)" @onclick:stopPropagation>
+                                <span style="width:1.2em;height:1.2em;background:#@m.ColorHex;border-radius:50%;border:1px solid var(--bs-border-color);flex-shrink:0"></span>
+                                <div class="d-flex flex-column min-w-0">
+                                    <span class="text-truncate fw-semibold small">@m.Brand @m.Type</span>
+                                    <span class="text-truncate text-muted" style="font-size:.75rem">
+                                        @(m.ColorName ?? $"#{m.ColorHex}")
+                                    </span>
+                                </div>
+                                <i class="bi bi-star-fill text-warning ms-auto"></i>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="text-center text-muted py-3 small">@L["material.picker.hint"]</div>
+                    }
                 }
                 else if (_results.Count == 0)
                 {
@@ -62,81 +79,3 @@
     }
 </div>
 
-@code {
-    [Parameter] public Guid? Value { get; set; }
-    [Parameter] public EventCallback<Guid?> ValueChanged { get; set; }
-    [Parameter] public EventCallback<FilamentMaterialDto?> OnSelected { get; set; }
-
-    private bool _open;
-    private bool _searching;
-    private string _query = string.Empty;
-    private List<FilamentMaterialDto> _results = [];
-    private FilamentMaterialDto? _selectedMaterial;
-    private ElementReference _searchInput;
-    private ElementReference _root;
-    private DotNetObjectReference<MaterialPicker>? _selfRef;
-    private System.Timers.Timer? _debounce;
-
-    protected override async Task OnParametersSetAsync()
-    {
-        if (Value.HasValue && (_selectedMaterial == null || _selectedMaterial.Id != Value.Value))
-            _selectedMaterial = await MaterialSvc.GetByIdAsync(Value.Value);
-        else if (!Value.HasValue)
-            _selectedMaterial = null;
-    }
-
-    private async Task Open()
-    {
-        _open = true;
-        _query = string.Empty;
-        _results = [];
-        await Task.Yield();
-        try { await _searchInput.FocusAsync(); } catch { }
-        _selfRef ??= DotNetObjectReference.Create(this);
-        await JS.InvokeVoidAsync("materialPickerOutside.register", _root, _selfRef);
-    }
-
-    [JSInvokable]
-    public void CloseDropdown()
-    {
-        _open = false;
-        _debounce?.Stop();
-        StateHasChanged();
-    }
-
-    private void OnQuery(ChangeEventArgs e)
-    {
-        _query = e.Value?.ToString() ?? string.Empty;
-        _debounce?.Stop();
-        if (string.IsNullOrWhiteSpace(_query)) { _results = []; return; }
-        _debounce = new System.Timers.Timer(250);
-        _debounce.Elapsed += async (_, _) => { _debounce?.Stop(); await InvokeAsync(DoSearch); };
-        _debounce.Start();
-    }
-
-    private async Task DoSearch()
-    {
-        if (string.IsNullOrWhiteSpace(_query)) return;
-        _searching = true;
-        StateHasChanged();
-        _results = await MaterialSvc.SearchAsync(_query) ?? [];
-        _searching = false;
-        StateHasChanged();
-    }
-
-    private async Task Select(FilamentMaterialDto m)
-    {
-        _selectedMaterial = m;
-        _open = false;
-        _query = string.Empty;
-        await JS.InvokeVoidAsync("materialPickerOutside.unregister");
-        await ValueChanged.InvokeAsync(m.Id);
-        await OnSelected.InvokeAsync(m);
-    }
-
-    public void Dispose()
-    {
-        _debounce?.Dispose();
-        _selfRef?.Dispose();
-    }
-}

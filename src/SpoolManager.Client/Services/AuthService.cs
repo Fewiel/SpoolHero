@@ -42,10 +42,12 @@ public class AuthService
         try
         {
             var response = await _http.PostAsJsonAsync("api/auth/login", request);
-            if (!response.IsSuccessStatusCode) return false;
+            if (!response.IsSuccessStatusCode)
+                return false;
 
             var result = await response.Content.ReadFromJsonAsync<LoginResponse>();
-            if (result == null) return false;
+            if (result == null)
+                return false;
 
             Token = result.AccessToken;
             await _js.InvokeVoidAsync("localStorage.setItem", "auth_token", Token);
@@ -136,7 +138,8 @@ public class AuthService
         try
         {
             var parts = token.Split('.');
-            if (parts.Length != 3) return true;
+            if (parts.Length != 3)
+                return true;
             var payload = parts[1].Replace('-', '+').Replace('_', '/');
             var padded = payload.PadRight(payload.Length + (4 - payload.Length % 4) % 4, '=');
             var json = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(padded));

@@ -1,6 +1,4 @@
 @page "/privacy"
-@inject LocalizationService L
-@inject HttpClient Http
 
 <PageTitle>@L["legal.privacy.title"] – @L["app.name"]</PageTitle>
 
@@ -26,19 +24,3 @@
     <p><a href="/imprint">@L["legal.imprint.title"]</a></p>
 </div>
 
-@code {
-    private bool _loading = true;
-    private string _content = string.Empty;
-
-    protected override async Task OnInitializedAsync()
-    {
-        try
-        {
-            var legal = await Http.GetFromJsonAsync<SpoolManager.Shared.DTOs.Admin.LegalSettingsDto>("api/public/legal");
-            if (legal != null)
-                _content = L.CurrentLanguage == "en" ? legal.PrivacyEn : legal.PrivacyDe;
-        }
-        catch { }
-        _loading = false;
-    }
-}

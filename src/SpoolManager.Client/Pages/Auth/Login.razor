@@ -1,8 +1,4 @@
 @page "/login"
-@inject AuthService Auth
-@inject LocalizationService L
-@inject NavigationManager Nav
-@inject BrandingService Branding
 
 <PageTitle>@L["app.name"] – @L["landing.tagline.short"]</PageTitle>
 
@@ -306,25 +302,3 @@ else
 
 }
 
-@code {
-    private readonly LoginRequest _model = new();
-    private bool _loading;
-    private string? _error;
-
-    protected override async Task OnInitializedAsync()
-    {
-        if (Auth.IsAuthenticated) Nav.NavigateTo("/");
-        if (string.IsNullOrEmpty(Branding.LogoDataUrl))
-            await Branding.InitializeAsync();
-    }
-
-    private async Task HandleLogin()
-    {
-        _loading = true;
-        _error = null;
-        var ok = await Auth.LoginAsync(_model);
-        _loading = false;
-        if (ok) Nav.NavigateTo("/");
-        else _error = L["auth.login.error"];
-    }
-}

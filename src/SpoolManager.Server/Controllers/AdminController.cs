@@ -56,7 +56,8 @@ public class AdminController : ControllerBase
     [HttpGet("materials")]
     public async Task<IActionResult> GetGlobalMaterials([FromQuery] string? search)
     {
-        if (!IsPlatformAdmin()) return Forbid();
+        if (!IsPlatformAdmin())
+            return Forbid();
         var materials = await _materials.GetGlobalAsync(search);
         return Ok(materials.Select(MapMaterialToDto));
     }
@@ -64,7 +65,8 @@ public class AdminController : ControllerBase
     [HttpPost("materials")]
     public async Task<IActionResult> CreateGlobalMaterial(CreateMaterialRequest request)
     {
-        if (!IsPlatformAdmin()) return Forbid();
+        if (!IsPlatformAdmin())
+            return Forbid();
         var material = MaterialsController.MapFromRequest(request);
         material.ProjectId = null;
         var id = await _materials.CreateAsync(material);
@@ -78,9 +80,11 @@ public class AdminController : ControllerBase
     [HttpPut("materials/{id}")]
     public async Task<IActionResult> UpdateGlobalMaterial(Guid id, UpdateMaterialRequest request)
     {
-        if (!IsPlatformAdmin()) return Forbid();
+        if (!IsPlatformAdmin())
+            return Forbid();
         var material = await _materials.GetByIdAsync(id);
-        if (material == null || material.ProjectId != null) return NotFound();
+        if (material == null || material.ProjectId != null)
+            return NotFound();
         MaterialsController.ApplyRequest(material, request);
         material.UpdatedAt = DateTime.UtcNow;
         await _materials.UpdateAsync(material);
@@ -93,9 +97,11 @@ public class AdminController : ControllerBase
     [HttpDelete("materials/{id}")]
     public async Task<IActionResult> DeleteGlobalMaterial(Guid id)
     {
-        if (!IsPlatformAdmin()) return Forbid();
+        if (!IsPlatformAdmin())
+            return Forbid();
         var material = await _materials.GetByIdAsync(id);
-        if (material == null || material.ProjectId != null) return NotFound();
+        if (material == null || material.ProjectId != null)
+            return NotFound();
         await _audit.LogAsync("admin.material.delete", userId: UserId, username: UserName,
             entityType: "material", entityId: id.ToString(), entityName: $"{material.Brand} {material.Type}",
             ipAddress: ClientIp);
@@ -119,7 +125,8 @@ public class AdminController : ControllerBase
     [HttpGet("users")]
     public async Task<IActionResult> GetAllUsers()
     {
-        if (!IsPlatformAdmin()) return Forbid();
+        if (!IsPlatformAdmin())
+            return Forbid();
         var users = await _users.GetAllAsync();
         return Ok(users.Select(u => new AdminUserDto
         {
@@ -133,11 +140,15 @@ public class AdminController : ControllerBase
     [HttpPut("users/{id}/admin")]
     public async Task<IActionResult> SetAdminStatus(Guid id, [FromBody] SetAdminRequest request)
     {
-        if (!IsPlatformAdmin()) return Forbid();
-        if (id == UserId) return BadRequest("Cannot change own admin status.");
+        if (!IsPlatformAdmin())
+            return Forbid();
+        if (id == UserId)
+            return BadRequest("Cannot change own admin status.");
         var user = await _users.GetByIdAsync(id);
-        if (user == null) return NotFound();
-        if (user.IsSuperAdmin) return BadRequest("Cannot change the main admin's status.");
+        if (user == null)
+            return NotFound();
+        if (user.IsSuperAdmin)
+            return BadRequest("Cannot change the main admin's status.");
 
         await _users.SetAdminAsync(id, request.IsAdmin, user.TokenVersion + 1);
         await _audit.LogAsync(request.IsAdmin ? "admin.user.promote" : "admin.user.demote",
@@ -150,11 +161,15 @@ public class AdminController : ControllerBase
     [HttpDelete("users/{id}")]
     public async Task<IActionResult> DeleteUser(Guid id)
     {
-        if (!IsPlatformAdmin()) return Forbid();
-        if (id == UserId) return BadRequest("Cannot delete own account.");
+        if (!IsPlatformAdmin())
+            return Forbid();
+        if (id == UserId)
+            return BadRequest("Cannot delete own account.");
         var user = await _users.GetByIdAsync(id);
-        if (user == null) return NotFound();
-        if (user.IsSuperAdmin) return BadRequest("Cannot delete the main admin.");
+        if (user == null)
+            return NotFound();
+        if (user.IsSuperAdmin)
+            return BadRequest("Cannot delete the main admin.");
 
         await _audit.LogAsync("admin.user.delete",
             userId: UserId, username: UserName,
@@ -168,10 +183,12 @@ public class AdminController : ControllerBase
     [HttpPut("users/{id}/onboarding/reset")]
     public async Task<IActionResult> ResetUserOnboarding(Guid id)
     {
-        if (!IsPlatformAdmin()) return Forbid();
+        if (!IsPlatformAdmin())
+            return Forbid();
 
         var user = await _users.GetByIdAsync(id);
-        if (user == null) return NotFound();
+        if (user == null)
+            return NotFound();
 
         user.DashboardOnboardingDismissed = false;
         await _users.UpdateAsync(user);
@@ -187,7 +204,8 @@ public class AdminController : ControllerBase
     [HttpGet("settings/legal")]
     public async Task<IActionResult> GetLegalSettings()
     {
-        if (!IsPlatformAdmin()) return Forbid();
+        if (!IsPlatformAdmin())
+            return Forbid();
         return Ok(new LegalSettingsDto
         {
             PrivacyDe = await _siteSettings.GetAsync("privacy_de") ?? string.Empty,
@@ -202,7 +220,8 @@ public class AdminController : ControllerBase
     [HttpPut("settings/legal")]
     public async Task<IActionResult> SaveLegalSettings([FromBody] LegalSettingsDto dto)
     {
-        if (!IsPlatformAdmin()) return Forbid();
+        if (!IsPlatformAdmin())
+            return Forbid();
         await _siteSettings.SetAsync("privacy_de", dto.PrivacyDe);
         await _siteSettings.SetAsync("privacy_en", dto.PrivacyEn);
         await _siteSettings.SetAsync("imprint_de", dto.ImprintDe);
@@ -216,9 +235,11 @@ public class AdminController : ControllerBase
     [HttpGet("settings/smtp")]
     public async Task<IActionResult> GetSmtpSettings()
     {
-        if (!IsPlatformAdmin()) return Forbid();
+        if (!IsPlatformAdmin())
+            return Forbid();
         var s = await _email.GetSettingsAsync();
-        if (s == null) return Ok(new SmtpSettingsDto());
+        if (s == null)
+            return Ok(new SmtpSettingsDto());
         return Ok(new SmtpSettingsDto
         {
             Host = s.Host, Port = s.Port, UseSsl = s.UseSsl, UseStartTls = s.UseStartTls,
@@ -231,7 +252,8 @@ public class AdminController : ControllerBase
     [HttpPut("settings/smtp")]
     public async Task<IActionResult> SaveSmtpSettings([FromBody] SmtpSettingsDto dto)
     {
-        if (!IsPlatformAdmin()) return Forbid();
+        if (!IsPlatformAdmin())
+            return Forbid();
         var existing = await _email.GetSettingsAsync();
         var settings = new SpoolManager.Infrastructure.Data.SmtpSettings
         {
@@ -251,8 +273,10 @@ public class AdminController : ControllerBase
     [HttpPost("settings/smtp/test")]
     public async Task<IActionResult> TestSmtp([FromBody] TestSmtpRequest request)
     {
-        if (!IsPlatformAdmin()) return Forbid();
-        if (string.IsNullOrWhiteSpace(request.ToEmail)) return BadRequest("Email required.");
+        if (!IsPlatformAdmin())
+            return Forbid();
+        if (string.IsNullOrWhiteSpace(request.ToEmail))
+            return BadRequest("Email required.");
         var ok = await _email.SendAsync(request.ToEmail, "Test", "SpoolManager SMTP-Test",
             "<p>Dies ist eine Test-E-Mail von SpoolManager. SMTP funktioniert! ✅</p>");
         return ok ? Ok(new { message = "Test email sent." }) : BadRequest(new { message = "Failed to send. Check SMTP settings." });
@@ -264,8 +288,10 @@ public class AdminController : ControllerBase
     [RequestSizeLimit(4_194_304)]
     public async Task<IActionResult> UploadLogo(IFormFile file)
     {
-        if (!IsPlatformAdmin()) return Forbid();
-        if (!AllowedImageTypes.Contains(file.ContentType)) return BadRequest("Unsupported image type.");
+        if (!IsPlatformAdmin())
+            return Forbid();
+        if (!AllowedImageTypes.Contains(file.ContentType))
+            return BadRequest("Unsupported image type.");
         using var ms = new MemoryStream();
         await file.CopyToAsync(ms);
         var base64 = Convert.ToBase64String(ms.ToArray());
@@ -278,7 +304,8 @@ public class AdminController : ControllerBase
     [HttpDelete("settings/logo")]
     public async Task<IActionResult> DeleteLogo()
     {
-        if (!IsPlatformAdmin()) return Forbid();
+        if (!IsPlatformAdmin())
+            return Forbid();
         await _siteSettings.SetAsync("branding_logo", null);
         return NoContent();
     }
@@ -287,8 +314,10 @@ public class AdminController : ControllerBase
     [RequestSizeLimit(524_288)]
     public async Task<IActionResult> UploadFavicon(IFormFile file)
     {
-        if (!IsPlatformAdmin()) return Forbid();
-        if (!AllowedImageTypes.Contains(file.ContentType)) return BadRequest("Unsupported image type.");
+        if (!IsPlatformAdmin())
+            return Forbid();
+        if (!AllowedImageTypes.Contains(file.ContentType))
+            return BadRequest("Unsupported image type.");
         using var ms = new MemoryStream();
         await file.CopyToAsync(ms);
         var base64 = Convert.ToBase64String(ms.ToArray());
@@ -301,7 +330,8 @@ public class AdminController : ControllerBase
     [HttpDelete("settings/favicon")]
     public async Task<IActionResult> DeleteFavicon()
     {
-        if (!IsPlatformAdmin()) return Forbid();
+        if (!IsPlatformAdmin())
+            return Forbid();
         await _siteSettings.SetAsync("branding_favicon", null);
         return NoContent();
     }
@@ -310,8 +340,10 @@ public class AdminController : ControllerBase
     [RequestSizeLimit(4_194_304)]
     public async Task<IActionResult> UploadLogoDark(IFormFile file)
     {
-        if (!IsPlatformAdmin()) return Forbid();
-        if (!AllowedImageTypes.Contains(file.ContentType)) return BadRequest("Unsupported image type.");
+        if (!IsPlatformAdmin())
+            return Forbid();
+        if (!AllowedImageTypes.Contains(file.ContentType))
+            return BadRequest("Unsupported image type.");
         using var ms = new MemoryStream();
         await file.CopyToAsync(ms);
         var base64 = Convert.ToBase64String(ms.ToArray());
@@ -324,7 +356,8 @@ public class AdminController : ControllerBase
     [HttpDelete("settings/logo-dark")]
     public async Task<IActionResult> DeleteLogoDark()
     {
-        if (!IsPlatformAdmin()) return Forbid();
+        if (!IsPlatformAdmin())
+            return Forbid();
         await _siteSettings.SetAsync("branding_logo_dark", null);
         return NoContent();
     }
@@ -332,7 +365,8 @@ public class AdminController : ControllerBase
     [HttpPut("settings/landing-page")]
     public async Task<IActionResult> SetLandingPage([FromBody] SetLandingPageRequest request)
     {
-        if (!IsPlatformAdmin()) return Forbid();
+        if (!IsPlatformAdmin())
+            return Forbid();
         await _siteSettings.SetAsync("landing_page_enabled", request.Enabled ? "true" : "false");
         return NoContent();
     }
@@ -340,7 +374,8 @@ public class AdminController : ControllerBase
     [HttpPost("ofd-sync")]
     public async Task<IActionResult> SyncOfd()
     {
-        if (!IsPlatformAdmin()) return Forbid();
+        if (!IsPlatformAdmin())
+            return Forbid();
         var result = await _ofdSync.SyncAsync();
         await _audit.LogAsync("admin.ofd.sync", userId: UserId, username: UserName,
             details: $"Created: {result.Created}, Updated: {result.Updated}, Skipped: {result.Skipped}",
@@ -351,7 +386,8 @@ public class AdminController : ControllerBase
     [HttpGet("suggestions")]
     public async Task<IActionResult> GetSuggestions([FromQuery] string? status)
     {
-        if (!IsPlatformAdmin()) return Forbid();
+        if (!IsPlatformAdmin())
+            return Forbid();
         var suggestions = await _suggestions.GetAllAsync(status);
         var result = new List<MaterialSuggestionDto>();
         foreach (var s in suggestions)
@@ -360,7 +396,8 @@ public class AdminController : ControllerBase
             if (s.MaterialId.HasValue)
             {
                 var mat = await _materials.GetByIdAsync(s.MaterialId.Value);
-                if (mat != null) materialName = $"{mat.Brand} {mat.Type}";
+                if (mat != null)
+                materialName = $"{mat.Brand} {mat.Type}";
             }
             result.Add(MapSuggestionToDto(s, materialName));
         }
@@ -370,16 +407,19 @@ public class AdminController : ControllerBase
     [HttpGet("suggestions/count")]
     public async Task<IActionResult> GetSuggestionCount()
     {
-        if (!IsPlatformAdmin()) return Forbid();
+        if (!IsPlatformAdmin())
+            return Forbid();
         return Ok(new { count = await _suggestions.CountPendingAsync() });
     }
 
     [HttpPost("suggestions/{id}/review")]
     public async Task<IActionResult> ReviewSuggestion(Guid id, [FromBody] ReviewSuggestionRequest request)
     {
-        if (!IsPlatformAdmin()) return Forbid();
+        if (!IsPlatformAdmin())
+            return Forbid();
         var suggestion = await _suggestions.GetByIdAsync(id);
-        if (suggestion == null) return NotFound();
+        if (suggestion == null)
+            return NotFound();
 
         suggestion.Status = request.Status;
         suggestion.AdminNotes = request.AdminNotes;
@@ -464,7 +504,8 @@ public class AdminController : ControllerBase
     [HttpGet("stats")]
     public async Task<IActionResult> GetStats()
     {
-        if (!IsPlatformAdmin()) return Forbid();
+        if (!IsPlatformAdmin())
+            return Forbid();
         var now = DateTime.UtcNow;
         var allUsers = await _users.GetAllAsync();
         var firstOfMonth = new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
@@ -495,7 +536,8 @@ public class AdminController : ControllerBase
     [HttpGet("tickets")]
     public async Task<IActionResult> GetAllTickets([FromQuery] string? status, [FromQuery] string? search)
     {
-        if (!IsPlatformAdmin()) return Forbid();
+        if (!IsPlatformAdmin())
+            return Forbid();
         TicketStatus? statusFilter = status switch
         {
             "open" => TicketStatus.Open,
@@ -517,9 +559,11 @@ public class AdminController : ControllerBase
     [HttpPut("tickets/{id}/status")]
     public async Task<IActionResult> SetTicketStatus(Guid id, [FromBody] UpdateTicketStatusRequest request)
     {
-        if (!IsPlatformAdmin()) return Forbid();
+        if (!IsPlatformAdmin())
+            return Forbid();
         var ticket = await _tickets.GetByIdAsync(id);
-        if (ticket == null) return NotFound();
+        if (ticket == null)
+            return NotFound();
         ticket.Status = request.Status switch
         {
             "in_progress" => TicketStatus.InProgress,
@@ -534,13 +578,16 @@ public class AdminController : ControllerBase
     [HttpPut("tickets/{id}/assign")]
     public async Task<IActionResult> AssignTicket(Guid id, [FromBody] AssignTicketRequest request)
     {
-        if (!IsPlatformAdmin()) return Forbid();
+        if (!IsPlatformAdmin())
+            return Forbid();
         var ticket = await _tickets.GetByIdAsync(id);
-        if (ticket == null) return NotFound();
+        if (ticket == null)
+            return NotFound();
         if (request.AssignedToUserId.HasValue)
         {
             var assignee = await _users.GetByIdAsync(request.AssignedToUserId.Value);
-            if (assignee == null || !assignee.IsPlatformAdmin) return BadRequest("User is not an admin.");
+            if (assignee == null || !assignee.IsPlatformAdmin)
+                return BadRequest("User is not an admin.");
             ticket.AssignedToUserId = assignee.Id;
             ticket.AssignedToUsername = assignee.Username;
         }
@@ -556,10 +603,13 @@ public class AdminController : ControllerBase
     [HttpPost("tickets/{id}/comments")]
     public async Task<IActionResult> AddAdminComment(Guid id, [FromBody] CreateCommentRequest request)
     {
-        if (!IsPlatformAdmin()) return Forbid();
-        if (string.IsNullOrWhiteSpace(request.Content)) return BadRequest("Content required.");
+        if (!IsPlatformAdmin())
+            return Forbid();
+        if (string.IsNullOrWhiteSpace(request.Content))
+            return BadRequest("Content required.");
         var ticket = await _tickets.GetByIdAsync(id);
-        if (ticket == null) return NotFound();
+        if (ticket == null)
+            return NotFound();
 
         var comment = new TicketComment
         {

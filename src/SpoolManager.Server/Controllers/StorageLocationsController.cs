@@ -35,7 +35,8 @@ public class StorageLocationsController : ControllerBase
     public async Task<IActionResult> GetById(Guid id)
     {
         var location = await _storage.GetByIdAsync(id);
-        if (location == null || location.ProjectId != ProjectMember.ProjectId) return NotFound();
+        if (location == null || location.ProjectId != ProjectMember.ProjectId)
+            return NotFound();
         return Ok(MapToDto(location));
     }
 
@@ -57,7 +58,8 @@ public class StorageLocationsController : ControllerBase
     public async Task<IActionResult> Update(Guid id, UpdateStorageLocationRequest request)
     {
         var location = await _storage.GetByIdAsync(id);
-        if (location == null || location.ProjectId != ProjectMember.ProjectId) return NotFound();
+        if (location == null || location.ProjectId != ProjectMember.ProjectId)
+            return NotFound();
         location.Name = request.Name;
         location.Description = request.Description;
         location.RfidTagUid = request.RfidTagUid;
@@ -69,9 +71,11 @@ public class StorageLocationsController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(Guid id)
     {
-        if (ProjectMember.Role != "admin") return StatusCode(403, new { message = "Only admins can delete." });
+        if (ProjectMember.Role != "admin")
+            return StatusCode(403, new { message = "Only admins can delete." });
         var location = await _storage.GetByIdAsync(id);
-        if (location == null || location.ProjectId != ProjectMember.ProjectId) return NotFound();
+        if (location == null || location.ProjectId != ProjectMember.ProjectId)
+            return NotFound();
         await _storage.DeleteAsync(id);
         return NoContent();
     }
@@ -81,7 +85,8 @@ public class StorageLocationsController : ControllerBase
     public async Task<IActionResult> UploadImage(Guid id, IFormFile file)
     {
         var location = await _storage.GetByIdAsync(id);
-        if (location == null || location.ProjectId != ProjectMember.ProjectId) return NotFound();
+        if (location == null || location.ProjectId != ProjectMember.ProjectId)
+            return NotFound();
 
         using var ms = new MemoryStream();
         await file.CopyToAsync(ms);
@@ -97,7 +102,8 @@ public class StorageLocationsController : ControllerBase
     public async Task<IActionResult> DeleteImage(Guid id)
     {
         var location = await _storage.GetByIdAsync(id);
-        if (location == null || location.ProjectId != ProjectMember.ProjectId) return NotFound();
+        if (location == null || location.ProjectId != ProjectMember.ProjectId)
+            return NotFound();
         location.ImageData = null;
         location.ImageContentType = null;
         location.UpdatedAt = DateTime.UtcNow;

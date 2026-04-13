@@ -1,7 +1,4 @@
 @page "/projects/new"
-@inject ProjectService Project
-@inject LocalizationService L
-@inject NavigationManager Nav
 
 <PageTitle>@L["project.create"] – @L["app.name"]</PageTitle>
 
@@ -42,36 +39,3 @@
     </div>
 </div>
 
-@code {
-    private CreateProjectRequest _form = new();
-    private bool _saving;
-    private bool _hasProjects;
-    private string? _error;
-
-    protected override async Task OnInitializedAsync()
-    {
-        var projects = await Project.GetMyProjectsAsync();
-        _hasProjects = projects is { Count: > 0 };
-    }
-
-    private async Task SaveAsync()
-    {
-        if (string.IsNullOrWhiteSpace(_form.Name)) { _error = L["project.name.required"]; return; }
-        if (_form.Name.Length > 200) { _error = L["project.name.too.long"]; return; }
-        _saving = true;
-        _error = null;
-        var resp = await Project.CreateAsync(_form);
-        _saving = false;
-        if (resp.IsSuccessStatusCode)
-        {
-            var projects = await Project.GetMyProjectsAsync() ?? [];
-            var created = projects.LastOrDefault(p => p.Name == _form.Name);
-            if (created != null) await Project.SwitchProjectAsync(created);
-            Nav.NavigateTo("/");
-        }
-        else
-        {
-            _error = await resp.Content.ReadAsStringAsync();
-        }
-    }
-}

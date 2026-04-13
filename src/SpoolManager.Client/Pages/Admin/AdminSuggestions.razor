@@ -1,7 +1,4 @@
 @page "/admin/suggestions"
-@inject AdminService Admin
-@inject AuthService Auth
-@inject LocalizationService L
 
 <PageTitle>@L["admin.suggestions.title"] – @L["app.name"]</PageTitle>
 
@@ -104,41 +101,5 @@ else
                 </tbody>
             </table>
         </div>
-    }
-}
-
-@code {
-    private bool _loading = true;
-    private bool _reviewing;
-    private string _filter = "pending";
-    private int _pendingCount;
-    private List<MaterialSuggestionDto> _suggestions = [];
-
-    protected override async Task OnInitializedAsync() => await LoadAsync();
-
-    private async Task LoadAsync()
-    {
-        _loading = true;
-        _suggestions = await Admin.GetSuggestionsAsync(_filter) ?? [];
-        var allPending = await Admin.GetSuggestionsAsync("pending");
-        _pendingCount = allPending?.Count ?? 0;
-        _loading = false;
-    }
-
-    private async Task SetFilter(string filter)
-    {
-        _filter = filter;
-        await LoadAsync();
-    }
-
-    private async Task Review(Guid id, bool approve)
-    {
-        _reviewing = true;
-        await Admin.ReviewSuggestionAsync(id, new ReviewSuggestionRequest
-        {
-            Status = approve ? "approved" : "rejected"
-        });
-        _reviewing = false;
-        await LoadAsync();
     }
 }

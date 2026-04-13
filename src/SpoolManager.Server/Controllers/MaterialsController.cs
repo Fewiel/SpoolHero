@@ -34,17 +34,47 @@ public class MaterialsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAll([FromQuery] string? search)
+    public async Task<IActionResult> GetAll([FromQuery] string? search, [FromQuery] string? ids)
     {
+        if (!string.IsNullOrWhiteSpace(ids))
+        {
+            var idList = new List<Guid>();
+            foreach (var part in ids.Split(','))
+            {
+                if (Guid.TryParse(part.Trim(), out var parsed))
+                    idList.Add(parsed);
+            }
+            var byIds = await _materials.GetByIdsAsync(idList);
+            return Ok(byIds.Where(m => m.ProjectId == null || m.ProjectId == ProjectMember.ProjectId).Select(MapToDto));
+        }
         var materials = await _materials.GetAllAsync(ProjectMember.ProjectId, search);
         return Ok(materials.Select(MapToDto));
     }
 
-    [HttpGet("search")]
-    public async Task<IActionResult> Search([FromQuery] string q, [FromQuery] int limit = 50)
+    [HttpGet("paged")]
+    public async Task<IActionResult> GetPaged([FromQuery] int page = 0, [FromQuery] int pageSize = 50, [FromQuery] string? type = null, [FromQuery] string? brand = null, [FromQuery] string? color = null)
     {
-        if (string.IsNullOrWhiteSpace(q)) return Ok(Array.Empty<FilamentMaterialDto>());
-        var materials = await _materials.SearchAsync(ProjectMember.ProjectId, q, Math.Min(limit, 100));
+        pageSize = Math.Clamp(pageSize, 1, 100);
+        var (items, totalCount) = await _materials.GetPagedAsync(ProjectMember.ProjectId, page, pageSize, type, brand, color);
+        var types = await _materials.GetDistinctTypesAsync(ProjectMember.ProjectId);
+        var brands = await _materials.GetDistinctBrandsAsync(ProjectMember.ProjectId);
+        var colors = await _materials.GetDistinctColorsAsync(ProjectMember.ProjectId);
+        return Ok(new PaginatedResult<MaterialSummaryDto>
+        {
+            Items = items.Select(MapToSummary).ToList(),
+            TotalCount = totalCount,
+            Types = types,
+            Brands = brands,
+            Colors = colors
+        });
+    }
+
+    [HttpGet("search")]
+    public async Task<IActionResult> Search([FromQuery] string q, [FromQuery] int limit = 250)
+    {
+        if (string.IsNullOrWhiteSpace(q))
+            return Ok(Array.Empty<FilamentMaterialDto>());
+        var materials = await _materials.SearchAsync(ProjectMember.ProjectId, q, Math.Min(limit, 250));
         return Ok(materials.Select(MapToDto));
     }
 
@@ -56,8 +86,10 @@ public class MaterialsController : ControllerBase
     public async Task<IActionResult> GetById(Guid id)
     {
         var material = await _materials.GetByIdAsync(id);
-        if (material == null) return NotFound();
-        if (material.ProjectId != null && material.ProjectId != ProjectMember.ProjectId) return NotFound();
+        if (material == null)
+            return NotFound();
+        if (material.ProjectId != null && material.ProjectId != ProjectMember.ProjectId)
+            return NotFound();
         return Ok(MapToDto(material));
     }
 
@@ -82,9 +114,12 @@ public class MaterialsController : ControllerBase
     public async Task<IActionResult> Update(Guid id, UpdateMaterialRequest request)
     {
         var material = await _materials.GetByIdAsync(id);
-        if (material == null) return NotFound();
-        if (material.ProjectId == null) return Forbid();
-        if (material.ProjectId != ProjectMember.ProjectId) return NotFound();
+        if (material == null)
+            return NotFound();
+        if (material.ProjectId == null)
+            return Forbid();
+        if (material.ProjectId != ProjectMember.ProjectId)
+            return NotFound();
 
         ApplyRequest(material, request);
         material.UpdatedAt = DateTime.UtcNow;
@@ -96,9 +131,12 @@ public class MaterialsController : ControllerBase
     public async Task<IActionResult> Delete(Guid id)
     {
         var material = await _materials.GetByIdAsync(id);
-        if (material == null) return NotFound();
-        if (material.ProjectId == null) return Forbid();
-        if (material.ProjectId != ProjectMember.ProjectId) return NotFound();
+        if (material == null)
+            return NotFound();
+        if (material.ProjectId == null)
+            return Forbid();
+        if (material.ProjectId != ProjectMember.ProjectId)
+            return NotFound();
 
         await _audit.LogAsync("material.delete",
             userId: UserId, username: UserName,
@@ -114,7 +152,8 @@ public class MaterialsController : ControllerBase
     public async Task<IActionResult> TrackClick(Guid id)
     {
         var material = await _materials.GetByIdAsync(id);
-        if (material == null) return NotFound();
+        if (material == null)
+            return NotFound();
         await _materials.IncrementClickCountAsync(id);
         return NoContent();
     }
@@ -168,7 +207,8 @@ public class MaterialsController : ControllerBase
             materials = await _materials.GetAllAsync(ProjectMember.ProjectId);
         }
 
-        if (materials.Count == 0) return NotFound();
+        if (materials.Count == 0)
+            return NotFound();
 
         var dtos = materials.Select(MapToDto).ToList();
 
@@ -187,7 +227,8 @@ public class MaterialsController : ControllerBase
     public async Task<IActionResult> Import([FromBody] ImportRequest request)
     {
         var (materials, error) = _exportService.ImportFromBase64(request.Base64);
-        if (error != null) return BadRequest(new { message = error });
+        if (error != null)
+            return BadRequest(new { message = error });
 
         var created = new List<Guid>();
         foreach (var dto in materials)
@@ -241,6 +282,14 @@ public class MaterialsController : ControllerBase
         m.IsPublic = r.IsPublic;
     }
 
+    internal static MaterialSummaryDto MapToSummary(FilamentMaterial m) => new()
+    {
+        Id = m.Id, Type = m.Type, Brand = m.Brand, ColorHex = m.ColorHex,
+        ColorName = m.ColorName, MinTempCelsius = m.MinTempCelsius,
+        MaxTempCelsius = m.MaxTempCelsius, DiameterMm = m.DiameterMm,
+        ReorderUrl = m.ReorderUrl, OfdVariantId = m.OfdVariantId
+    };
+
     internal static FilamentMaterialDto MapToDto(FilamentMaterial m) => new()
     {
         Id = m.Id, Type = m.Type, ColorHex = m.ColorHex, Brand = m.Brand,
@@ -264,9 +313,4 @@ public class MaterialsController : ControllerBase
         Notes = d.Notes, ReorderUrl = d.ReorderUrl, PricePerKg = d.PricePerKg,
         IsPublic = d.IsPublic
     };
-}
-
-public class ImportRequest
-{
-    public string Base64 { get; set; } = string.Empty;
 }

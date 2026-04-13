@@ -40,6 +40,7 @@ builder.Services.AddScoped<IImageService, ImageService>();
 builder.Services.AddScoped<IMaterialExportService, MaterialExportService>();
 builder.Services.AddScoped<IOrcaExportService, OrcaExportService>();
 builder.Services.AddScoped<ISuggestionRepository, SuggestionRepository>();
+builder.Services.AddScoped<IFavoriteRepository, FavoriteRepository>();
 builder.Services.AddHttpClient<IOfdSyncService, OfdSyncService>();
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IAuditLogRepository, AuditLogRepository>();

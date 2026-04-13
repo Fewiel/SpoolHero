@@ -1,8 +1,4 @@
 @page "/verify-email"
-@inject HttpClient Http
-@inject AuthService Auth
-@inject LocalizationService L
-@inject NavigationManager Nav
 
 <div class="d-flex justify-content-center align-items-center" style="min-height:100vh;padding:1rem">
     <div style="width:100%;max-width:420px">
@@ -59,30 +55,3 @@
     </div>
 </div>
 
-@code {
-    private bool _loading = true;
-    private bool _success;
-    private bool _resending;
-    private bool _resendSuccess;
-    private string _resendEmail = string.Empty;
-
-    protected override async Task OnInitializedAsync()
-    {
-        var uri = new Uri(Nav.Uri);
-        var token = System.Web.HttpUtility.ParseQueryString(uri.Query)["token"];
-        if (string.IsNullOrEmpty(token)) { _loading = false; return; }
-
-        var resp = await Http.GetAsync($"api/auth/verify-email?token={Uri.EscapeDataString(token)}");
-        _success = resp.IsSuccessStatusCode;
-        _loading = false;
-    }
-
-    private async Task ResendAsync()
-    {
-        if (string.IsNullOrWhiteSpace(_resendEmail)) return;
-        _resending = true;
-        var resp = await Auth.ResendVerificationAsync(_resendEmail);
-        _resendSuccess = resp.IsSuccessStatusCode;
-        _resending = false;
-    }
-}

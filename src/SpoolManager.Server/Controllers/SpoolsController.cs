@@ -76,7 +76,8 @@ public class SpoolsController : ControllerBase
     public async Task<IActionResult> Update(Guid id, UpdateSpoolRequest request)
     {
         var spool = await _spools.GetByIdAsync(id, ProjectMember.ProjectId);
-        if (spool == null) return NotFound();
+        if (spool == null)
+            return NotFound();
 
         spool.FilamentMaterialId = request.FilamentMaterialId;
         spool.RemainingWeightGrams = request.RemainingWeightGrams;
@@ -99,7 +100,8 @@ public class SpoolsController : ControllerBase
     public async Task<IActionResult> Delete(Guid id)
     {
         var spool = await _spools.GetByIdAsync(id, ProjectMember.ProjectId);
-        if (spool == null) return NotFound();
+        if (spool == null)
+            return NotFound();
 
         var name = spool.FilamentMaterial != null ? $"{spool.FilamentMaterial.Brand} {spool.FilamentMaterial.Type}" : $"Spool #{id}";
         await _audit.LogAsync("spool.delete",
@@ -116,7 +118,8 @@ public class SpoolsController : ControllerBase
     public async Task<IActionResult> MarkOpened(Guid id)
     {
         var spool = await _spools.GetByIdAsync(id, ProjectMember.ProjectId);
-        if (spool == null) return NotFound();
+        if (spool == null)
+            return NotFound();
         spool.OpenedAt = DateTime.UtcNow;
         spool.UpdatedAt = DateTime.UtcNow;
         await _spools.UpdateAsync(spool);
@@ -127,7 +130,8 @@ public class SpoolsController : ControllerBase
     public async Task<IActionResult> MarkDried(Guid id)
     {
         var spool = await _spools.GetByIdAsync(id, ProjectMember.ProjectId);
-        if (spool == null) return NotFound();
+        if (spool == null)
+            return NotFound();
         spool.DriedAt = DateTime.UtcNow;
         spool.UpdatedAt = DateTime.UtcNow;
         await _spools.UpdateAsync(spool);
@@ -138,7 +142,8 @@ public class SpoolsController : ControllerBase
     public async Task<IActionResult> MarkRepackaged(Guid id)
     {
         var spool = await _spools.GetByIdAsync(id, ProjectMember.ProjectId);
-        if (spool == null) return NotFound();
+        if (spool == null)
+            return NotFound();
         spool.RepackagedAt = DateTime.UtcNow;
         spool.UpdatedAt = DateTime.UtcNow;
         await _spools.UpdateAsync(spool);
@@ -149,7 +154,8 @@ public class SpoolsController : ControllerBase
     public async Task<IActionResult> MarkReopened(Guid id)
     {
         var spool = await _spools.GetByIdAsync(id, ProjectMember.ProjectId);
-        if (spool == null) return NotFound();
+        if (spool == null)
+            return NotFound();
         spool.ReopenedAt = DateTime.UtcNow;
         spool.UpdatedAt = DateTime.UtcNow;
         await _spools.UpdateAsync(spool);
@@ -160,7 +166,8 @@ public class SpoolsController : ControllerBase
     public async Task<IActionResult> MarkConsumed(Guid id)
     {
         var spool = await _spools.GetByIdAsync(id, ProjectMember.ProjectId);
-        if (spool == null) return NotFound();
+        if (spool == null)
+            return NotFound();
         spool.ConsumedAt = DateTime.UtcNow;
         spool.RemainingWeightGrams = 0;
         spool.RemainingPercent = 0;
@@ -181,7 +188,8 @@ public class SpoolsController : ControllerBase
     public async Task<IActionResult> UpdateRemaining(Guid id, UpdateRemainingRequest request)
     {
         var spool = await _spools.GetByIdAsync(id, ProjectMember.ProjectId);
-        if (spool == null) return NotFound();
+        if (spool == null)
+            return NotFound();
         spool.RemainingWeightGrams = request.RemainingWeightGrams;
         spool.RemainingPercent = request.RemainingPercent;
         spool.UpdatedAt = DateTime.UtcNow;

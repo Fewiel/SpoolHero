@@ -1,9 +1,4 @@
 @page "/materials"
-@inject MaterialService Materials
-@inject TicketService Tickets
-@inject LocalizationService L
-@inject NavigationManager Nav
-@inject ProjectService Project
 
 <PageTitle>@L["material.title"] – @L["app.name"]</PageTitle>
 
@@ -22,15 +17,48 @@
     </div>
 </div>
 
-<div class="mb-3">
-    <input class="form-control" placeholder="@L["material.search"]" value="@_search" @oninput="OnSearch" />
+<div class="row g-2 mb-3">
+    <div class="col-12 col-md-4">
+        <select class="form-select" value="@_typeFilter" @onchange="OnTypeChanged">
+            <option value="">@L["material.filter.type.all"]</option>
+            @foreach (var t in _types)
+            {
+                <option value="@t">@t</option>
+            }
+        </select>
+    </div>
+    <div class="col-12 col-md-4">
+        <input class="form-control" list="brand-list" placeholder="@L["material.filter.brand"]"
+               value="@_brandFilter" @oninput="OnBrandChanged" />
+        <datalist id="brand-list">
+            @foreach (var b in _brands)
+            {
+                <option value="@b" />
+            }
+        </datalist>
+    </div>
+    <div class="col-12 col-md-4">
+        <input class="form-control" list="color-list" placeholder="@L["material.filter.color"]"
+               value="@_colorFilter" @oninput="OnColorChanged" />
+        <datalist id="color-list">
+            @foreach (var c in _colors)
+            {
+                <option value="@c" />
+            }
+        </datalist>
+    </div>
+    <div class="col-auto d-flex align-items-center">
+        <button class="btn btn-sm @(_favoritesOnly ? "btn-warning" : "btn-outline-warning")" @onclick="OnFavoritesFilterChanged" title="@L["material.filter.favorites"]">
+            <i class="bi bi-star-fill"></i>
+        </button>
+    </div>
 </div>
 
 @if (_loading)
 {
     <div class="text-center py-5"><div class="spinner-border"></div></div>
 }
-else if (_filtered.Count == 0)
+else if (_totalCount == 0)
 {
     <div class="text-center py-5 text-muted">
         <i class="bi bi-database fs-1"></i>
@@ -40,7 +68,7 @@ else if (_filtered.Count == 0)
 else
 {
     <div class="d-flex justify-content-between align-items-center mb-2">
-        <small class="text-muted">@_filtered.Count @L["admin.materials.total"]</small>
+        <small class="text-muted">@_totalCount @L["admin.materials.total"]</small>
         @if (TotalPages > 1)
         {
             <small class="text-muted">@(_page + 1) / @TotalPages</small>
@@ -60,7 +88,7 @@ else
                 </tr>
             </thead>
             <tbody>
-                @foreach (var m in PagedItems)
+                @foreach (var m in _items)
                 {
                     <tr>
                         <td><strong>@m.Type</strong></td>
@@ -76,6 +104,9 @@ else
                         <td class="d-none d-md-table-cell">@m.DiameterMm mm</td>
                         <td>
                             <div class="d-flex gap-1">
+                                <button class="btn btn-sm @(Favorites.IsFavorite(m.Id) ? "btn-warning" : "btn-outline-warning")" @onclick="() => ToggleFavorite(m.Id)">
+                                    <i class="bi @(Favorites.IsFavorite(m.Id) ? "bi-star-fill" : "bi-star")"></i>
+                                </button>
                                 @if (m.ReorderUrl != null)
                                 {
                                     <a href="@m.ReorderUrl" target="_blank" rel="noopener noreferrer"
@@ -144,80 +175,4 @@ else
             </div>
         </div>
     </div>
-}
-
-@code {
-    private const int PageSize = 50;
-    private bool _loading = true;
-    private int _page;
-    private List<FilamentMaterialDto> _allMaterials = [];
-    private List<FilamentMaterialDto> _filtered = [];
-    private string _search = string.Empty;
-    private FilamentMaterialDto? _deleteTarget;
-
-    private int TotalPages => Math.Max(1, (int)Math.Ceiling(_filtered.Count / (double)PageSize));
-    private List<FilamentMaterialDto> PagedItems => _filtered.Skip(_page * PageSize).Take(PageSize).ToList();
-
-    private IEnumerable<int> VisiblePages
-    {
-        get
-        {
-            var start = Math.Max(0, _page - 2);
-            var end = Math.Min(TotalPages - 1, start + 4);
-            start = Math.Max(0, end - 4);
-            return Enumerable.Range(start, end - start + 1);
-        }
-    }
-
-    protected override async Task OnInitializedAsync()
-    {
-        if (Project.CurrentProject == null) return;
-        await LoadAsync();
-    }
-
-    private async Task LoadAsync()
-    {
-        _loading = true;
-        _allMaterials = await Materials.GetAllAsync() ?? [];
-        ApplyFilter();
-        _loading = false;
-    }
-
-    private void ApplyFilter()
-    {
-        _page = 0;
-        if (string.IsNullOrWhiteSpace(_search))
-        {
-            _filtered = _allMaterials;
-            return;
-        }
-        var q = _search.ToLowerInvariant();
-        _filtered = _allMaterials.Where(m =>
-            m.Type.Contains(q, StringComparison.OrdinalIgnoreCase) ||
-            m.Brand.Contains(q, StringComparison.OrdinalIgnoreCase) ||
-            (m.ColorName?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false)
-        ).ToList();
-    }
-
-    private void OnSearch(ChangeEventArgs e)
-    {
-        _search = e.Value?.ToString() ?? string.Empty;
-        ApplyFilter();
-    }
-
-    private void SetPage(int page)
-    {
-        _page = Math.Clamp(page, 0, TotalPages - 1);
-    }
-
-    private void ConfirmDelete(FilamentMaterialDto m) => _deleteTarget = m;
-
-    private async Task DeleteAsync()
-    {
-        if (_deleteTarget == null) return;
-        await Materials.DeleteAsync(_deleteTarget.Id);
-        _allMaterials.Remove(_deleteTarget);
-        _deleteTarget = null;
-        ApplyFilter();
-    }
 }

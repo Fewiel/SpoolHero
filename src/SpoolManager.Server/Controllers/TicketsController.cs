@@ -31,10 +31,14 @@ public class TicketsController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> CreateTicket([FromBody] CreateTicketRequest request)
     {
-        if (string.IsNullOrWhiteSpace(request.Subject)) return BadRequest("Subject required.");
-        if (request.Subject.Length > 200) return BadRequest("Subject must not exceed 200 characters.");
-        if (string.IsNullOrWhiteSpace(request.Description)) return BadRequest("Description required.");
-        if (request.Description.Length > 5000) return BadRequest("Description must not exceed 5000 characters.");
+        if (string.IsNullOrWhiteSpace(request.Subject))
+            return BadRequest("Subject required.");
+        if (request.Subject.Length > 200)
+            return BadRequest("Subject must not exceed 200 characters.");
+        if (string.IsNullOrWhiteSpace(request.Description))
+            return BadRequest("Description required.");
+        if (request.Description.Length > 5000)
+            return BadRequest("Description must not exceed 5000 characters.");
 
         var ticket = new SupportTicket
         {
@@ -71,8 +75,10 @@ public class TicketsController : ControllerBase
     public async Task<IActionResult> GetDetail(Guid id)
     {
         var ticket = await _tickets.GetByIdAsync(id);
-        if (ticket == null) return NotFound();
-        if (ticket.UserId != UserId && !IsPlatformAdmin()) return Forbid();
+        if (ticket == null)
+            return NotFound();
+        if (ticket.UserId != UserId && !IsPlatformAdmin())
+            return Forbid();
 
         var isAdmin = IsPlatformAdmin();
         var comments = await _tickets.GetCommentsAsync(id);
@@ -107,9 +113,12 @@ public class TicketsController : ControllerBase
     public async Task<IActionResult> CloseTicket(Guid id)
     {
         var ticket = await _tickets.GetByIdAsync(id);
-        if (ticket == null) return NotFound();
-        if (ticket.UserId != UserId) return Forbid();
-        if (ticket.Status == TicketStatus.Closed) return BadRequest("Ticket is already closed.");
+        if (ticket == null)
+            return NotFound();
+        if (ticket.UserId != UserId)
+            return Forbid();
+        if (ticket.Status == TicketStatus.Closed)
+            return BadRequest("Ticket is already closed.");
 
         ticket.Status = TicketStatus.Closed;
         await _tickets.UpdateAsync(ticket);
@@ -119,10 +128,13 @@ public class TicketsController : ControllerBase
     [HttpPost("{id}/comments")]
     public async Task<IActionResult> AddComment(Guid id, [FromBody] CreateCommentRequest request)
     {
-        if (string.IsNullOrWhiteSpace(request.Content)) return BadRequest("Content required.");
+        if (string.IsNullOrWhiteSpace(request.Content))
+            return BadRequest("Content required.");
         var ticket = await _tickets.GetByIdAsync(id);
-        if (ticket == null) return NotFound();
-        if (ticket.UserId != UserId && !IsPlatformAdmin()) return Forbid();
+        if (ticket == null)
+            return NotFound();
+        if (ticket.UserId != UserId && !IsPlatformAdmin())
+            return Forbid();
 
         var comment = new TicketComment
         {

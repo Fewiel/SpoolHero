@@ -28,5 +28,6 @@ builder.Services.AddScoped<TicketService>();
 builder.Services.AddScoped<SettingsService>();
 builder.Services.AddScoped<BrandingService>();
 builder.Services.AddScoped<SuggestionService>();
+builder.Services.AddScoped<FavoriteService>();
 
 await builder.Build().RunAsync();
