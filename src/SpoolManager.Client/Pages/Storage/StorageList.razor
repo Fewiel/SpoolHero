@@ -74,6 +74,12 @@ else
                                 <button class="btn btn-sm btn-outline-primary" @onclick="() => WriteTagAsync(loc)" title="@L["tag.write"]">
                                     <i class="bi bi-broadcast"></i>
                                 </button>
+                                <a href="@Tags.GetEntityDownloadUrl("storage", loc.Id)" class="btn btn-sm btn-outline-secondary" title="@L["tag.download.bin"]">
+                                    <i class="bi bi-download"></i>
+                                </a>
+                                <a href="@Tags.GetEntityJsonDownloadUrl("storage", loc.Id)" class="btn btn-sm btn-outline-secondary" title="@L["tag.download.json"]">
+                                    <i class="bi bi-file-text"></i>
+                                </a>
                                 <label class="btn btn-sm btn-outline-secondary mb-0" title="@L["common.image.upload"]" style="cursor:pointer">
                                     <i class="bi bi-image"></i>
                                     <InputFile accept="image/*" style="display:none" OnChange="e => UploadImageAsync(loc.Id, e)" />

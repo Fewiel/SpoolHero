@@ -21,4 +21,10 @@ public class TagService
             (await t).IsSuccessStatusCode ? await (await t).Content.ReadFromJsonAsync<TagEncodeResponse>() : null).Unwrap();
 
     public string GetDownloadUrl(Guid spoolId) => $"api/tags/download/{spoolId}";
+
+    public string GetJsonDownloadUrl(Guid spoolId) => $"api/tags/download/{spoolId}/json";
+
+    public string GetEntityDownloadUrl(string entityType, Guid entityId) => $"api/tags/download/entity/{entityType}/{entityId}";
+
+    public string GetEntityJsonDownloadUrl(string entityType, Guid entityId) => $"api/tags/download/entity/{entityType}/{entityId}/json";
 }

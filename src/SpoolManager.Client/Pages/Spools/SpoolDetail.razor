@@ -201,6 +201,9 @@ else
                         <a href="@Tags.GetDownloadUrl(Id)" class="btn btn-outline-secondary">
                             <i class="bi bi-download me-1"></i>@L["tag.download.bin"]
                         </a>
+                        <a href="@Tags.GetJsonDownloadUrl(Id)" class="btn btn-outline-secondary">
+                            <i class="bi bi-file-text me-1"></i>@L["tag.download.json"]
+                        </a>
                     </div>
                     @if (_nfcMessage != null)
                     {

@@ -401,6 +401,7 @@
   "tag.nfc.scanning": "Warte auf Tag...",
   "tag.nfc.not.supported": "Web NFC wird von diesem Browser nicht unterstützt.",
   "tag.download.bin": ".bin Datei herunterladen",
+  "tag.download.json": "JSON herunterladen",
   "tag.upload.bin": ".bin Datei hochladen",
   "tag.select.spool": "Spule auswählen",
   "tag.select.material": "Material auswählen",
