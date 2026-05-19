@@ -12,6 +12,40 @@
 <p class="text-muted">@L["material.export.orca.hint"]</p>
 
 <div class="card mb-4">
+    <div class="card-body">
+        <h6 class="card-title">@L["material.export.orca.from.spools"]</h6>
+
+        @if (_loadingSpools)
+        {
+            <div class="text-center py-2"><div class="spinner-border spinner-border-sm"></div></div>
+        }
+        else if (_spools.Count == 0)
+        {
+            <p class="text-muted small mb-0">@L["material.export.orca.from.spools.empty"]</p>
+        }
+        else
+        {
+            <div class="d-flex flex-wrap gap-2">
+                @foreach (var spool in _spools)
+                {
+                    var alreadyAdded = _selectedMaterials.Any(m => m.Id == spool.FilamentMaterialId);
+                    <button type="button"
+                            class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1"
+                            style="@(alreadyAdded ? "opacity:.5" : "")"
+                            @onclick="() => AddFromSpoolAsync(spool)"
+                            disabled="@alreadyAdded">
+                        <span style="width:.8em;height:.8em;background:#@spool.MaterialColorHex;border-radius:50%;border:1px solid var(--bs-border-color);flex-shrink:0"></span>
+                        @spool.MaterialBrand @spool.MaterialType
+                        @if (spool.MaterialColorName != null) { <span>- @spool.MaterialColorName</span> }
+                        <span class="text-muted ms-1">(@((int)spool.RemainingPercent)%)</span>
+                    </button>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+<div class="card mb-4">
         <div class="card-body">
             <h6 class="card-title">@L["material.export.orca.select"]</h6>
 

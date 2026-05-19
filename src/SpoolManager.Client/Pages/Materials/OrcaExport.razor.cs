@@ -2,12 +2,14 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
 using SpoolManager.Client.Services;
 using SpoolManager.Shared.DTOs.Materials;
+using SpoolManager.Shared.DTOs.Spools;
 
 namespace SpoolManager.Client.Pages.Materials;
 
 public partial class OrcaExport
 {
     [Inject] private MaterialService Materials { get; set; } = default!;
+    [Inject] private SpoolService Spools { get; set; } = default!;
     [Inject] private LocalizationService L { get; set; } = default!;
     [Inject] private IJSRuntime JS { get; set; } = default!;
     [Inject] private ProjectService Project { get; set; } = default!;
@@ -17,6 +19,24 @@ public partial class OrcaExport
     private string? _orcaError;
     private Guid? _pickerId;
     private List<FilamentMaterialDto> _selectedMaterials = [];
+    private bool _loadingSpools;
+    private List<SpoolDto> _spools = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _loadingSpools = true;
+        _spools = await Spools.GetAllAsync(consumed: false) ?? [];
+        _loadingSpools = false;
+    }
+
+    private async Task AddFromSpoolAsync(SpoolDto spool)
+    {
+        if (_selectedMaterials.Any(m => m.Id == spool.FilamentMaterialId))
+            return;
+        var material = await Materials.GetByIdAsync(spool.FilamentMaterialId);
+        if (material != null)
+            _selectedMaterials.Add(material);
+    }
 
     private void OnPicked(FilamentMaterialDto? m)
     {
