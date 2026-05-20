@@ -79,11 +79,27 @@ else
         <table class="table table-hover mb-0">
             <thead>
                 <tr>
-                    <th>@L["material.type"]</th>
-                    <th>@L["material.brand"]</th>
+                    <th style="cursor:pointer;white-space:nowrap" @onclick='() => SetSort("spool")'>
+                        @L["material.on.spool"]
+                        @if (_sortCol == "spool") { <i class="bi @(_sortAsc ? "bi-chevron-up" : "bi-chevron-down") ms-1" style="font-size:.75rem"></i> }
+                    </th>
+                    <th style="cursor:pointer;white-space:nowrap" @onclick='() => SetSort("type")'>
+                        @L["material.type"]
+                        @if (_sortCol == "type") { <i class="bi @(_sortAsc ? "bi-chevron-up" : "bi-chevron-down") ms-1" style="font-size:.75rem"></i> }
+                    </th>
+                    <th style="cursor:pointer;white-space:nowrap" @onclick='() => SetSort("brand")'>
+                        @L["material.brand"]
+                        @if (_sortCol == "brand") { <i class="bi @(_sortAsc ? "bi-chevron-up" : "bi-chevron-down") ms-1" style="font-size:.75rem"></i> }
+                    </th>
                     <th>@L["material.color.hex"]</th>
-                    <th class="d-none d-md-table-cell">Temp</th>
-                    <th class="d-none d-md-table-cell">Ø</th>
+                    <th class="d-none d-md-table-cell" style="cursor:pointer;white-space:nowrap" @onclick='() => SetSort("temp")'>
+                        Temp
+                        @if (_sortCol == "temp") { <i class="bi @(_sortAsc ? "bi-chevron-up" : "bi-chevron-down") ms-1" style="font-size:.75rem"></i> }
+                    </th>
+                    <th class="d-none d-md-table-cell" style="cursor:pointer;white-space:nowrap" @onclick='() => SetSort("diameter")'>
+                        Ø
+                        @if (_sortCol == "diameter") { <i class="bi @(_sortAsc ? "bi-chevron-up" : "bi-chevron-down") ms-1" style="font-size:.75rem"></i> }
+                    </th>
                     <th>@L["common.actions"]</th>
                 </tr>
             </thead>
@@ -91,6 +107,12 @@ else
                 @foreach (var m in _items)
                 {
                     <tr>
+                        <td class="text-center">
+                            @if (m.HasActiveSpool)
+                            {
+                                <i class="bi bi-check-circle-fill text-success" title="@L["material.on.spool"]"></i>
+                            }
+                        </td>
                         <td><strong>@m.Type</strong></td>
                         <td>@m.Brand</td>
                         <td>

@@ -9,7 +9,7 @@ public interface IMaterialRepository
     Task<List<FilamentMaterial>> GetAllAsync(Guid projectId, string? search = null);
     Task<List<FilamentMaterial>> SearchAsync(Guid projectId, string query, int limit = 250);
     Task<int> CountAsync(Guid projectId);
-    Task<(List<FilamentMaterial> Items, int TotalCount)> GetPagedAsync(Guid projectId, int page, int pageSize, string? type = null, string? brand = null, string? color = null);
+    Task<(List<(FilamentMaterial Material, bool HasActiveSpool)> Items, int TotalCount)> GetPagedAsync(Guid projectId, int page, int pageSize, string? type = null, string? brand = null, string? color = null, string? sortBy = null, bool sortAsc = true);
     Task<List<string>> GetDistinctTypesAsync(Guid projectId);
     Task<List<string>> GetDistinctBrandsAsync(Guid projectId);
     Task<List<string>> GetDistinctColorsAsync(Guid projectId);
@@ -63,24 +63,41 @@ public class MaterialRepository : IMaterialRepository
     public async Task<int> CountAsync(Guid projectId) =>
         await _db.FilamentMaterials.CountAsync(m => m.ProjectId == projectId || m.ProjectId == null);
 
-    public async Task<(List<FilamentMaterial> Items, int TotalCount)> GetPagedAsync(Guid projectId, int page, int pageSize, string? type = null, string? brand = null, string? color = null)
+    public async Task<(List<(FilamentMaterial Material, bool HasActiveSpool)> Items, int TotalCount)> GetPagedAsync(Guid projectId, int page, int pageSize, string? type = null, string? brand = null, string? color = null, string? sortBy = null, bool sortAsc = true)
     {
-        var query = _db.FilamentMaterials.Where(m => m.ProjectId == projectId || m.ProjectId == null);
+        var activeSpoolMaterialIds = _db.Spools
+            .Where(s => s.ProjectId == projectId && s.ConsumedAt == null)
+            .Select(s => s.FilamentMaterialId);
+
+        var baseQuery = _db.FilamentMaterials.Where(m => m.ProjectId == projectId || m.ProjectId == null);
 
         if (!string.IsNullOrWhiteSpace(type))
-            query = query.Where(m => m.Type == type);
+            baseQuery = baseQuery.Where(m => m.Type == type);
         if (!string.IsNullOrWhiteSpace(brand))
-            query = query.Where(m => m.Brand.Contains(brand));
+            baseQuery = baseQuery.Where(m => m.Brand.Contains(brand));
         if (!string.IsNullOrWhiteSpace(color))
-            query = query.Where(m => m.ColorName != null && m.ColorName.Contains(color));
+            baseQuery = baseQuery.Where(m => m.ColorName != null && m.ColorName.Contains(color));
 
-        var totalCount = await query.CountAsync();
-        var items = await query
-            .OrderBy(m => m.Brand).ThenBy(m => m.Type)
-            .Skip(page * pageSize).Take(pageSize)
-            .ToListAsync();
+        var withFlag = baseQuery.Select(m => new { Material = m, HasActiveSpool = activeSpoolMaterialIds.Contains(m.Id) });
 
-        return (items, totalCount);
+        var totalCount = await withFlag.CountAsync();
+
+        var ordered = (sortBy?.ToLower(), sortAsc) switch
+        {
+            ("type", true)      => withFlag.OrderBy(x => x.Material.Type).ThenBy(x => x.Material.Brand),
+            ("type", false)     => withFlag.OrderByDescending(x => x.Material.Type).ThenBy(x => x.Material.Brand),
+            ("brand", true)     => withFlag.OrderBy(x => x.Material.Brand).ThenBy(x => x.Material.Type),
+            ("brand", false)    => withFlag.OrderByDescending(x => x.Material.Brand).ThenBy(x => x.Material.Type),
+            ("temp", true)      => withFlag.OrderBy(x => x.Material.MinTempCelsius).ThenBy(x => x.Material.Brand),
+            ("temp", false)     => withFlag.OrderByDescending(x => x.Material.MinTempCelsius).ThenBy(x => x.Material.Brand),
+            ("diameter", true)  => withFlag.OrderBy(x => x.Material.DiameterMm).ThenBy(x => x.Material.Brand),
+            ("diameter", false) => withFlag.OrderByDescending(x => x.Material.DiameterMm).ThenBy(x => x.Material.Brand),
+            (_, true)           => withFlag.OrderBy(x => x.HasActiveSpool).ThenBy(x => x.Material.Brand).ThenBy(x => x.Material.Type),
+            _                   => withFlag.OrderByDescending(x => x.HasActiveSpool).ThenBy(x => x.Material.Brand).ThenBy(x => x.Material.Type),
+        };
+
+        var rows = await ordered.Skip(page * pageSize).Take(pageSize).ToListAsync();
+        return (rows.Select(x => (x.Material, x.HasActiveSpool)).ToList(), totalCount);
     }
 
     public async Task<List<string>> GetDistinctTypesAsync(Guid projectId) =>

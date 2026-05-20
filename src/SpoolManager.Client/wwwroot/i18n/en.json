@@ -177,6 +177,7 @@
   "material.export.orca.hint": "Download filament profiles as Orca Slicer-compatible JSON files. Import in Orca/Snapmaker Orca via File > Import > Import Configs.",
   "material.export.orca.button": "Download Orca Profiles",
   "material.export.orca.info": "Export selected materials or leave empty for all. 1 material = .json, multiple = .zip.",
+  "material.on.spool": "Spool",
   "material.export.orca.from.spools": "Select Materials from My Spools",
   "material.export.orca.from.spools.empty": "No active spools found. Add spools on the Spools page.",
   "material.export.orca.select": "Add other material to export",

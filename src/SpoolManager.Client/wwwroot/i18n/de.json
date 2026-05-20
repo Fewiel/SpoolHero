@@ -177,6 +177,7 @@
   "material.export.orca.hint": "Filament-Profile als Orca-Slicer-kompatible JSON-Dateien herunterladen. In Orca/Snapmaker Orca ueber Datei > Import > Configs importieren.",
   "material.export.orca.button": "Orca-Profile herunterladen",
   "material.export.orca.info": "Ausgewaehlte Materialien exportieren oder leer lassen fuer alle. 1 Material = .json, mehrere = .zip.",
+  "material.on.spool": "Spule",
   "material.export.orca.from.spools": "Materialien aus meinen Spulen auswaehlen",
   "material.export.orca.from.spools.empty": "Keine aktiven Spulen gefunden. Spulen auf der Spulen-Seite hinzufuegen.",
   "material.export.orca.select": "Weiteres Material zum Export hinzufuegen",
