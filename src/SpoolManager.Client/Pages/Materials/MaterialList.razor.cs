@@ -26,6 +26,8 @@ public partial class MaterialList
     private List<string> _colors = [];
     private MaterialSummaryDto? _deleteTarget;
     private bool _favoritesOnly;
+    private string _sortCol = "spool";
+    private bool _sortAsc;
 
     private int TotalPages => Math.Max(1, (int)Math.Ceiling(_totalCount / (double)PageSize));
 
@@ -57,7 +59,8 @@ public partial class MaterialList
             _page, PageSize,
             string.IsNullOrWhiteSpace(_typeFilter) ? null : _typeFilter,
             string.IsNullOrWhiteSpace(_brandFilter) ? null : _brandFilter,
-            string.IsNullOrWhiteSpace(_colorFilter) ? null : _colorFilter);
+            string.IsNullOrWhiteSpace(_colorFilter) ? null : _colorFilter,
+            _sortCol, _sortAsc);
 
         _items = result.Items.ToArray();
         _totalCount = result.TotalCount;
@@ -110,6 +113,19 @@ public partial class MaterialList
     private async Task SetPage(int page)
     {
         _page = Math.Clamp(page, 0, TotalPages - 1);
+        await LoadAsync();
+    }
+
+    private async Task SetSort(string col)
+    {
+        if (_sortCol == col)
+            _sortAsc = !_sortAsc;
+        else
+        {
+            _sortCol = col;
+            _sortAsc = col != "spool";
+        }
+        _page = 0;
         await LoadAsync();
     }
 

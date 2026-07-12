@@ -52,16 +52,16 @@ public class MaterialsController : ControllerBase
     }
 
     [HttpGet("paged")]
-    public async Task<IActionResult> GetPaged([FromQuery] int page = 0, [FromQuery] int pageSize = 50, [FromQuery] string? type = null, [FromQuery] string? brand = null, [FromQuery] string? color = null)
+    public async Task<IActionResult> GetPaged([FromQuery] int page = 0, [FromQuery] int pageSize = 50, [FromQuery] string? type = null, [FromQuery] string? brand = null, [FromQuery] string? color = null, [FromQuery] string? sortBy = null, [FromQuery] bool sortAsc = true)
     {
         pageSize = Math.Clamp(pageSize, 1, 100);
-        var (items, totalCount) = await _materials.GetPagedAsync(ProjectMember.ProjectId, page, pageSize, type, brand, color);
+        var (items, totalCount) = await _materials.GetPagedAsync(ProjectMember.ProjectId, page, pageSize, type, brand, color, sortBy, sortAsc);
         var types = await _materials.GetDistinctTypesAsync(ProjectMember.ProjectId);
         var brands = await _materials.GetDistinctBrandsAsync(ProjectMember.ProjectId);
         var colors = await _materials.GetDistinctColorsAsync(ProjectMember.ProjectId);
         return Ok(new PaginatedResult<MaterialSummaryDto>
         {
-            Items = items.Select(MapToSummary).ToList(),
+            Items = items.Select(x => MapToSummary(x.Material, x.HasActiveSpool)).ToList(),
             TotalCount = totalCount,
             Types = types,
             Brands = brands,
@@ -282,12 +282,13 @@ public class MaterialsController : ControllerBase
         m.IsPublic = r.IsPublic;
     }
 
-    internal static MaterialSummaryDto MapToSummary(FilamentMaterial m) => new()
+    internal static MaterialSummaryDto MapToSummary(FilamentMaterial m, bool hasActiveSpool = false) => new()
     {
         Id = m.Id, Type = m.Type, Brand = m.Brand, ColorHex = m.ColorHex,
         ColorName = m.ColorName, MinTempCelsius = m.MinTempCelsius,
         MaxTempCelsius = m.MaxTempCelsius, DiameterMm = m.DiameterMm,
-        ReorderUrl = m.ReorderUrl, OfdVariantId = m.OfdVariantId
+        ReorderUrl = m.ReorderUrl, OfdVariantId = m.OfdVariantId,
+        HasActiveSpool = hasActiveSpool
     };
 
     internal static FilamentMaterialDto MapToDto(FilamentMaterial m) => new()

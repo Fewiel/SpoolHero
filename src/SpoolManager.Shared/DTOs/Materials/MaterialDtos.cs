@@ -38,6 +38,7 @@ public class MaterialSummaryDto
     public decimal DiameterMm { get; set; }
     public string? ReorderUrl { get; set; }
     public string? OfdVariantId { get; set; }
+    public bool HasActiveSpool { get; set; }
 }
 
 public class PaginatedResult<T>
