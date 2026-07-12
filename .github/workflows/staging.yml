@@ -49,6 +49,10 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          proxy_host: ${{ secrets.PROXY_HOST }}
+          proxy_port: 22
+          proxy_username: ${{ secrets.PROXY_USER }}
+          proxy_key: ${{ secrets.PROXY_SSH_KEY }}
           script: systemctl stop spoolhero-beta || true
 
       - name: Upload archive
@@ -57,6 +61,10 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          proxy_host: ${{ secrets.PROXY_HOST }}
+          proxy_port: 22
+          proxy_username: ${{ secrets.PROXY_USER }}
+          proxy_key: ${{ secrets.PROXY_SSH_KEY }}
           source: "spoolhero-beta.zip"
           target: "/tmp/"
 
@@ -66,6 +74,10 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          proxy_host: ${{ secrets.PROXY_HOST }}
+          proxy_port: 22
+          proxy_username: ${{ secrets.PROXY_USER }}
+          proxy_key: ${{ secrets.PROXY_SSH_KEY }}
           script: |
             rm -rf /opt/spoolhero-beta
             mkdir -p /opt/spoolhero-beta
@@ -79,7 +91,7 @@ jobs:
               cat > /etc/systemd/system/spoolhero-beta.service << 'EOF'
             [Unit]
             Description=SpoolHero Beta Staging
-            After=network.target
+            After=network.target mysql.service
 
             [Service]
             WorkingDirectory=/opt/spoolhero-beta
@@ -88,7 +100,7 @@ jobs:
             RestartSec=5
             User=www-data
             Environment=ASPNETCORE_ENVIRONMENT=Staging
-            Environment=ASPNETCORE_URLS=http://localhost:5100
+            Environment=ASPNETCORE_URLS=http://0.0.0.0:5100
 
             [Install]
             WantedBy=multi-user.target

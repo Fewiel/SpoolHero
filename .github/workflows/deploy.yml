@@ -163,6 +163,10 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          proxy_host: ${{ secrets.PROXY_HOST }}
+          proxy_port: 22
+          proxy_username: ${{ secrets.PROXY_USER }}
+          proxy_key: ${{ secrets.PROXY_SSH_KEY }}
           script: systemctl stop spoolhero || true
 
       - name: Upload archive
@@ -171,6 +175,10 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          proxy_host: ${{ secrets.PROXY_HOST }}
+          proxy_port: 22
+          proxy_username: ${{ secrets.PROXY_USER }}
+          proxy_key: ${{ secrets.PROXY_SSH_KEY }}
           source: "${{ needs.build.outputs.artifact }}"
           target: "/tmp/"
 
@@ -180,6 +188,10 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          proxy_host: ${{ secrets.PROXY_HOST }}
+          proxy_port: 22
+          proxy_username: ${{ secrets.PROXY_USER }}
+          proxy_key: ${{ secrets.PROXY_SSH_KEY }}
           script: |
             rm -rf /opt/spoolhero
             mkdir -p /opt/spoolhero
