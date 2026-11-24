@@ -132,7 +132,7 @@ public class OpenSpoolService : IOpenSpoolService
     {
         try
         {
-            var json = ExtractJsonFromNdef(ndefBytes);
+            var json = NdefParser.ExtractJson(ndefBytes);
             if (json == null)
                 return (new FilamentMaterial(), false);
 
@@ -171,36 +171,6 @@ public class OpenSpoolService : IOpenSpoolService
         ms.Write(typeBytes, 0, typeBytes.Length);
         ms.Write(payload, 0, payload.Length);
         return ms.ToArray();
-    }
-
-    private static string? ExtractJsonFromNdef(byte[] data)
-    {
-        if (data.Length < 3)
-            return null;
-
-        var pos = 0;
-        var flags = data[pos++];
-        var typeLength = data[pos++];
-        bool isShortRecord = (flags & 0x10) != 0;
-
-        int payloadLength;
-        if (isShortRecord)
-        {
-            payloadLength = data[pos++];
-        }
-        else
-        {
-            if (pos + 4 > data.Length)
-                return null;
-            payloadLength = (data[pos] << 24) | (data[pos + 1] << 16) | (data[pos + 2] << 8) | data[pos + 3];
-            pos += 4;
-        }
-
-        pos += typeLength;
-        if (pos + payloadLength > data.Length)
-            return null;
-
-        return Encoding.UTF8.GetString(data, pos, payloadLength);
     }
 
     private class OpenSpoolPayload

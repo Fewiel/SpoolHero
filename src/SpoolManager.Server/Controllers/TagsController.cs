@@ -106,39 +106,33 @@ public class TagsController : ControllerBase
     [HttpPost("decode")]
     public IActionResult Decode(TagDecodeRequest request)
     {
+        byte[] bytes;
         try
         {
-            var bytes = Convert.FromBase64String(request.Base64);
-            var (material, isValid) = _openSpool.Decode(bytes);
-
-            string rawJson = string.Empty;
-            Guid? spoolId = null;
-            if (isValid)
-            {
-                var json = _openSpool.ToJson(material);
-                var parseResult = _openSpool.FromJson(json);
-                var rj = parseResult.RawJson;
-                var sid = parseResult.SpoolId;
-                rawJson = rj;
-                spoolId = sid;
-            }
-
-            return Ok(new TagDecodeResponse
-            {
-                RawJson = rawJson,
-                Type = isValid ? material.Type : null,
-                ColorHex = isValid ? material.ColorHex : null,
-                Brand = isValid ? material.Brand : null,
-                MinTemp = isValid ? material.MinTempCelsius : null,
-                MaxTemp = isValid ? material.MaxTempCelsius : null,
-                IsValid = isValid,
-                SpoolId = spoolId
-            });
+            bytes = Convert.FromBase64String(request.Base64);
         }
-        catch
+        catch (FormatException)
         {
             return BadRequest(new { message = "Invalid NDEF data." });
         }
+
+        var json = NdefParser.ExtractJson(bytes);
+        if (json == null)
+            return BadRequest(new { message = "Invalid NDEF data." });
+
+        var result = _openSpool.FromJson(json);
+        var material = result.Material;
+        return Ok(new TagDecodeResponse
+        {
+            RawJson = json,
+            Type = material?.Type,
+            ColorHex = material?.ColorHex,
+            Brand = material?.Brand,
+            MinTemp = material?.MinTempCelsius,
+            MaxTemp = material?.MaxTempCelsius,
+            IsValid = result.IsValid,
+            SpoolId = result.SpoolId
+        });
     }
 
     [HttpGet("download/{spoolId}")]
