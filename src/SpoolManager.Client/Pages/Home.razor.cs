@@ -25,6 +25,9 @@ public partial class Home : IDisposable
     private List<LocationGroup> _locationGroups = [];
 
     private record LocationGroup(string Name, string Icon, string Color, int SpoolCount);
+    private List<MaterialStock> _materialStock = [];
+    private int _materialStockTotal;
+    private record MaterialStock(string Brand, string Type, string ColorHex, string? ColorName, int SpoolCount, decimal TotalGrams);
 
     protected override void OnInitialized()
     {
@@ -69,6 +72,15 @@ public partial class Home : IDisposable
 
         var activeSpools = all.Where(s => s.ConsumedAt == null).ToList();
         _storedCount = activeSpools.Count(s => s.StorageLocationName != null);
+
+        var stock = activeSpools
+            .GroupBy(s => s.FilamentMaterialId)
+            .Select(g => new MaterialStock(g.First().MaterialBrand, g.First().MaterialType, g.First().MaterialColorHex,
+                g.First().MaterialColorName, g.Count(), g.Sum(s => s.RemainingWeightGrams)))
+            .OrderBy(m => m.TotalGrams)
+            .ToList();
+        _materialStockTotal = stock.Count;
+        _materialStock = [.. stock.Take(12)];
         var groups = new List<LocationGroup>();
 
         foreach (var g in activeSpools.Where(s => s.PrinterName != null).GroupBy(s => s.PrinterName!))

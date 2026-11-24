@@ -252,6 +252,7 @@ public class MaterialsController : ControllerBase
         ColorName = r.ColorName,
         DiameterMm = r.DiameterMm,
         WeightGrams = r.WeightGrams,
+        SpoolWeightGrams = r.SpoolWeightGrams,
         BedTempCelsius = r.BedTempCelsius,
         DensityGCm3 = r.DensityGCm3,
         DryTempCelsius = r.DryTempCelsius,
@@ -272,6 +273,7 @@ public class MaterialsController : ControllerBase
         m.ColorName = r.ColorName;
         m.DiameterMm = r.DiameterMm;
         m.WeightGrams = r.WeightGrams;
+        m.SpoolWeightGrams = r.SpoolWeightGrams;
         m.BedTempCelsius = r.BedTempCelsius;
         m.DensityGCm3 = r.DensityGCm3;
         m.DryTempCelsius = r.DryTempCelsius;
@@ -295,7 +297,7 @@ public class MaterialsController : ControllerBase
     {
         Id = m.Id, Type = m.Type, ColorHex = m.ColorHex, Brand = m.Brand,
         MinTempCelsius = m.MinTempCelsius, MaxTempCelsius = m.MaxTempCelsius,
-        ColorName = m.ColorName, DiameterMm = m.DiameterMm, WeightGrams = m.WeightGrams,
+        ColorName = m.ColorName, DiameterMm = m.DiameterMm, WeightGrams = m.WeightGrams, SpoolWeightGrams = m.SpoolWeightGrams,
         BedTempCelsius = m.BedTempCelsius, DensityGCm3 = m.DensityGCm3,
         DryTempCelsius = m.DryTempCelsius, DryTimeHours = m.DryTimeHours,
         Notes = m.Notes, ReorderUrl = m.ReorderUrl, PricePerKg = m.PricePerKg,
@@ -308,7 +310,7 @@ public class MaterialsController : ControllerBase
     {
         Type = d.Type, ColorHex = d.ColorHex, Brand = d.Brand,
         MinTempCelsius = d.MinTempCelsius, MaxTempCelsius = d.MaxTempCelsius,
-        ColorName = d.ColorName, DiameterMm = d.DiameterMm, WeightGrams = d.WeightGrams,
+        ColorName = d.ColorName, DiameterMm = d.DiameterMm, WeightGrams = d.WeightGrams, SpoolWeightGrams = d.SpoolWeightGrams,
         BedTempCelsius = d.BedTempCelsius, DensityGCm3 = d.DensityGCm3,
         DryTempCelsius = d.DryTempCelsius, DryTimeHours = d.DryTimeHours,
         Notes = d.Notes, ReorderUrl = d.ReorderUrl, PricePerKg = d.PricePerKg,

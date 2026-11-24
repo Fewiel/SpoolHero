@@ -8,9 +8,9 @@ public class SpoolService
     private readonly HttpClient _http;
     public SpoolService(HttpClient http) => _http = http;
 
-    public Task<List<SpoolDto>?> GetAllAsync(Guid? materialId = null, Guid? printerId = null, Guid? storageId = null, Guid? dryerId = null, bool? consumed = null, string? search = null)
+    public Task<List<SpoolDto>?> GetAllAsync(Guid? materialId = null, Guid? printerId = null, Guid? storageId = null, Guid? dryerId = null, bool? consumed = null, string? search = null, string? owner = null)
     {
-        var query = BuildQuery(("materialId", materialId?.ToString()), ("printerId", printerId?.ToString()), ("storageId", storageId?.ToString()), ("dryerId", dryerId?.ToString()), ("consumed", consumed?.ToString().ToLower()), ("search", search));
+        var query = BuildQuery(("materialId", materialId?.ToString()), ("printerId", printerId?.ToString()), ("storageId", storageId?.ToString()), ("dryerId", dryerId?.ToString()), ("consumed", consumed?.ToString().ToLower()), ("search", search), ("owner", owner));
         return _http.GetFromJsonAsync<List<SpoolDto>>($"api/spools{query}");
     }
 
@@ -33,6 +33,10 @@ public class SpoolService
     public Task<HttpResponseMessage> MarkConsumedAsync(Guid id) => _http.PutAsJsonAsync($"api/spools/{id}/consume", new { });
 
     public Task<HttpResponseMessage> UpdateRemainingAsync(Guid id, UpdateRemainingRequest request) => _http.PatchAsJsonAsync($"api/spools/{id}/remaining", request);
+
+    public Task<List<string>?> GetOwnersAsync() => _http.GetFromJsonAsync<List<string>>("api/spools/owners");
+
+    public Task<HttpResponseMessage> WeighAsync(Guid id, WeighSpoolRequest request) => _http.PutAsJsonAsync($"api/spools/{id}/weigh", request);
 
     private static string BuildQuery(params (string key, string? value)[] pairs)
     {

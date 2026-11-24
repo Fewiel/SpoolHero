@@ -11,6 +11,7 @@ public class FilamentMaterialDto
     public string? ColorName { get; set; }
     public decimal DiameterMm { get; set; } = 1.75m;
     public int? WeightGrams { get; set; }
+    public int? SpoolWeightGrams { get; set; }
     public int? BedTempCelsius { get; set; }
     public decimal? DensityGCm3 { get; set; }
     public int? DryTempCelsius { get; set; }
@@ -60,6 +61,7 @@ public class CreateMaterialRequest
     public string? ColorName { get; set; }
     public decimal DiameterMm { get; set; } = 1.75m;
     public int? WeightGrams { get; set; }
+    public int? SpoolWeightGrams { get; set; }
     public int? BedTempCelsius { get; set; }
     public decimal? DensityGCm3 { get; set; }
     public int? DryTempCelsius { get; set; }

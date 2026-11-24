@@ -49,7 +49,7 @@ public partial class AdminMaterialForm
                 {
                     Type = m.Type, ColorHex = m.ColorHex, Brand = m.Brand,
                     MinTempCelsius = m.MinTempCelsius, MaxTempCelsius = m.MaxTempCelsius,
-                    ColorName = m.ColorName, DiameterMm = m.DiameterMm, WeightGrams = m.WeightGrams,
+                    ColorName = m.ColorName, DiameterMm = m.DiameterMm, WeightGrams = m.WeightGrams, SpoolWeightGrams = m.SpoolWeightGrams,
                     BedTempCelsius = m.BedTempCelsius, DensityGCm3 = m.DensityGCm3,
                     DryTempCelsius = m.DryTempCelsius, DryTimeHours = m.DryTimeHours,
                     Notes = m.Notes, ReorderUrl = m.ReorderUrl, PricePerKg = m.PricePerKg,
@@ -75,7 +75,7 @@ public partial class AdminMaterialForm
             {
                 Type = _form.Type, ColorHex = _form.ColorHex.ToUpper(), Brand = _form.Brand,
                 MinTempCelsius = _form.MinTempCelsius, MaxTempCelsius = _form.MaxTempCelsius,
-                ColorName = _form.ColorName, DiameterMm = _form.DiameterMm, WeightGrams = _form.WeightGrams,
+                ColorName = _form.ColorName, DiameterMm = _form.DiameterMm, WeightGrams = _form.WeightGrams, SpoolWeightGrams = _form.SpoolWeightGrams,
                 BedTempCelsius = _form.BedTempCelsius, DensityGCm3 = _form.DensityGCm3,
                 DryTempCelsius = _form.DryTempCelsius, DryTimeHours = _form.DryTimeHours,
                 Notes = _form.Notes, ReorderUrl = _form.ReorderUrl, PricePerKg = _form.PricePerKg,
@@ -86,7 +86,7 @@ public partial class AdminMaterialForm
             {
                 Type = _form.Type, ColorHex = _form.ColorHex.ToUpper(), Brand = _form.Brand,
                 MinTempCelsius = _form.MinTempCelsius, MaxTempCelsius = _form.MaxTempCelsius,
-                ColorName = _form.ColorName, DiameterMm = _form.DiameterMm, WeightGrams = _form.WeightGrams,
+                ColorName = _form.ColorName, DiameterMm = _form.DiameterMm, WeightGrams = _form.WeightGrams, SpoolWeightGrams = _form.SpoolWeightGrams,
                 BedTempCelsius = _form.BedTempCelsius, DensityGCm3 = _form.DensityGCm3,
                 DryTempCelsius = _form.DryTempCelsius, DryTimeHours = _form.DryTimeHours,
                 Notes = _form.Notes, ReorderUrl = _form.ReorderUrl, PricePerKg = _form.PricePerKg,

@@ -20,6 +20,9 @@ public partial class SpoolList : IDisposable
     private List<SpoolDto> _spools = [];
     private string _search = string.Empty;
     private string _filter = "active";
+    private string _owner = string.Empty;
+    private List<string> _owners = [];
+    private bool _grouped;
     private SpoolDto? _deleteTarget;
     private Timer? _searchTimer;
     private Timer? _clockTimer;
@@ -61,6 +64,8 @@ public partial class SpoolList : IDisposable
     {
         if (Project.CurrentProject == null)
             return;
+        _grouped = Nav.Uri.Contains("view=materials", StringComparison.OrdinalIgnoreCase);
+        _owners = await Spools.GetOwnersAsync() ?? [];
         await LoadAsync();
         _nfcAvailable = await Nfc.CheckSupportAsync();
         _clockTimer = new Timer(60_000);
@@ -72,7 +77,8 @@ public partial class SpoolList : IDisposable
     {
         _loading = true;
         bool? consumed = _filter == "active" ? false : _filter == "consumed" ? true : null;
-        _spools = await Spools.GetAllAsync(consumed: consumed, search: string.IsNullOrWhiteSpace(_search) ? null : _search) ?? [];
+        _spools = await Spools.GetAllAsync(consumed: consumed, search: string.IsNullOrWhiteSpace(_search) ? null : _search,
+            owner: string.IsNullOrEmpty(_owner) ? null : _owner) ?? [];
         _loading = false;
     }
 
@@ -84,6 +90,26 @@ public partial class SpoolList : IDisposable
         _searchTimer.Elapsed += async (_, _) => { _searchTimer?.Stop(); await InvokeAsync(LoadAsync); };
         _searchTimer.Start();
     }
+
+    private void SetGrouped(bool grouped)
+    {
+        _grouped = grouped;
+        Nav.NavigateTo(grouped ? "/spools?view=materials" : "/spools", replace: true);
+    }
+
+    private IEnumerable<SpoolMaterialGroup> MaterialGroups => _spools
+        .GroupBy(s => s.FilamentMaterialId)
+        .Select(g => new SpoolMaterialGroup(
+            g.First().MaterialBrand, g.First().MaterialType, g.First().MaterialColorHex, g.First().MaterialColorName,
+            g.OrderBy(s => s.RemainingWeightGrams).ToList(),
+            g.Sum(s => s.RemainingWeightGrams),
+            g.Sum(s => (decimal)(s.MaterialWeightGrams ?? 0))))
+        .OrderBy(g => g.Brand).ThenBy(g => g.Type).ThenBy(g => g.ColorName);
+
+    private string LocationLabel(SpoolDto s) => s.PrinterName ?? s.StorageLocationName ?? s.DryerName ?? string.Empty;
+
+    private sealed record SpoolMaterialGroup(string Brand, string Type, string ColorHex, string? ColorName,
+        List<SpoolDto> Spools, decimal TotalGrams, decimal CapacityGrams);
 
     private void ConfirmDelete(SpoolDto spool) => _deleteTarget = spool;
 
@@ -108,7 +134,9 @@ public partial class SpoolList : IDisposable
             PurchasedAt = spool.PurchasedAt,
             PurchasePrice = spool.PurchasePrice,
             ReorderUrl = spool.ReorderUrl,
-            Notes = spool.Notes
+            Notes = spool.Notes,
+            OwnerName = spool.OwnerName,
+            EmptySpoolWeightGrams = spool.EmptySpoolWeightGrams
         });
         if (resp.IsSuccessStatusCode)
             await LoadAsync();

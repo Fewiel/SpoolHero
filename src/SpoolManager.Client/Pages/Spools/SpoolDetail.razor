@@ -1,4 +1,5 @@
 @page "/spools/{Id:guid}"
+@using SpoolManager.Shared.Helpers
 
 <PageTitle>@L["spool.title"] – @L["app.name"]</PageTitle>
 
@@ -35,11 +36,37 @@ else
                         <span class="text-muted ms-2">(@_spool.RemainingPercent%)</span>
                     </div>
 
-                    @if (!_showRemainingForm)
+                    @if (_showWeighForm)
                     {
-                        <button class="btn btn-sm btn-outline-primary" @onclick="() => _showRemainingForm = true">
-                            <i class="bi bi-pencil me-1"></i>@L["spool.update.remaining"]
-                        </button>
+                        <div class="row g-2 align-items-end">
+                            <div class="col-6">
+                                <label class="form-label form-label-sm">@L["spool.weigh.gross"]</label>
+                                <input class="form-control form-control-sm" type="number" step="0.1" min="0" @bind="_grossWeight" @bind:event="oninput" />
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label form-label-sm">@L["spool.weigh.tare"]</label>
+                                <input class="form-control form-control-sm" type="number" step="0.1" min="0" @bind="_tareWeight" @bind:event="oninput" />
+                            </div>
+                            @if (_weighError != null)
+                            {
+                                <div class="col-12"><div class="text-danger small">@_weighError</div></div>
+                            }
+                            <div class="col-12 d-flex gap-2 mt-1">
+                                <button class="btn btn-sm btn-primary" @onclick="WeighAsync" disabled="@(_grossWeight == null)">@L["spool.weigh.apply"]</button>
+                                <button class="btn btn-sm btn-secondary" @onclick="() => _showWeighForm = false">@L["common.cancel"]</button>
+                            </div>
+                        </div>
+                    }
+                    else if (!_showRemainingForm)
+                    {
+                        <div class="d-flex flex-wrap gap-2">
+                            <button class="btn btn-sm btn-outline-primary" @onclick="() => _showRemainingForm = true">
+                                <i class="bi bi-pencil me-1"></i>@L["spool.update.remaining"]
+                            </button>
+                            <button class="btn btn-sm btn-outline-primary" @onclick="OpenWeighForm">
+                                <i class="bi bi-speedometer me-1"></i>@L["spool.weigh.title"]
+                            </button>
+                        </div>
                     }
                     else
                     {
@@ -151,6 +178,14 @@ else
                         <div class="col-6 col-md-3">
                             <small class="text-muted d-block">@L["spool.dryer"]</small>
                             @(_spool.DryerName ?? "–")
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <small class="text-muted d-block">@L["spool.owner"]</small>
+                            @(_spool.OwnerName ?? "–")
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <small class="text-muted d-block">@L["spool.weigh.tare"]</small>
+                            @(SpoolWeightCalculator.EffectiveTare(_spool.EmptySpoolWeightGrams, _spool.MaterialSpoolWeightGrams) is { } tare ? $"{tare:0.#} g" : "–")
                         </div>
                         <div class="col-6 col-md-3">
                             <small class="text-muted d-block">@L["spool.purchased"]</small>

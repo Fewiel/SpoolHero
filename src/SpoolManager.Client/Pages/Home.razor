@@ -120,6 +120,31 @@ else
         </div>
     }
 
+    @if (_materialStock.Count > 0)
+    {
+        <div class="d-flex align-items-center justify-content-between mb-3">
+            <h5 class="mb-0"><i class="bi bi-collection me-2"></i>@L["dashboard.stock.by.material"]</h5>
+            <a href="/spools?view=materials" class="small text-decoration-none">
+                @L["dashboard.stock.show.all"] (@_materialStockTotal) <i class="bi bi-arrow-right"></i>
+            </a>
+        </div>
+        <div class="row g-2 mb-4">
+            @foreach (var m in _materialStock)
+            {
+                <div class="col-12 col-sm-6 col-lg-4 col-xxl-3">
+                    <div class="d-flex align-items-center gap-2 p-2 rounded border h-100">
+                        <div class="color-dot flex-shrink-0" style="background-color: #@m.ColorHex"></div>
+                        <div class="flex-grow-1 overflow-hidden">
+                            <div class="text-truncate small fw-semibold">@m.Brand @m.Type</div>
+                            <div class="text-muted text-truncate" style="font-size:.75em">@(m.ColorName ?? "#" + m.ColorHex) · @m.SpoolCount× </div>
+                        </div>
+                        <span class="fw-semibold small text-nowrap">@m.TotalGrams.ToString("0") g</span>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+
     <h5 class="mb-3">@L["dashboard.recent"]</h5>
     <div class="row g-3">
         @foreach (var spool in _recent)
@@ -138,6 +163,10 @@ else
                             <div class="remaining-bar-fill @GetBarClass(spool.RemainingPercent)" style="width: @((int)spool.RemainingPercent)%"></div>
                         </div>
                         <small class="text-muted">@spool.RemainingWeightGrams g (@spool.RemainingPercent%)</small>
+                        @if (spool.OwnerName != null)
+                        {
+                            <span class="badge text-bg-light border ms-1"><i class="bi bi-person me-1"></i>@spool.OwnerName</span>
+                        }
                     </div>
                 </a>
             </div>

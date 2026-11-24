@@ -5,6 +5,7 @@ using SpoolManager.Infrastructure.Repositories;
 using SpoolManager.Infrastructure.Services;
 using SpoolManager.Server.Filters;
 using SpoolManager.Shared.DTOs.Spools;
+using SpoolManager.Shared.Helpers;
 using SpoolManager.Shared.Models;
 
 namespace SpoolManager.Server.Controllers;
@@ -35,11 +36,16 @@ public class SpoolsController : ControllerBase
         [FromQuery] Guid? storageId,
         [FromQuery] Guid? dryerId,
         [FromQuery] bool? consumed,
-        [FromQuery] string? search)
+        [FromQuery] string? search,
+        [FromQuery] string? owner)
     {
-        var spools = await _spools.GetAllAsync(ProjectMember.ProjectId, materialId, printerId, storageId, dryerId, consumed, search);
+        var spools = await _spools.GetAllAsync(ProjectMember.ProjectId, materialId, printerId, storageId, dryerId, consumed, search, owner);
         return Ok(spools.Select(MapToDto));
     }
+
+    [HttpGet("owners")]
+    public async Task<IActionResult> GetOwners() =>
+        Ok(await _spools.GetOwnersAsync(ProjectMember.ProjectId));
 
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(Guid id)
@@ -64,7 +70,9 @@ public class SpoolsController : ControllerBase
             PurchasedAt = request.PurchasedAt,
             PurchasePrice = request.PurchasePrice,
             ReorderUrl = request.ReorderUrl,
-            Notes = request.Notes
+            Notes = request.Notes,
+            OwnerName = NormalizeOwner(request.OwnerName),
+            EmptySpoolWeightGrams = request.EmptySpoolWeightGrams is > 0 ? request.EmptySpoolWeightGrams : null
         };
 
         var id = await _spools.CreateAsync(spool);
@@ -90,6 +98,8 @@ public class SpoolsController : ControllerBase
         spool.PurchasePrice = request.PurchasePrice;
         spool.ReorderUrl = request.ReorderUrl;
         spool.Notes = request.Notes;
+        spool.OwnerName = NormalizeOwner(request.OwnerName);
+        spool.EmptySpoolWeightGrams = request.EmptySpoolWeightGrams is > 0 ? request.EmptySpoolWeightGrams : null;
         spool.UpdatedAt = DateTime.UtcNow;
 
         await _spools.UpdateAsync(spool);
@@ -197,6 +207,40 @@ public class SpoolsController : ControllerBase
         return Ok(MapToDto((await _spools.GetByIdAsync(id, ProjectMember.ProjectId))!));
     }
 
+    [HttpPut("{id}/weigh")]
+    public async Task<IActionResult> Weigh(Guid id, WeighSpoolRequest request)
+    {
+        if (request.GrossWeightGrams < 0)
+            return BadRequest(new { message = "Weight must not be negative." });
+
+        var spool = await _spools.GetByIdAsync(id, ProjectMember.ProjectId);
+        if (spool == null)
+            return NotFound();
+
+        if (request.EmptySpoolWeightGrams is > 0)
+            spool.EmptySpoolWeightGrams = request.EmptySpoolWeightGrams;
+
+        var tare = SpoolWeightCalculator.EffectiveTare(spool.EmptySpoolWeightGrams, spool.FilamentMaterial?.SpoolWeightGrams);
+        if (tare == null)
+            return BadRequest(new { message = "empty_spool_weight_unknown" });
+
+        spool.RemainingWeightGrams = SpoolWeightCalculator.RemainingFromGross(request.GrossWeightGrams, tare);
+        var percent = SpoolWeightCalculator.Percent(spool.RemainingWeightGrams, spool.FilamentMaterial?.WeightGrams);
+        if (percent.HasValue)
+            spool.RemainingPercent = percent.Value;
+        spool.UpdatedAt = DateTime.UtcNow;
+        await _spools.UpdateAsync(spool);
+        return Ok(MapToDto((await _spools.GetByIdAsync(id, ProjectMember.ProjectId))!));
+    }
+
+    private static string? NormalizeOwner(string? owner)
+    {
+        var trimmed = owner?.Trim();
+        if (string.IsNullOrEmpty(trimmed))
+            return null;
+        return trimmed.Length > 100 ? trimmed[..100] : trimmed;
+    }
+
     private static SpoolDto MapToDto(Spool s) => new()
     {
         Id = s.Id,
@@ -221,10 +265,14 @@ public class SpoolsController : ControllerBase
         DryerId = s.DryerId,
         DryerName = s.Dryer?.Name,
         MaterialDryTimeHours = s.FilamentMaterial?.DryTimeHours,
+        MaterialWeightGrams = s.FilamentMaterial?.WeightGrams,
+        MaterialSpoolWeightGrams = s.FilamentMaterial?.SpoolWeightGrams,
         PurchasedAt = s.PurchasedAt,
         PurchasePrice = s.PurchasePrice,
         ReorderUrl = s.ReorderUrl,
         Notes = s.Notes,
+        OwnerName = s.OwnerName,
+        EmptySpoolWeightGrams = s.EmptySpoolWeightGrams,
         CreatedAt = s.CreatedAt,
         UpdatedAt = s.UpdatedAt
     };

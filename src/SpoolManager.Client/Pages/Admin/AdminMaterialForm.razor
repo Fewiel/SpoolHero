@@ -95,6 +95,14 @@ else
                                     <input class="form-control" type="number" @bind="_form.WeightGrams" />
                                     <span class="input-group-text">g</span>
                                 </div>
+                            <div class="col-6 col-md-3">
+                                <label class="form-label">@L["material.spool.weight"] @L["common.optional"]</label>
+                                <div class="input-group">
+                                    <input class="form-control" type="number" min="0" @bind="_form.SpoolWeightGrams" />
+                                    <span class="input-group-text">g</span>
+                                </div>
+                                <div class="form-text">@L["material.spool.weight.hint"]</div>
+                            </div>
                             </div>
                         </div>
 

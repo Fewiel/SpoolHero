@@ -24,6 +24,8 @@ public class Spool
     public decimal? PurchasePrice { get; set; }
     public string? ReorderUrl { get; set; }
     public string? Notes { get; set; }
+    public string? OwnerName { get; set; }
+    public decimal? EmptySpoolWeightGrams { get; set; }
     public DateTime? LowSpoolNotifiedAt { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
