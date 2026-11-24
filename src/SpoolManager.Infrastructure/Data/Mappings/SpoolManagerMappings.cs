@@ -83,6 +83,7 @@ public static class SpoolManagerMappings
             .Property(x => x.ColorName).HasColumnName("color_name")
             .Property(x => x.DiameterMm).HasColumnName("diameter_mm")
             .Property(x => x.WeightGrams).HasColumnName("weight_grams")
+            .Property(x => x.SpoolWeightGrams).HasColumnName("spool_weight_grams")
             .Property(x => x.BedTempCelsius).HasColumnName("bed_temp_celsius")
             .Property(x => x.DensityGCm3).HasColumnName("density_g_cm3")
             .Property(x => x.DryTempCelsius).HasColumnName("dry_temp_celsius")
@@ -171,6 +172,7 @@ public static class SpoolManagerMappings
             .HasTableName("spools")
             .HasPrimaryKey(x => x.Id)
             .Property(x => x.Id).HasColumnName("id")
+            .Property(x => x.SpoolmanId).HasColumnName("spoolman_id").HasSkipOnInsert().HasSkipOnUpdate()
             .Property(x => x.ProjectId).HasColumnName("project_id")
             .Property(x => x.FilamentMaterialId).HasColumnName("filament_material_id")
             .Property(x => x.RfidTagUid).HasColumnName("rfid_tag_uid")
@@ -188,6 +190,8 @@ public static class SpoolManagerMappings
             .Property(x => x.PurchasePrice).HasColumnName("purchase_price")
             .Property(x => x.ReorderUrl).HasColumnName("reorder_url")
             .Property(x => x.Notes).HasColumnName("notes")
+            .Property(x => x.OwnerName).HasColumnName("owner_name")
+            .Property(x => x.EmptySpoolWeightGrams).HasColumnName("empty_spool_weight_grams")
             .Property(x => x.LowSpoolNotifiedAt).HasColumnName("low_spool_notified_at")
             .Property(x => x.CreatedAt).HasColumnName("created_at")
             .Property(x => x.UpdatedAt).HasColumnName("updated_at")
@@ -266,6 +270,47 @@ public static class SpoolManagerMappings
             .Property(x => x.UserId).HasColumnName("user_id")
             .Property(x => x.MaterialId).HasColumnName("material_id")
             .Property(x => x.CreatedAt).HasColumnName("created_at");
+
+        builder.Entity<SpoolmanApiKey>()
+            .HasTableName("spoolman_api_keys")
+            .HasPrimaryKey(x => x.Id)
+            .Property(x => x.Id).HasColumnName("id")
+            .Property(x => x.ProjectId).HasColumnName("project_id")
+            .Property(x => x.ApiKey).HasColumnName("api_key")
+            .Property(x => x.Name).HasColumnName("name")
+            .Property(x => x.CreatedAt).HasColumnName("created_at")
+            .Property(x => x.LastUsedAt).HasColumnName("last_used_at");
+
+        builder.Entity<SpoolmanCallLog>()
+            .HasTableName("spoolman_call_logs")
+            .HasPrimaryKey(x => x.Id)
+            .Property(x => x.Id).HasColumnName("id")
+            .Property(x => x.ApiKeyId).HasColumnName("api_key_id")
+            .Property(x => x.CalledAt).HasColumnName("called_at")
+            .Property(x => x.Method).HasColumnName("method")
+            .Property(x => x.Path).HasColumnName("path")
+            .Property(x => x.StatusCode).HasColumnName("status_code");
+
+        builder.Entity<Webhook>()
+            .HasTableName("webhooks")
+            .HasPrimaryKey(x => x.Id)
+            .Property(x => x.Id).HasColumnName("id")
+            .Property(x => x.ProjectId).HasColumnName("project_id")
+            .Property(x => x.Name).HasColumnName("name")
+            .Property(x => x.Type).HasColumnName("type")
+            .Property(x => x.Url).HasColumnName("url")
+            .Property(x => x.BotToken).HasColumnName("bot_token")
+            .Property(x => x.ChatId).HasColumnName("chat_id")
+            .Property(x => x.IsEnabled).HasColumnName("is_enabled")
+            .Property(x => x.OnDryerFinished).HasColumnName("on_dryer_finished")
+            .Property(x => x.OnSpoolLow).HasColumnName("on_spool_low")
+            .Property(x => x.OnSpoolConsumed).HasColumnName("on_spool_consumed")
+            .Property(x => x.LastTriggeredAt).HasColumnName("last_triggered_at")
+            .Property(x => x.LastSuccess).HasColumnName("last_success")
+            .Property(x => x.LastStatusCode).HasColumnName("last_status_code")
+            .Property(x => x.LastError).HasColumnName("last_error")
+            .Property(x => x.CreatedAt).HasColumnName("created_at")
+            .Property(x => x.UpdatedAt).HasColumnName("updated_at");
 
         builder.Build();
         return schema;

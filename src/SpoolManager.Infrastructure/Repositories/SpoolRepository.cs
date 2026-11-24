@@ -6,7 +6,8 @@ namespace SpoolManager.Infrastructure.Repositories;
 
 public interface ISpoolRepository
 {
-    Task<List<Spool>> GetAllAsync(Guid projectId, Guid? materialId = null, Guid? printerId = null, Guid? storageId = null, Guid? dryerId = null, bool? consumed = null, string? search = null);
+    Task<List<Spool>> GetAllAsync(Guid projectId, Guid? materialId = null, Guid? printerId = null, Guid? storageId = null, Guid? dryerId = null, bool? consumed = null, string? search = null, string? owner = null);
+    Task<List<string>> GetOwnersAsync(Guid projectId);
     Task<Spool?> GetByIdAsync(Guid id, Guid projectId);
     Task<Spool?> GetByIdAsync(Guid id);
     Task<Guid> CreateAsync(Spool spool);
@@ -14,6 +15,8 @@ public interface ISpoolRepository
     Task DeleteAsync(Guid id);
     Task<int> GetTotalCountAsync();
     Task<List<Spool>> GetSpoolsNeedingLowNotificationAsync();
+    Task<Spool?> GetBySpoolmanIdAsync(int spoolmanId, Guid projectId);
+    Task ApplyUsageAsync(Guid spoolId, decimal usedGrams, decimal totalWeightGrams);
 }
 
 public class SpoolRepository : ISpoolRepository
@@ -25,7 +28,7 @@ public class SpoolRepository : ISpoolRepository
         _db = db;
     }
 
-    public async Task<List<Spool>> GetAllAsync(Guid projectId, Guid? materialId = null, Guid? printerId = null, Guid? storageId = null, Guid? dryerId = null, bool? consumed = null, string? search = null)
+    public async Task<List<Spool>> GetAllAsync(Guid projectId, Guid? materialId = null, Guid? printerId = null, Guid? storageId = null, Guid? dryerId = null, bool? consumed = null, string? search = null, string? owner = null)
     {
         var query = _db.Spools.Where(s => s.ProjectId == projectId);
 
@@ -44,12 +47,19 @@ public class SpoolRepository : ISpoolRepository
         if (consumed.HasValue)
             query = query.Where(s => consumed.Value ? s.ConsumedAt != null : s.ConsumedAt == null);
 
+        if (owner == "-")
+            query = query.Where(s => s.OwnerName == null);
+        else if (!string.IsNullOrWhiteSpace(owner))
+            query = query.Where(s => s.OwnerName == owner);
+
         if (!string.IsNullOrWhiteSpace(search))
         {
             var matchingMaterialIds = await _db.FilamentMaterials
                 .Where(m => m.Brand.Contains(search) || m.Type.Contains(search))
                 .Select(m => m.Id).ToListAsync();
-            query = query.Where(s => (s.RfidTagUid != null && s.RfidTagUid.Contains(search)) || matchingMaterialIds.Contains(s.FilamentMaterialId));
+            query = query.Where(s => (s.RfidTagUid != null && s.RfidTagUid.Contains(search))
+                || (s.OwnerName != null && s.OwnerName.Contains(search))
+                || matchingMaterialIds.Contains(s.FilamentMaterialId));
         }
 
         var spools = await query.OrderByDescending(s => s.CreatedAt).ToListAsync();
@@ -88,6 +98,14 @@ public class SpoolRepository : ISpoolRepository
         return spools;
     }
 
+    public async Task<List<string>> GetOwnersAsync(Guid projectId) =>
+        await _db.Spools
+            .Where(s => s.ProjectId == projectId && s.OwnerName != null)
+            .Select(s => s.OwnerName!)
+            .Distinct()
+            .OrderBy(o => o)
+            .ToListAsync();
+
     public async Task<Spool?> GetByIdAsync(Guid id, Guid projectId)
     {
         var spool = await _db.Spools.FirstOrDefaultAsync(s => s.Id == id && s.ProjectId == projectId);
@@ -112,6 +130,35 @@ public class SpoolRepository : ISpoolRepository
         if (spool.DryerId.HasValue)
             spool.Dryer = await _db.Dryers.FirstOrDefaultAsync(d => d.Id == spool.DryerId.Value);
         return spool;
+    }
+
+    public async Task<Spool?> GetBySpoolmanIdAsync(int spoolmanId, Guid projectId)
+    {
+        var spool = await _db.Spools.FirstOrDefaultAsync(s => s.SpoolmanId == spoolmanId && s.ProjectId == projectId);
+        return await LoadNavPropsAsync(spool);
+    }
+
+    // Atomic so concurrent usage reports (e.g. Moonraker syncing while a user edits) don't lose updates.
+    // Negative usedGrams adds filament back, as in Spoolman.
+    public async Task ApplyUsageAsync(Guid spoolId, decimal usedGrams, decimal totalWeightGrams)
+    {
+        var query = _db.Spools
+            .Where(s => s.Id == spoolId)
+            .Set(s => s.UpdatedAt, DateTime.UtcNow);
+
+        // MySQL evaluates SET assignments left to right and later ones see already updated columns,
+        // so the percentage must be computed before remaining_weight_grams is changed.
+        if (totalWeightGrams > 0)
+        {
+            query = query.Set(s => s.RemainingPercent, s =>
+                s.RemainingWeightGrams - usedGrams <= 0 ? 0
+                : (s.RemainingWeightGrams - usedGrams) / totalWeightGrams * 100 > 100 ? 100
+                : (s.RemainingWeightGrams - usedGrams) / totalWeightGrams * 100);
+        }
+
+        await query
+            .Set(s => s.RemainingWeightGrams, s => s.RemainingWeightGrams - usedGrams < 0 ? 0 : s.RemainingWeightGrams - usedGrams)
+            .UpdateAsync();
     }
 
     public async Task<Guid> CreateAsync(Spool spool)

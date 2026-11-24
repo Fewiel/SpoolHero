@@ -13,6 +13,9 @@ public partial class MaterialForm
     [Inject] private ProjectService Project { get; set; } = default!;
 
     [Parameter] public Guid? Id { get; set; }
+    [Parameter] public Guid? CloneId { get; set; }
+
+    private string Title => Id.HasValue ? L["material.edit"] : CloneId.HasValue ? L["material.clone"] : L["material.add"];
 
     private static readonly (string hex, string name)[] ColorPresets =
     [
@@ -42,20 +45,21 @@ public partial class MaterialForm
     {
         if (Project.CurrentProject == null)
             return;
-        if (Id.HasValue)
+        var sourceId = Id ?? CloneId;
+        if (sourceId.HasValue)
         {
-            var m = await Materials.GetByIdAsync(Id.Value);
+            var m = await Materials.GetByIdAsync(sourceId.Value);
             if (m != null)
             {
                 _form = new CreateMaterialRequest
                 {
                     Type = m.Type, ColorHex = m.ColorHex, Brand = m.Brand,
                     MinTempCelsius = m.MinTempCelsius, MaxTempCelsius = m.MaxTempCelsius,
-                    ColorName = m.ColorName, DiameterMm = m.DiameterMm, WeightGrams = m.WeightGrams,
+                    ColorName = m.ColorName, DiameterMm = m.DiameterMm, WeightGrams = m.WeightGrams, SpoolWeightGrams = m.SpoolWeightGrams,
                     BedTempCelsius = m.BedTempCelsius, DensityGCm3 = m.DensityGCm3,
                     DryTempCelsius = m.DryTempCelsius, DryTimeHours = m.DryTimeHours,
                     Notes = m.Notes, ReorderUrl = m.ReorderUrl, PricePerKg = m.PricePerKg,
-                    IsPublic = m.IsPublic
+                    IsPublic = m.IsPublic && !CloneId.HasValue
                 };
             }
         }
@@ -78,7 +82,7 @@ public partial class MaterialForm
             {
                 Type = _form.Type, ColorHex = _form.ColorHex.ToUpper(), Brand = _form.Brand,
                 MinTempCelsius = _form.MinTempCelsius, MaxTempCelsius = _form.MaxTempCelsius,
-                ColorName = _form.ColorName, DiameterMm = _form.DiameterMm, WeightGrams = _form.WeightGrams,
+                ColorName = _form.ColorName, DiameterMm = _form.DiameterMm, WeightGrams = _form.WeightGrams, SpoolWeightGrams = _form.SpoolWeightGrams,
                 BedTempCelsius = _form.BedTempCelsius, DensityGCm3 = _form.DensityGCm3,
                 DryTempCelsius = _form.DryTempCelsius, DryTimeHours = _form.DryTimeHours,
                 Notes = _form.Notes, ReorderUrl = _form.ReorderUrl, PricePerKg = _form.PricePerKg,
@@ -88,7 +92,7 @@ public partial class MaterialForm
             {
                 Type = _form.Type, ColorHex = _form.ColorHex.ToUpper(), Brand = _form.Brand,
                 MinTempCelsius = _form.MinTempCelsius, MaxTempCelsius = _form.MaxTempCelsius,
-                ColorName = _form.ColorName, DiameterMm = _form.DiameterMm, WeightGrams = _form.WeightGrams,
+                ColorName = _form.ColorName, DiameterMm = _form.DiameterMm, WeightGrams = _form.WeightGrams, SpoolWeightGrams = _form.SpoolWeightGrams,
                 BedTempCelsius = _form.BedTempCelsius, DensityGCm3 = _form.DensityGCm3,
                 DryTempCelsius = _form.DryTempCelsius, DryTimeHours = _form.DryTimeHours,
                 Notes = _form.Notes, ReorderUrl = _form.ReorderUrl, PricePerKg = _form.PricePerKg,

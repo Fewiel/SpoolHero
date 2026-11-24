@@ -3,6 +3,7 @@ namespace SpoolManager.Shared.Models;
 public class Spool
 {
     public Guid Id { get; set; }
+    public int SpoolmanId { get; set; }
     public Guid ProjectId { get; set; }
     public Guid FilamentMaterialId { get; set; }
     public FilamentMaterial? FilamentMaterial { get; set; }
@@ -24,6 +25,8 @@ public class Spool
     public decimal? PurchasePrice { get; set; }
     public string? ReorderUrl { get; set; }
     public string? Notes { get; set; }
+    public string? OwnerName { get; set; }
+    public decimal? EmptySpoolWeightGrams { get; set; }
     public DateTime? LowSpoolNotifiedAt { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }

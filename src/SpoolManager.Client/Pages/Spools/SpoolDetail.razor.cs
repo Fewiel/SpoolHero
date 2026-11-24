@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
+using SpoolManager.Client.Components;
 using SpoolManager.Client.Services;
 using SpoolManager.Shared.DTOs.Spools;
 using SpoolManager.Shared.DTOs.Tags;
@@ -23,6 +24,10 @@ public partial class SpoolDetail : IDisposable
     private bool _showRemainingForm;
     private decimal _remainingGrams;
     private decimal _remainingPct;
+    private bool _showWeighForm;
+    private decimal? _grossWeight;
+    private decimal? _tareWeight;
+    private string? _weighError;
     private bool _nfcSupported;
     private bool _writingNfc;
     private string? _nfcMessage;
@@ -61,6 +66,39 @@ public partial class SpoolDetail : IDisposable
         _showRemainingForm = false;
     }
 
+    private FindSpoolModal? _findModal;
+
+    private async Task FindSpoolAsync()
+    {
+        if (_findModal != null)
+            await _findModal.OpenAsync();
+    }
+
+    private void OpenWeighForm()
+    {
+        _showRemainingForm = false;
+        _weighError = null;
+        _grossWeight = null;
+        _tareWeight = SpoolManager.Shared.Helpers.SpoolWeightCalculator.EffectiveTare(_spool?.EmptySpoolWeightGrams, _spool?.MaterialSpoolWeightGrams);
+        _showWeighForm = true;
+    }
+
+    private async Task WeighAsync()
+    {
+        if (_grossWeight == null)
+            return;
+        _weighError = null;
+        var resp = await Spools.WeighAsync(Id, new WeighSpoolRequest { GrossWeightGrams = _grossWeight.Value, EmptySpoolWeightGrams = _tareWeight });
+        if (!resp.IsSuccessStatusCode)
+        {
+            var body = await resp.Content.ReadAsStringAsync();
+            _weighError = body.Contains("empty_spool_weight_unknown") ? L["spool.weigh.tare.missing"] : L["common.error"];
+            return;
+        }
+        _showWeighForm = false;
+        _spool = await Spools.GetByIdAsync(Id);
+    }
+
     private async Task MarkOpenedAsync() { await Spools.MarkOpenedAsync(Id); _spool = await Spools.GetByIdAsync(Id); }
     private async Task MarkDriedAsync() { await Spools.MarkDriedAsync(Id); _spool = await Spools.GetByIdAsync(Id); }
     private async Task MarkRepackagedAsync() { await Spools.MarkRepackagedAsync(Id); _spool = await Spools.GetByIdAsync(Id); }
@@ -81,7 +119,7 @@ public partial class SpoolDetail : IDisposable
             return;
         }
         _tagJson = encoded.JsonPayload;
-        await Nfc.WriteAsync(encoded.JsonPayload, DotNetObjectReference.Create(this));
+        await Nfc.WriteAsync(encoded.JsonPayload, DotNetObjectReference.Create(this), encoded.SpoolmanId);
     }
 
     private async Task ShowTagJsonAsync()

@@ -9,6 +9,7 @@ using SpoolManager.Infrastructure.Data;
 using SpoolManager.Infrastructure.Migrations;
 using SpoolManager.Infrastructure.Repositories;
 using SpoolManager.Infrastructure.Services;
+using SpoolManager.Infrastructure.Services.Webhooks;
 using SpoolManager.Server.Filters;
 using SpoolManager.Server.Middleware;
 using SpoolManager.Server.Services;
@@ -51,7 +52,27 @@ builder.Services.AddScoped<ISiteSettingsRepository, SiteSettingsRepository>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddHostedService<NotificationBackgroundService>();
 
+builder.Services.AddScoped<ISpoolmanApiKeyRepository, SpoolmanApiKeyRepository>();
+builder.Services.AddScoped<ISpoolmanCallLogRepository, SpoolmanCallLogRepository>();
+builder.Services.AddSingleton<SpoolmanEventHub>();
+var webhookOptions = builder.Configuration.GetSection("Webhooks").Get<WebhookOptions>() ?? new WebhookOptions();
+builder.Services.AddSingleton(webhookOptions);
+builder.Services.AddScoped<IWebhookRepository, WebhookRepository>();
+builder.Services.AddHttpClient<IWebhookSender, WebhookSender>(c =>
+        c.Timeout = TimeSpan.FromSeconds(Math.Clamp(webhookOptions.TimeoutSeconds, 1, 60)))
+    .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+    {
+        AllowAutoRedirect = false,
+        ConnectCallback = WebhookSecurity.CreateConnectCallback(webhookOptions)
+    })
+    // Default HttpClient logging would write full URLs (Discord/Telegram tokens) to the log.
+    .RemoveAllLoggers();
+builder.Services.AddSingleton<WebhookDispatcher>();
+builder.Services.AddSingleton<IWebhookDispatcher>(sp => sp.GetRequiredService<WebhookDispatcher>());
+builder.Services.AddHostedService(sp => sp.GetRequiredService<WebhookDispatcher>());
+
 builder.Services.AddScoped<ProjectAuthFilter>();
+builder.Services.AddScoped<SpoolmanAuthFilter>();
 builder.Services.AddSingleton<LoginRateLimiter>();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -147,6 +168,9 @@ app.MapGet("/favicon.ico", async (ISiteSettingsRepository settings, HttpContext 
 
 app.UseStaticFiles();
 
+app.UseWebSockets();
+app.UseMiddleware<SpoolmanWebSocketMiddleware>();
+
 app.UseAuthentication();
 app.UseMiddleware<UserActivityMiddleware>();
 app.UseAuthorization();
@@ -165,6 +189,11 @@ if (!File.Exists(indexHtmlPath))
 }
 app.MapFallback(async (HttpContext ctx) =>
 {
+    if (ctx.Request.Path.StartsWithSegments("/api"))
+    {
+        ctx.Response.StatusCode = StatusCodes.Status404NotFound;
+        return;
+    }
     if (!File.Exists(indexHtmlPath))
     {
         ctx.Response.StatusCode = 404;

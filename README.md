@@ -4,15 +4,19 @@ SpoolHero is a self-hosted filament management tool for 3D printing. It allows y
 
 ## Features
 
-- Spool tracking with weight, color, material, and location
-- NFC tag support via OpenSpool standard (NTAG215/216)
+- Spool tracking with weight, color, material, location, and owner
+- Weigh spools: enter the scale reading and the remaining filament is calculated from the empty spool weight
+- Stock overview per material (all spools of a material bundled with their total weight)
+- NFC tag support via OpenSpool standard (NTAG215/216), import of OpenSpool `.bin` tag files
 - Multi-user projects with invitation codes
-- Shared material database with import/export
+- Shared material database with import/export, cloning, and Orca Slicer export
 - Dryer monitoring with notifications
 - Inventory scanning via NFC
+- Klipper/Moonraker integration through a Spoolman-compatible API
 - Admin panel with branding, SMTP, user management, and support tickets
 - Email notifications for spool levels, dryer cycles, and ticket replies
-- Self-hostable, open source, no external dependencies
+- Webhooks per project for Discord, Telegram, Home Assistant, or any JSON endpoint (dryer finished, spool low, spool consumed)
+- Self-hostable (Docker, Proxmox LXC, Debian/Ubuntu install script), open source, no external dependencies
 
 ## Quick Start with Docker
 
@@ -24,7 +28,14 @@ cd SpoolHero
 docker compose up -d
 ```
 
-SpoolHero will be available at `http://localhost:5000`. A MySQL 8 database is included and configured automatically.
+SpoolHero will be available at `http://localhost:5000`. A MySQL 8 database is included and configured automatically. The database port is not exposed to the host by default.
+
+To update a Docker installation:
+
+```bash
+git pull
+docker compose up -d --build
+```
 
 **Default admin account:**
 - Email: `admin@localhost`
@@ -73,6 +84,40 @@ spoolhero.example.com {
 }
 ```
 
+## Proxmox (LXC)
+
+On a [Proxmox VE](https://www.proxmox.com/) host, a single command creates an unprivileged Debian 12 container and installs SpoolHero in it. Run it in the shell of your Proxmox node (as root):
+
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/Fewiel/SpoolHero/main/deploy/proxmox-create-lxc.sh)"
+```
+
+Defaults: next free container ID, hostname `spoolhero`, 1 core, 1024 MB RAM, 8 GB disk, bridge `vmbr0` with DHCP, port 5000. Everything can be changed with options, for example:
+
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/Fewiel/SpoolHero/main/deploy/proxmox-create-lxc.sh)" _ \
+  --ctid 120 --memory 2048 --storage local-zfs --ip 192.168.1.50/24 --gateway 192.168.1.1 --yes
+```
+
+Run it with `--help` for all options. When it finishes, it prints the container's address (`http://<container-ip>:5000`). The default admin account is `admin@localhost` / `admin`.
+
+To update later: `pct exec <ctid> -- spoolhero-update`
+
+### Install script for Debian / Ubuntu (existing container or VM)
+
+If you already have a container or VM running Debian 12/13 or Ubuntu 22.04/24.04, run the installer inside it as root:
+
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/Fewiel/SpoolHero/main/deploy/install.sh)"
+```
+
+It installs the ASP.NET Core 10 runtime, MariaDB, the latest release in `/opt/spoolhero` and a `spoolhero` systemd service. The database password and JWT secret are generated randomly. Running it again is safe: existing settings and secrets are kept.
+
+- Update: `spoolhero-update` (or run the installer with `--update`). It backs up the database to `/var/backups/spoolhero`, keeps the previous version in `/opt/spoolhero.prev` and rolls back if the new version does not start.
+- Options: `--version X.Y.Z`, `--port N`, `--zip <file>` (install from a downloaded release zip), `--help` for the full list.
+
+For NFC, you still need HTTPS in front of the container, see [HTTPS (required for NFC on Android)](#https-required-for-nfc-on-android).
+
 ## Manual Setup (without Docker)
 
 ### Requirements
@@ -112,9 +157,22 @@ Pull requests are welcome. Please keep changes focused and describe what you cha
 
 For larger features, open an issue first to discuss the approach.
 
-## Roadmap
+## Klipper / Moonraker (Spoolman API)
 
-- Klipper integration (read/write spool data directly from Klipper via Moonraker API)
+SpoolHero exposes a Spoolman-compatible API, so Moonraker/Klipper and other Spoolman clients (e.g. nfc2klipper, SpoolPainter) can use it in place of a Spoolman server. Used filament is booked automatically and updates the spool's remaining weight.
+
+1. Open **Projects → Project Settings → Klipper / Moonraker** and create an API key (project admins and managers only).
+2. Copy the server URL shown there into your `moonraker.conf`:
+
+```ini
+[spoolman]
+server: https://spoolhero.example.com/<API_KEY>
+sync_rate: 5
+```
+
+3. Restart Moonraker and select a spool with `SET_ACTIVE_SPOOL ID=<id>`. The ID is the "Spoolman ID" shown on the spool detail page; NFC tags written by SpoolHero also contain it (`SPOOL:<id>` text record for nfc2klipper).
+
+The API key is part of the URL, so treat the URL like a password. If you use a reverse proxy, make sure it forwards WebSocket connections (nginx: `proxy_http_version 1.1; proxy_set_header Upgrade $http_upgrade; proxy_set_header Connection "upgrade";`).
 
 ## License
 

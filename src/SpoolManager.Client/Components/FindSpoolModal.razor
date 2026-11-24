@@ -1,0 +1,47 @@
+@if (_visible)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,.55)">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-search me-2"></i>@L["spool.find.title"]
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="CloseAsync" aria-label="@L["common.cancel"]"></button>
+                </div>
+                <div class="modal-body text-center py-4">
+                    <div class="d-flex align-items-center justify-content-center gap-2 mb-4">
+                        <div class="color-dot" style="background-color: #@Spool.MaterialColorHex"></div>
+                        <span class="fw-semibold">@Spool.MaterialBrand @Spool.MaterialType</span>
+                        <span class="font-monospace text-muted small">#@Spool.Id.ToString("N")[..5].ToUpper()</span>
+                    </div>
+
+                    @if (_state == FindState.Found)
+                    {
+                        <i class="bi bi-check-circle-fill text-success" style="font-size:3.5rem"></i>
+                        <p class="fw-semibold text-success mt-2 mb-0">@L["spool.find.found"]</p>
+                    }
+                    else if (_state == FindState.Mismatch)
+                    {
+                        <i class="bi bi-x-circle-fill text-danger" style="font-size:3rem"></i>
+                        <p class="text-danger fw-semibold mt-2 mb-0">@L["spool.find.wrong"]</p>
+                        <small class="text-muted">@L["spool.find.retry"]</small>
+                    }
+                    else
+                    {
+                        <div class="nfc-pulse-icon mb-2">
+                            <i class="bi bi-broadcast text-primary" style="font-size:3rem"></i>
+                        </div>
+                        <p class="text-muted mb-0">@L["spool.find.scanning"]</p>
+                    }
+                </div>
+                @if (_state != FindState.Found)
+                {
+                    <div class="modal-footer justify-content-center">
+                        <button class="btn btn-secondary" @onclick="CloseAsync">@L["common.cancel"]</button>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+}

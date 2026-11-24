@@ -90,7 +90,16 @@ public class PrintersController : ControllerBase
 
         using var ms = new MemoryStream();
         await file.CopyToAsync(ms);
-        var (data, ct) = _images.ResizeToThumbnail(ms.ToArray(), file.ContentType);
+        byte[] data;
+        string ct;
+        try
+        {
+            (data, ct) = _images.ResizeToThumbnail(ms.ToArray(), file.ContentType);
+        }
+        catch (InvalidOperationException)
+        {
+            return BadRequest(new { message = "Invalid image file." });
+        }
         printer.ImageData = data;
         printer.ImageContentType = ct;
         printer.UpdatedAt = DateTime.UtcNow;

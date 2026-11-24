@@ -45,8 +45,32 @@ public class ProjectRepository : IProjectRepository
     public async Task UpdateAsync(Project project) =>
         await _db.UpdateAsync(project);
 
-    public async Task DeleteAsync(Guid id) =>
+    // Webhooks are removed by the ON DELETE CASCADE foreign key (M020).
+    public async Task DeleteAsync(Guid id)
+    {
+        await using var tx = await _db.BeginTransactionAsync();
+
+        await _db.Spools.Where(s => s.ProjectId == id).DeleteAsync();
+        await _db.Printers.Where(p => p.ProjectId == id).DeleteAsync();
+        await _db.Dryers.Where(d => d.ProjectId == id).DeleteAsync();
+        await _db.StorageLocations.Where(sl => sl.ProjectId == id).DeleteAsync();
+        await _db.Invitations.Where(i => i.ProjectId == id).DeleteAsync();
+        await _db.ProjectMembers.Where(m => m.ProjectId == id).DeleteAsync();
+
+        // Public materials of this project that other projects still use are kept as global materials.
+        await _db.FilamentMaterials
+            .Where(m => m.ProjectId == id && _db.Spools.Any(s => s.FilamentMaterialId == m.Id))
+            .Set(m => m.ProjectId, (Guid?)null)
+            .UpdateAsync();
+        var materialIds = _db.FilamentMaterials.Where(m => m.ProjectId == id).Select(m => m.Id);
+        await _db.UserMaterialFavorites.Where(f => materialIds.Contains(f.MaterialId)).DeleteAsync();
+        await _db.FilamentMaterials.Where(m => m.ProjectId == id).DeleteAsync();
+
+        // Spoolman API keys and webhooks are removed by ON DELETE CASCADE.
         await _db.Projects.Where(p => p.Id == id).DeleteAsync();
+
+        await tx.CommitAsync();
+    }
 
     public async Task<int> GetTotalCountAsync() =>
         await _db.Projects.CountAsync();

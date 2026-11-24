@@ -20,6 +20,29 @@
             <option value="consumed">@L["spool.filter.consumed"]</option>
         </select>
     </div>
+    @if (_owners.Count > 0)
+    {
+        <div class="col-auto">
+            <select class="form-select" @bind="_owner" @bind:after="LoadAsync" aria-label="@L["spool.owner"]">
+                <option value="">@L["spool.owner.all"]</option>
+                <option value="-">@L["spool.owner.none"]</option>
+                @foreach (var o in _owners)
+                {
+                    <option value="@o">@o</option>
+                }
+            </select>
+        </div>
+    }
+    <div class="col-auto ms-md-auto">
+        <div class="btn-group" role="group" aria-label="@L["spool.view"]">
+            <button class="btn @(_grouped ? "btn-outline-secondary" : "btn-secondary")" title="@L["spool.view.spools"]" @onclick="() => SetGrouped(false)">
+                <i class="bi bi-grid-3x3-gap"></i><span class="d-none d-lg-inline ms-1">@L["spool.view.spools"]</span>
+            </button>
+            <button class="btn @(_grouped ? "btn-secondary" : "btn-outline-secondary")" title="@L["spool.view.materials"]" @onclick="() => SetGrouped(true)">
+                <i class="bi bi-collection"></i><span class="d-none d-lg-inline ms-1">@L["spool.view.materials"]</span>
+            </button>
+        </div>
+    </div>
 </div>
 
 @if (_loading)
@@ -31,6 +54,50 @@ else if (_spools.Count == 0)
     <div class="text-center py-5 text-muted">
         <i class="bi bi-archive fs-1"></i>
         <p class="mt-2">@L["common.none"]</p>
+    </div>
+}
+else if (_grouped)
+{
+    <div class="row g-3">
+        @foreach (var group in MaterialGroups)
+        {
+            <div class="col-12 col-md-6 col-xl-4">
+                <div class="spool-card h-100">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="color-dot" style="background-color: #@group.ColorHex"></div>
+                            <div>
+                                <div class="fw-semibold">@group.Brand @group.Type</div>
+                                <small class="text-muted">@(group.ColorName ?? "#" + group.ColorHex)</small>
+                            </div>
+                        </div>
+                        <span class="badge bg-primary-subtle text-primary-emphasis">@group.Spools.Count× </span>
+                    </div>
+                    <div class="fs-5 fw-semibold">@group.TotalGrams.ToString("0.#") g</div>
+                    @if (group.CapacityGrams > 0)
+                    {
+                        var pct = Math.Min(group.TotalGrams / group.CapacityGrams * 100, 100);
+                        <div class="remaining-bar mb-1">
+                            <div class="remaining-bar-fill @GetBarClass(pct)" style="width: @((int)pct)%"></div>
+                        </div>
+                    }
+                    <ul class="list-unstyled small mb-0 mt-2">
+                        @foreach (var spool in group.Spools)
+                        {
+                            <li class="d-flex align-items-center gap-2 py-1 border-top">
+                                <a href="/spools/@spool.Id" class="font-monospace text-decoration-none" style="font-size:.7rem">#@spool.Id.ToString("N")[..5].ToUpper()</a>
+                                <span>@spool.RemainingWeightGrams.ToString("0.#") g</span>
+                                <span class="text-muted text-truncate">@LocationLabel(spool)</span>
+                                @if (spool.OwnerName != null)
+                                {
+                                    <span class="badge text-bg-light border ms-auto text-truncate" style="max-width:40%"><i class="bi bi-person me-1"></i>@spool.OwnerName</span>
+                                }
+                            </li>
+                        }
+                    </ul>
+                </div>
+            </div>
+        }
     </div>
 }
 else
@@ -62,6 +129,14 @@ else
                     </div>
                     <small class="text-muted d-block mb-2">@spool.RemainingWeightGrams g – @spool.RemainingPercent%</small>
 
+                    @if (spool.OwnerName != null)
+                    {
+                        <div class="mb-1"><span class="badge text-bg-light border"><i class="bi bi-person me-1"></i>@spool.OwnerName</span></div>
+                    }
+                    @if (spool.DryerId != null && spool.DriedAt == null)
+                    {
+                        <small class="text-muted me-2"><i class="bi bi-thermometer-half me-1 text-warning"></i>@spool.DryerName</small>
+                    }
                     @if (spool.DryerId != null && spool.DriedAt != null)
                     {
                         var (elapsed, total, done) = GetDryingState(spool);
@@ -131,6 +206,13 @@ else
                         </a>
                         @if (_nfcAvailable && spool.ConsumedAt == null)
                         {
+                            <button class="btn btn-sm btn-outline-success" title="@L["spool.find.title"]"
+                                    @onclick="() => FindSpoolAsync(spool)">
+                                <i class="bi bi-search"></i>
+                            </button>
+                        }
+                        @if (_nfcAvailable && spool.ConsumedAt == null)
+                        {
                             <button class="btn btn-sm btn-outline-info" title="@L["spool.nfc.write.quick"]"
                                     @onclick="() => WriteNfcAsync(spool)"
                                     disabled="@(_nfcWriting && _nfcTarget?.Id == spool.Id)">
@@ -173,3 +255,7 @@ else
     </div>
 }
 
+@if (_findTarget != null)
+{
+    <FindSpoolModal @ref="_findModal" Spool="_findTarget" />
+}

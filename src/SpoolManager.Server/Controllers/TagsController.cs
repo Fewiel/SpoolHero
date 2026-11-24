@@ -44,9 +44,10 @@ public class TagsController : ControllerBase
             if (spool?.FilamentMaterial == null)
                 return NotFound();
 
-            var ndefBytes = _openSpool.Encode(spool.FilamentMaterial, spool.Id);
-            var json = _openSpool.ToJson(spool.FilamentMaterial, spool.Id);
-            return Ok(new TagEncodeResponse { Base64 = Convert.ToBase64String(ndefBytes), JsonPayload = json });
+            var spoolmanId = spool.SpoolmanId > 0 ? spool.SpoolmanId : (int?)null;
+            var ndefBytes = _openSpool.Encode(spool.FilamentMaterial, spool.Id, spoolmanId);
+            var json = _openSpool.ToJson(spool.FilamentMaterial, spool.Id, spoolmanId);
+            return Ok(new TagEncodeResponse { Base64 = Convert.ToBase64String(ndefBytes), JsonPayload = json, SpoolmanId = spoolmanId });
         }
         else if (request.MaterialId.HasValue)
         {
@@ -106,39 +107,33 @@ public class TagsController : ControllerBase
     [HttpPost("decode")]
     public IActionResult Decode(TagDecodeRequest request)
     {
+        byte[] bytes;
         try
         {
-            var bytes = Convert.FromBase64String(request.Base64);
-            var (material, isValid) = _openSpool.Decode(bytes);
-
-            string rawJson = string.Empty;
-            Guid? spoolId = null;
-            if (isValid)
-            {
-                var json = _openSpool.ToJson(material);
-                var parseResult = _openSpool.FromJson(json);
-                var rj = parseResult.RawJson;
-                var sid = parseResult.SpoolId;
-                rawJson = rj;
-                spoolId = sid;
-            }
-
-            return Ok(new TagDecodeResponse
-            {
-                RawJson = rawJson,
-                Type = isValid ? material.Type : null,
-                ColorHex = isValid ? material.ColorHex : null,
-                Brand = isValid ? material.Brand : null,
-                MinTemp = isValid ? material.MinTempCelsius : null,
-                MaxTemp = isValid ? material.MaxTempCelsius : null,
-                IsValid = isValid,
-                SpoolId = spoolId
-            });
+            bytes = Convert.FromBase64String(request.Base64);
         }
-        catch
+        catch (FormatException)
         {
             return BadRequest(new { message = "Invalid NDEF data." });
         }
+
+        var json = NdefParser.ExtractJson(bytes);
+        if (json == null)
+            return BadRequest(new { message = "Invalid NDEF data." });
+
+        var result = _openSpool.FromJson(json);
+        var material = result.Material;
+        return Ok(new TagDecodeResponse
+        {
+            RawJson = json,
+            Type = material?.Type,
+            ColorHex = material?.ColorHex,
+            Brand = material?.Brand,
+            MinTemp = material?.MinTempCelsius,
+            MaxTemp = material?.MaxTempCelsius,
+            IsValid = result.IsValid,
+            SpoolId = result.SpoolId
+        });
     }
 
     [HttpGet("download/{spoolId}")]
@@ -148,7 +143,7 @@ public class TagsController : ControllerBase
         if (spool?.FilamentMaterial == null)
             return NotFound();
 
-        var bytes = _openSpool.Encode(spool.FilamentMaterial, spool.Id);
+        var bytes = _openSpool.Encode(spool.FilamentMaterial, spool.Id, spool.SpoolmanId > 0 ? spool.SpoolmanId : null);
         var filename = $"openspool_{spool.FilamentMaterial.Brand}_{spool.FilamentMaterial.Type}_{spoolId}.bin".Replace(" ", "_");
         return File(bytes, "application/octet-stream", filename);
     }
@@ -160,7 +155,7 @@ public class TagsController : ControllerBase
         if (spool?.FilamentMaterial == null)
             return NotFound();
 
-        var json = _openSpool.ToJson(spool.FilamentMaterial, spool.Id);
+        var json = _openSpool.ToJson(spool.FilamentMaterial, spool.Id, spool.SpoolmanId > 0 ? spool.SpoolmanId : null);
         var filename = $"openspool_{spool.FilamentMaterial.Brand}_{spool.FilamentMaterial.Type}_{spoolId}.json".Replace(" ", "_");
         return File(System.Text.Encoding.UTF8.GetBytes(json), "application/json", filename);
     }

@@ -3,6 +3,7 @@ namespace SpoolManager.Shared.DTOs.Spools;
 public class SpoolDto
 {
     public Guid Id { get; set; }
+    public int SpoolmanId { get; set; }
     public Guid ProjectId { get; set; }
     public Guid FilamentMaterialId { get; set; }
     public string MaterialType { get; set; } = string.Empty;
@@ -24,10 +25,14 @@ public class SpoolDto
     public Guid? DryerId { get; set; }
     public string? DryerName { get; set; }
     public int? MaterialDryTimeHours { get; set; }
+    public int? MaterialWeightGrams { get; set; }
+    public int? MaterialSpoolWeightGrams { get; set; }
     public DateTime? PurchasedAt { get; set; }
     public decimal? PurchasePrice { get; set; }
     public string? ReorderUrl { get; set; }
     public string? Notes { get; set; }
+    public string? OwnerName { get; set; }
+    public decimal? EmptySpoolWeightGrams { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 }
@@ -45,6 +50,8 @@ public class CreateSpoolRequest
     public decimal? PurchasePrice { get; set; }
     public string? ReorderUrl { get; set; }
     public string? Notes { get; set; }
+    public string? OwnerName { get; set; }
+    public decimal? EmptySpoolWeightGrams { get; set; }
 }
 
 public class UpdateSpoolRequest
@@ -60,10 +67,18 @@ public class UpdateSpoolRequest
     public decimal? PurchasePrice { get; set; }
     public string? ReorderUrl { get; set; }
     public string? Notes { get; set; }
+    public string? OwnerName { get; set; }
+    public decimal? EmptySpoolWeightGrams { get; set; }
 }
 
 public class UpdateRemainingRequest
 {
     public decimal RemainingWeightGrams { get; set; }
     public decimal RemainingPercent { get; set; }
+}
+
+public class WeighSpoolRequest
+{
+    public decimal GrossWeightGrams { get; set; }
+    public decimal? EmptySpoolWeightGrams { get; set; }
 }

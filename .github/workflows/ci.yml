@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches-ignore: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore SpoolManager.sln
+
+      - name: Build
+        run: dotnet build SpoolManager.sln -c Release --no-restore
+
+      - name: Test
+        run: |
+          if ls tests/*/*.csproj >/dev/null 2>&1; then
+            dotnet test SpoolManager.sln -c Release --no-build --logger "console;verbosity=normal"
+          else
+            echo "No test projects found"
+          fi
+
+      - name: Validate i18n files
+        run: |
+          python3 - <<'PY'
+          import json, sys
+          de = json.load(open("src/SpoolManager.Client/wwwroot/i18n/de.json", encoding="utf-8"))
+          en = json.load(open("src/SpoolManager.Client/wwwroot/i18n/en.json", encoding="utf-8"))
+          missing_de = sorted(set(en) - set(de))
+          missing_en = sorted(set(de) - set(en))
+          if missing_de: print("Missing in de.json:", missing_de)
+          if missing_en: print("Missing in en.json:", missing_en)
+          sys.exit(1 if missing_de or missing_en else 0)
+          PY
+
+  docker:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t spoolhero:ci .

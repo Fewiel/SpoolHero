@@ -1,0 +1,2 @@
+# Shell scripts are fetched raw from GitHub and must keep LF line endings
+*.sh text eol=lf

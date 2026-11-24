@@ -29,5 +29,7 @@ builder.Services.AddScoped<SettingsService>();
 builder.Services.AddScoped<BrandingService>();
 builder.Services.AddScoped<SuggestionService>();
 builder.Services.AddScoped<FavoriteService>();
+builder.Services.AddScoped<SpoolmanApiKeyService>();
+builder.Services.AddScoped<WebhookService>();
 
 await builder.Build().RunAsync();

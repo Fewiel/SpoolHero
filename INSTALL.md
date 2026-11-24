@@ -1,5 +1,13 @@
 # Installation Guide – Ubuntu 24.04 with Apache and Let's Encrypt
 
+> **Shortcut:** On Debian 12/13 or Ubuntu 22.04/24.04, [`deploy/install.sh`](deploy/install.sh) automates steps 1–5 of this guide (runtime, database, release download, `appsettings.json` with random secrets, systemd service; MariaDB is used instead of MySQL):
+>
+> ```bash
+> sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/Fewiel/SpoolHero/main/deploy/install.sh)"
+> ```
+>
+> It installs to `/opt/spoolhero` and listens on port 5000 on all interfaces. Updates: `sudo spoolhero-update`. On Proxmox VE, see the README section "Proxmox (LXC)". Continue with step 6 below for the Apache reverse proxy and HTTPS.
+
 ## Requirements
 
 - Ubuntu 24.04 LTS
@@ -200,10 +208,21 @@ Change the password immediately under Admin > Users.
 
 To update to a newer version:
 
-1. Build and publish the new version on your development machine
-2. Stop the service: `sudo systemctl stop spoolhero`
-3. Copy the new files to `/opt/spoolhero` (overwrite existing files)
-4. Set permissions: `sudo chown -R www-data:www-data /opt/spoolhero`
-5. Start the service: `sudo systemctl start spoolhero`
+```bash
+# Download the new release
+wget https://github.com/Fewiel/SpoolHero/releases/latest/download/spoolhero-VERSION.zip -O /tmp/spoolhero.zip
 
-Database migrations run automatically on startup.
+# Keep the current version as a backup and install the new one
+sudo systemctl stop spoolhero
+sudo mv /opt/spoolhero /opt/spoolhero.prev
+sudo mkdir -p /opt/spoolhero
+sudo unzip -q /tmp/spoolhero.zip -d /opt/spoolhero
+sudo cp /opt/spoolhero.prev/appsettings.json /opt/spoolhero/appsettings.json
+sudo chown -R www-data:www-data /opt/spoolhero
+sudo systemctl start spoolhero
+rm /tmp/spoolhero.zip
+```
+
+Database migrations run automatically on startup. Back up your database before updating (`mysqldump SpoolManager > spoolhero-backup.sql`).
+
+If something goes wrong, stop the service, move `/opt/spoolhero.prev` back to `/opt/spoolhero` and start the service again.

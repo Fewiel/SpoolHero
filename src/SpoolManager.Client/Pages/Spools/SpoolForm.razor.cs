@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.JSInterop;
 using SpoolManager.Client.Services;
 using SpoolManager.Shared.DTOs.Dryers;
@@ -6,6 +7,8 @@ using SpoolManager.Shared.DTOs.Materials;
 using SpoolManager.Shared.DTOs.Printers;
 using SpoolManager.Shared.DTOs.Spools;
 using SpoolManager.Shared.DTOs.Storage;
+using SpoolManager.Shared.DTOs.Tags;
+using SpoolManager.Shared.Helpers;
 using System.Net.Http.Json;
 using System.Text.Json;
 
@@ -24,6 +27,7 @@ public partial class SpoolForm
     [Inject] private NavigationManager Nav { get; set; } = default!;
     [Inject] private ProjectService Project { get; set; } = default!;
     [Inject] private HttpClient Http { get; set; } = default!;
+    [Inject] private TagService Tags { get; set; } = default!;
 
     private bool _loading = true;
     private bool _saving;
@@ -33,6 +37,10 @@ public partial class SpoolForm
     private List<PrinterDto> _printers = [];
     private List<StorageLocationDto> _storages = [];
     private List<DryerDto> _dryerList = [];
+    private List<string> _owners = [];
+    private decimal? _grossWeight;
+
+    private decimal? EffectiveTare => SpoolWeightCalculator.EffectiveTare(_form.EmptySpoolWeightGrams, _selectedMaterial?.SpoolWeightGrams);
 
     private bool _nfcAvailable;
     private bool _nfcReading;
@@ -47,10 +55,12 @@ public partial class SpoolForm
         var pt = Printers.GetAllAsync();
         var st = Storage.GetAllAsync();
         var dt = Dryers.GetAllAsync();
-        await Task.WhenAll(pt, st, dt);
+        var ot = Spools.GetOwnersAsync();
+        await Task.WhenAll(pt, st, dt, ot);
         _printers = await pt ?? [];
         _storages = await st ?? [];
         _dryerList = await dt ?? [];
+        _owners = await ot ?? [];
 
         if (Id.HasValue)
         {
@@ -68,6 +78,9 @@ public partial class SpoolForm
                 _form.RfidTagUid = spool.RfidTagUid;
                 _form.ReorderUrl = spool.ReorderUrl;
                 _form.Notes = spool.Notes;
+                _form.OwnerName = spool.OwnerName;
+                _form.EmptySpoolWeightGrams = spool.EmptySpoolWeightGrams;
+                _selectedMaterial = await Materials.GetByIdAsync(spool.FilamentMaterialId);
             }
         }
         else
@@ -97,6 +110,12 @@ public partial class SpoolForm
     public async void OnTagRead(string json)
     {
         _nfcReading = false;
+        await ApplyTagJsonAsync(json);
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task ApplyTagJsonAsync(string json)
+    {
         _nfcImportError = null;
         try
         {
@@ -151,7 +170,41 @@ public partial class SpoolForm
         {
             _nfcImportError = L["spool.nfc.import.invalid"];
         }
-        InvokeAsync(StateHasChanged);
+    }
+
+    private async Task ImportFileAsync(InputFileChangeEventArgs e)
+    {
+        _nfcImportError = null;
+        _nfcImportSuccess = false;
+        try
+        {
+            using var stream = e.File.OpenReadStream(maxAllowedSize: 64 * 1024);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            var bytes = ms.ToArray();
+
+            string? json;
+            if (e.File.Name.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+            {
+                json = System.Text.Encoding.UTF8.GetString(bytes);
+            }
+            else
+            {
+                var decoded = await Tags.DecodeAsync(new TagDecodeRequest { Base64 = Convert.ToBase64String(bytes) });
+                json = decoded?.RawJson;
+            }
+
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                _nfcImportError = L["spool.nfc.import.invalid"];
+                return;
+            }
+            await ApplyTagJsonAsync(json);
+        }
+        catch
+        {
+            _nfcImportError = L["spool.nfc.import.invalid"];
+        }
     }
 
     [JSInvokable]
@@ -178,7 +231,10 @@ public partial class SpoolForm
         _selectedMaterial = mat;
         _form.FilamentMaterialId = mat.Id;
         if (Id.HasValue)
+        {
+            ApplyGrossWeight();
             return;
+        }
         if (mat.WeightGrams is > 0)
         {
             _form.RemainingWeightGrams = mat.WeightGrams.Value;
@@ -186,6 +242,7 @@ public partial class SpoolForm
         }
         if (string.IsNullOrEmpty(_form.ReorderUrl) && mat.ReorderUrl != null)
             _form.ReorderUrl = mat.ReorderUrl;
+        ApplyGrossWeight();
     }
 
     private void OnLocationChange(string type, string? value)
@@ -207,6 +264,25 @@ public partial class SpoolForm
         _form.RemainingWeightGrams = value;
         if (_selectedMaterial?.WeightGrams is > 0)
             _form.RemainingPercent = Math.Round(value / _selectedMaterial.WeightGrams.Value * 100m, 1);
+    }
+
+    private void SetGrossWeight(decimal? value)
+    {
+        _grossWeight = value;
+        ApplyGrossWeight();
+    }
+
+    private void SetTare(decimal? value)
+    {
+        _form.EmptySpoolWeightGrams = value;
+        ApplyGrossWeight();
+    }
+
+    private void ApplyGrossWeight()
+    {
+        if (_grossWeight is not { } gross || EffectiveTare is not { } tare)
+            return;
+        SetWeight(SpoolWeightCalculator.RemainingFromGross(gross, tare));
     }
 
     private void SetPercent(decimal value)
@@ -241,7 +317,9 @@ public partial class SpoolForm
                 PurchasedAt = _form.PurchasedAt,
                 PurchasePrice = _form.PurchasePrice,
                 ReorderUrl = _form.ReorderUrl,
-                Notes = _form.Notes
+                Notes = _form.Notes,
+                OwnerName = _form.OwnerName,
+                EmptySpoolWeightGrams = _form.EmptySpoolWeightGrams
             });
         }
         else

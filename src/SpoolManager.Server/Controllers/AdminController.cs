@@ -113,7 +113,7 @@ public class AdminController : ControllerBase
     {
         Id = m.Id, Type = m.Type, ColorHex = m.ColorHex, Brand = m.Brand,
         MinTempCelsius = m.MinTempCelsius, MaxTempCelsius = m.MaxTempCelsius,
-        ColorName = m.ColorName, DiameterMm = m.DiameterMm, WeightGrams = m.WeightGrams,
+        ColorName = m.ColorName, DiameterMm = m.DiameterMm, WeightGrams = m.WeightGrams, SpoolWeightGrams = m.SpoolWeightGrams,
         BedTempCelsius = m.BedTempCelsius, DensityGCm3 = m.DensityGCm3,
         DryTempCelsius = m.DryTempCelsius, DryTimeHours = m.DryTimeHours,
         Notes = m.Notes, ReorderUrl = m.ReorderUrl, PricePerKg = m.PricePerKg,
