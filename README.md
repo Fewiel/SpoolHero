@@ -24,7 +24,14 @@ cd SpoolHero
 docker compose up -d
 ```
 
-SpoolHero will be available at `http://localhost:5000`. A MySQL 8 database is included and configured automatically.
+SpoolHero will be available at `http://localhost:5000`. A MySQL 8 database is included and configured automatically. The database port is not exposed to the host by default.
+
+To update a Docker installation:
+
+```bash
+git pull
+docker compose up -d --build
+```
 
 **Default admin account:**
 - Email: `admin@localhost`

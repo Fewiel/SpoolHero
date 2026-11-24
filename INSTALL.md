@@ -200,10 +200,21 @@ Change the password immediately under Admin > Users.
 
 To update to a newer version:
 
-1. Build and publish the new version on your development machine
-2. Stop the service: `sudo systemctl stop spoolhero`
-3. Copy the new files to `/opt/spoolhero` (overwrite existing files)
-4. Set permissions: `sudo chown -R www-data:www-data /opt/spoolhero`
-5. Start the service: `sudo systemctl start spoolhero`
+```bash
+# Download the new release
+wget https://github.com/Fewiel/SpoolHero/releases/latest/download/spoolhero-VERSION.zip -O /tmp/spoolhero.zip
 
-Database migrations run automatically on startup.
+# Keep the current version as a backup and install the new one
+sudo systemctl stop spoolhero
+sudo mv /opt/spoolhero /opt/spoolhero.prev
+sudo mkdir -p /opt/spoolhero
+sudo unzip -q /tmp/spoolhero.zip -d /opt/spoolhero
+sudo cp /opt/spoolhero.prev/appsettings.json /opt/spoolhero/appsettings.json
+sudo chown -R www-data:www-data /opt/spoolhero
+sudo systemctl start spoolhero
+rm /tmp/spoolhero.zip
+```
+
+Database migrations run automatically on startup. Back up your database before updating (`mysqldump SpoolManager > spoolhero-backup.sql`).
+
+If something goes wrong, stop the service, move `/opt/spoolhero.prev` back to `/opt/spoolhero` and start the service again.
