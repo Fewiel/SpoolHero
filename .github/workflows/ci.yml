@@ -47,6 +47,57 @@ jobs:
           sys.exit(1 if missing_de or missing_en else 0)
           PY
 
+  migrations:
+    # Production runs MySQL 8 – start the app against it so every migration is executed.
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: ci
+          MYSQL_DATABASE: SpoolManager
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping -h localhost -pci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Publish
+        run: dotnet publish src/SpoolManager.Server/SpoolManager.Server.csproj -c Release -o ./publish
+
+      - name: Start app and run migrations
+        working-directory: ./publish
+        env:
+          ASPNETCORE_ENVIRONMENT: Production
+          ASPNETCORE_URLS: http://127.0.0.1:5000
+          Kestrel__Endpoints__Http__Url: http://127.0.0.1:5000
+          ConnectionStrings__Default: Server=127.0.0.1;Port=3306;Database=SpoolManager;User=root;Password=ci;
+          Jwt__SecretKey: ci-secret-ci-secret-ci-secret-ci-secret
+        run: |
+          dotnet SpoolManager.Server.dll > app.log 2>&1 &
+          PID=$!
+          for i in $(seq 1 60); do
+            if curl -sf http://127.0.0.1:5000/api/public/branding > /dev/null; then
+              echo "App started, migrations applied"
+              kill $PID
+              exit 0
+            fi
+            if ! kill -0 $PID 2>/dev/null; then break; fi
+            sleep 2
+          done
+          cat app.log
+          exit 1
+
   docker:
     runs-on: ubuntu-latest
 
