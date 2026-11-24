@@ -118,4 +118,20 @@ public class NdefParserTests
         Assert.Equal("Generic", decoded.Brand);
         Assert.Equal(220, decoded.MinTempCelsius);
     }
+
+    [Fact]
+    public void ParsesTwoRecordTagWithSpoolmanText()
+    {
+        var service = new OpenSpoolService();
+        var material = new FilamentMaterial { Brand = "Generic", Type = "PLA", ColorHex = "FF0000", MinTempCelsius = 190, MaxTempCelsius = 220 };
+
+        var bytes = service.Encode(material, Guid.NewGuid(), spoolmanId: 42);
+        var records = NdefParser.ExtractRecords(bytes);
+
+        Assert.Equal(2, records.Count);
+        Assert.Equal("T", records[1].Type);
+        Assert.Contains("SPOOL:42", records[1].PayloadText);
+        Assert.True(service.Decode(bytes).isValid);
+        Assert.Contains("\"spool_id\":42", NdefParser.ExtractJson(bytes));
+    }
 }
