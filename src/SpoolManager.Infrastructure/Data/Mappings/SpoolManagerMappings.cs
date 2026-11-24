@@ -267,6 +267,27 @@ public static class SpoolManagerMappings
             .Property(x => x.MaterialId).HasColumnName("material_id")
             .Property(x => x.CreatedAt).HasColumnName("created_at");
 
+        builder.Entity<Webhook>()
+            .HasTableName("webhooks")
+            .HasPrimaryKey(x => x.Id)
+            .Property(x => x.Id).HasColumnName("id")
+            .Property(x => x.ProjectId).HasColumnName("project_id")
+            .Property(x => x.Name).HasColumnName("name")
+            .Property(x => x.Type).HasColumnName("type")
+            .Property(x => x.Url).HasColumnName("url")
+            .Property(x => x.BotToken).HasColumnName("bot_token")
+            .Property(x => x.ChatId).HasColumnName("chat_id")
+            .Property(x => x.IsEnabled).HasColumnName("is_enabled")
+            .Property(x => x.OnDryerFinished).HasColumnName("on_dryer_finished")
+            .Property(x => x.OnSpoolLow).HasColumnName("on_spool_low")
+            .Property(x => x.OnSpoolConsumed).HasColumnName("on_spool_consumed")
+            .Property(x => x.LastTriggeredAt).HasColumnName("last_triggered_at")
+            .Property(x => x.LastSuccess).HasColumnName("last_success")
+            .Property(x => x.LastStatusCode).HasColumnName("last_status_code")
+            .Property(x => x.LastError).HasColumnName("last_error")
+            .Property(x => x.CreatedAt).HasColumnName("created_at")
+            .Property(x => x.UpdatedAt).HasColumnName("updated_at");
+
         builder.Build();
         return schema;
     }

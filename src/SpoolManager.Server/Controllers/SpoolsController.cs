@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SpoolManager.Infrastructure.Repositories;
 using SpoolManager.Infrastructure.Services;
+using SpoolManager.Infrastructure.Services.Webhooks;
 using SpoolManager.Server.Filters;
 using SpoolManager.Shared.DTOs.Spools;
 using SpoolManager.Shared.Models;
@@ -17,15 +18,17 @@ public class SpoolsController : ControllerBase
 {
     private readonly ISpoolRepository _spools;
     private readonly IAuditService _audit;
+    private readonly IWebhookDispatcher _webhooks;
     private ProjectMember ProjectMember => (ProjectMember)HttpContext.Items["ProjectMember"]!;
     private string? UserName => User.FindFirst(ClaimTypes.Name)?.Value;
     private Guid UserId => Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
     private string? ClientIp => HttpContext.Connection.RemoteIpAddress?.ToString();
 
-    public SpoolsController(ISpoolRepository spools, IAuditService audit)
+    public SpoolsController(ISpoolRepository spools, IAuditService audit, IWebhookDispatcher webhooks)
     {
         _spools = spools;
         _audit = audit;
+        _webhooks = webhooks;
     }
 
     [HttpGet]
@@ -168,6 +171,7 @@ public class SpoolsController : ControllerBase
         var spool = await _spools.GetByIdAsync(id, ProjectMember.ProjectId);
         if (spool == null)
             return NotFound();
+        var wasConsumed = spool.ConsumedAt != null;
         spool.ConsumedAt = DateTime.UtcNow;
         spool.RemainingWeightGrams = 0;
         spool.RemainingPercent = 0;
@@ -180,6 +184,9 @@ public class SpoolsController : ControllerBase
             entityType: "spool", entityId: id.ToString(), entityName: name,
             projectId: ProjectMember.ProjectId,
             ipAddress: ClientIp);
+
+        if (!wasConsumed)
+            _webhooks.Enqueue(WebhookEventData.ForSpool(WebhookEvents.SpoolConsumed, spool));
 
         return Ok(MapToDto((await _spools.GetByIdAsync(id, ProjectMember.ProjectId))!));
     }

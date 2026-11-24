@@ -24,4 +24,5 @@ public class SpoolManagerDb : DataConnection
     public ITable<SiteSetting> SiteSettings => this.GetTable<SiteSetting>();
     public ITable<MaterialSuggestion> MaterialSuggestions => this.GetTable<MaterialSuggestion>();
     public ITable<UserMaterialFavorite> UserMaterialFavorites => this.GetTable<UserMaterialFavorite>();
+    public ITable<Webhook> Webhooks => this.GetTable<Webhook>();
 }

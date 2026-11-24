@@ -45,8 +45,11 @@ public class ProjectRepository : IProjectRepository
     public async Task UpdateAsync(Project project) =>
         await _db.UpdateAsync(project);
 
-    public async Task DeleteAsync(Guid id) =>
+    public async Task DeleteAsync(Guid id)
+    {
+        await _db.Webhooks.Where(w => w.ProjectId == id).DeleteAsync();
         await _db.Projects.Where(p => p.Id == id).DeleteAsync();
+    }
 
     public async Task<int> GetTotalCountAsync() =>
         await _db.Projects.CountAsync();
