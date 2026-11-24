@@ -80,6 +80,40 @@ spoolhero.example.com {
 }
 ```
 
+## Proxmox (LXC)
+
+On a [Proxmox VE](https://www.proxmox.com/) host, a single command creates an unprivileged Debian 12 container and installs SpoolHero in it. Run it in the shell of your Proxmox node (as root):
+
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/Fewiel/SpoolHero/main/deploy/proxmox-create-lxc.sh)"
+```
+
+Defaults: next free container ID, hostname `spoolhero`, 1 core, 1024 MB RAM, 8 GB disk, bridge `vmbr0` with DHCP, port 5000. Everything can be changed with options, for example:
+
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/Fewiel/SpoolHero/main/deploy/proxmox-create-lxc.sh)" _ \
+  --ctid 120 --memory 2048 --storage local-zfs --ip 192.168.1.50/24 --gateway 192.168.1.1 --yes
+```
+
+Run it with `--help` for all options. When it finishes, it prints the container's address (`http://<container-ip>:5000`). The default admin account is `admin@localhost` / `admin`.
+
+To update later: `pct exec <ctid> -- spoolhero-update`
+
+### Install script for Debian / Ubuntu (existing container or VM)
+
+If you already have a container or VM running Debian 12/13 or Ubuntu 22.04/24.04, run the installer inside it as root:
+
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/Fewiel/SpoolHero/main/deploy/install.sh)"
+```
+
+It installs the ASP.NET Core 10 runtime, MariaDB, the latest release in `/opt/spoolhero` and a `spoolhero` systemd service. The database password and JWT secret are generated randomly. Running it again is safe: existing settings and secrets are kept.
+
+- Update: `spoolhero-update` (or run the installer with `--update`). It backs up the database to `/var/backups/spoolhero`, keeps the previous version in `/opt/spoolhero.prev` and rolls back if the new version does not start.
+- Options: `--version X.Y.Z`, `--port N`, `--zip <file>` (install from a downloaded release zip), `--help` for the full list.
+
+For NFC, you still need HTTPS in front of the container, see [HTTPS (required for NFC on Android)](#https-required-for-nfc-on-android).
+
 ## Manual Setup (without Docker)
 
 ### Requirements

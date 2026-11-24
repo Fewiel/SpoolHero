@@ -1,5 +1,13 @@
 # Installation Guide – Ubuntu 24.04 with Apache and Let's Encrypt
 
+> **Shortcut:** On Debian 12/13 or Ubuntu 22.04/24.04, [`deploy/install.sh`](deploy/install.sh) automates steps 1–5 of this guide (runtime, database, release download, `appsettings.json` with random secrets, systemd service; MariaDB is used instead of MySQL):
+>
+> ```bash
+> sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/Fewiel/SpoolHero/main/deploy/install.sh)"
+> ```
+>
+> It installs to `/opt/spoolhero` and listens on port 5000 on all interfaces. Updates: `sudo spoolhero-update`. On Proxmox VE, see the README section "Proxmox (LXC)". Continue with step 6 below for the Apache reverse proxy and HTTPS.
+
 ## Requirements
 
 - Ubuntu 24.04 LTS
