@@ -51,7 +51,12 @@ builder.Services.AddScoped<ISiteSettingsRepository, SiteSettingsRepository>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddHostedService<NotificationBackgroundService>();
 
+builder.Services.AddScoped<ISpoolmanApiKeyRepository, SpoolmanApiKeyRepository>();
+builder.Services.AddScoped<ISpoolmanCallLogRepository, SpoolmanCallLogRepository>();
+builder.Services.AddSingleton<SpoolmanEventHub>();
+
 builder.Services.AddScoped<ProjectAuthFilter>();
+builder.Services.AddScoped<SpoolmanAuthFilter>();
 builder.Services.AddSingleton<LoginRateLimiter>();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -146,6 +151,9 @@ app.MapGet("/favicon.ico", async (ISiteSettingsRepository settings, HttpContext 
 });
 
 app.UseStaticFiles();
+
+app.UseWebSockets();
+app.UseMiddleware<SpoolmanWebSocketMiddleware>();
 
 app.UseAuthentication();
 app.UseMiddleware<UserActivityMiddleware>();

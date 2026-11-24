@@ -14,6 +14,8 @@ public interface ISpoolRepository
     Task DeleteAsync(Guid id);
     Task<int> GetTotalCountAsync();
     Task<List<Spool>> GetSpoolsNeedingLowNotificationAsync();
+    Task<Spool?> GetBySpoolmanIdAsync(int spoolmanId, Guid projectId);
+    Task ApplyUsageAsync(Guid spoolId, decimal usedGrams, decimal totalWeightGrams);
 }
 
 public class SpoolRepository : ISpoolRepository
@@ -112,6 +114,35 @@ public class SpoolRepository : ISpoolRepository
         if (spool.DryerId.HasValue)
             spool.Dryer = await _db.Dryers.FirstOrDefaultAsync(d => d.Id == spool.DryerId.Value);
         return spool;
+    }
+
+    public async Task<Spool?> GetBySpoolmanIdAsync(int spoolmanId, Guid projectId)
+    {
+        var spool = await _db.Spools.FirstOrDefaultAsync(s => s.SpoolmanId == spoolmanId && s.ProjectId == projectId);
+        return await LoadNavPropsAsync(spool);
+    }
+
+    // Atomic so concurrent usage reports (e.g. Moonraker syncing while a user edits) don't lose updates.
+    // Negative usedGrams adds filament back, as in Spoolman.
+    public async Task ApplyUsageAsync(Guid spoolId, decimal usedGrams, decimal totalWeightGrams)
+    {
+        var query = _db.Spools
+            .Where(s => s.Id == spoolId)
+            .Set(s => s.UpdatedAt, DateTime.UtcNow);
+
+        // MySQL evaluates SET assignments left to right and later ones see already updated columns,
+        // so the percentage must be computed before remaining_weight_grams is changed.
+        if (totalWeightGrams > 0)
+        {
+            query = query.Set(s => s.RemainingPercent, s =>
+                s.RemainingWeightGrams - usedGrams <= 0 ? 0
+                : (s.RemainingWeightGrams - usedGrams) / totalWeightGrams * 100 > 100 ? 100
+                : (s.RemainingWeightGrams - usedGrams) / totalWeightGrams * 100);
+        }
+
+        await query
+            .Set(s => s.RemainingWeightGrams, s => s.RemainingWeightGrams - usedGrams < 0 ? 0 : s.RemainingWeightGrams - usedGrams)
+            .UpdateAsync();
     }
 
     public async Task<Guid> CreateAsync(Spool spool)
