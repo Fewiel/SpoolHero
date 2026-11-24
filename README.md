@@ -4,17 +4,19 @@ SpoolHero is a self-hosted filament management tool for 3D printing. It allows y
 
 ## Features
 
-- Spool tracking with weight, color, material, and location
-- NFC tag support via OpenSpool standard (NTAG215/216)
+- Spool tracking with weight, color, material, location, and owner
+- Weigh spools: enter the scale reading and the remaining filament is calculated from the empty spool weight
+- Stock overview per material (all spools of a material bundled with their total weight)
+- NFC tag support via OpenSpool standard (NTAG215/216), import of OpenSpool `.bin` tag files
 - Multi-user projects with invitation codes
-- Shared material database with import/export
+- Shared material database with import/export, cloning, and Orca Slicer export
 - Dryer monitoring with notifications
 - Inventory scanning via NFC
 - Klipper/Moonraker integration through a Spoolman-compatible API
 - Admin panel with branding, SMTP, user management, and support tickets
 - Email notifications for spool levels, dryer cycles, and ticket replies
 - Webhooks per project for Discord, Telegram, Home Assistant, or any JSON endpoint (dryer finished, spool low, spool consumed)
-- Self-hostable, open source, no external dependencies
+- Self-hostable (Docker, Proxmox LXC, Debian/Ubuntu install script), open source, no external dependencies
 
 ## Quick Start with Docker
 
