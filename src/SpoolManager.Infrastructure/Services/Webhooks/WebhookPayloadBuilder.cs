@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using SpoolManager.Shared.Models;
@@ -14,7 +15,9 @@ public static class WebhookPayloadBuilder
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        // Payloads go to APIs, not HTML pages: keep quotes/umlauts readable instead of \uXXXX.
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
     };
 
     public static string Title(WebhookEventData e) => e.EventType switch
@@ -59,7 +62,7 @@ public static class WebhookPayloadBuilder
             ["event"] = e.EventType,
             ["title"] = Title(e),
             ["message"] = Message(e, projectName),
-            ["timestamp"] = DateTime.SpecifyKind(e.OccurredAt, DateTimeKind.Utc),
+            ["timestamp"] = Utc(e.OccurredAt),
             ["source"] = "SpoolHero",
             ["project"] = new Dictionary<string, object?> { ["id"] = e.ProjectId, ["name"] = projectName }
         };
@@ -70,7 +73,7 @@ public static class WebhookPayloadBuilder
                 ["remaining_percent"] = e.Spool.RemainingPercent,
                 ["remaining_weight_grams"] = e.Spool.RemainingWeightGrams,
                 ["rfid_tag_uid"] = e.Spool.RfidTagUid,
-                ["consumed_at"] = e.Spool.ConsumedAt
+                ["consumed_at"] = Utc(e.Spool.ConsumedAt)
             };
         if (e.Material != null)
             payload["material"] = new Dictionary<string, object?>
@@ -87,8 +90,8 @@ public static class WebhookPayloadBuilder
             {
                 ["id"] = e.Dryer.Id,
                 ["name"] = e.Dryer.Name,
-                ["drying_started_at"] = e.Dryer.DryingStartedAt,
-                ["drying_finish_at"] = e.Dryer.DryingFinishAt
+                ["drying_started_at"] = Utc(e.Dryer.DryingStartedAt),
+                ["drying_finish_at"] = Utc(e.Dryer.DryingFinishAt)
             };
         return JsonSerializer.Serialize(RemoveNulls(payload), JsonOptions);
     }
@@ -118,7 +121,7 @@ public static class WebhookPayloadBuilder
                 {
                     title = Title(e),
                     color = EmbedColor(e),
-                    timestamp = DateTime.SpecifyKind(e.OccurredAt, DateTimeKind.Utc),
+                    timestamp = Utc(e.OccurredAt),
                     fields,
                     footer = new { text = "SpoolHero · " + e.EventType }
                 }
@@ -167,6 +170,10 @@ public static class WebhookPayloadBuilder
         }
         return d;
     }
+
+    // DB values come back with Kind=Unspecified but are stored as UTC.
+    private static DateTime Utc(DateTime d) => DateTime.SpecifyKind(d, DateTimeKind.Utc);
+    private static DateTime? Utc(DateTime? d) => d.HasValue ? Utc(d.Value) : null;
 
     private static string Truncate(string s, int max) => s.Length <= max ? s : s[..(max - 1)] + "…";
 }

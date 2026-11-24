@@ -13,7 +13,6 @@ public interface IWebhookRepository
     Task UpdateAsync(Webhook webhook);
     Task UpdateDeliveryStatusAsync(Guid id, DateTime at, bool success, int? statusCode, string? error);
     Task DeleteAsync(Guid id);
-    Task DeleteByProjectAsync(Guid projectId);
 }
 
 public class WebhookRepository : IWebhookRepository
@@ -68,7 +67,4 @@ public class WebhookRepository : IWebhookRepository
 
     public async Task DeleteAsync(Guid id) =>
         await _db.Webhooks.Where(w => w.Id == id).DeleteAsync();
-
-    public async Task DeleteByProjectAsync(Guid projectId) =>
-        await _db.Webhooks.Where(w => w.ProjectId == projectId).DeleteAsync();
 }

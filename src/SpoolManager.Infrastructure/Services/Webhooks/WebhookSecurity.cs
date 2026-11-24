@@ -48,6 +48,13 @@ public static partial class WebhookSecurity
             error = "Only absolute http:// or https:// URLs are allowed.";
             return false;
         }
+        // Early, friendly rejection of literal IPs that are never allowed (e.g. cloud metadata).
+        // Host names are checked again at connect time against the resolved addresses.
+        if (IPAddress.TryParse(uri.Host.Trim('[', ']'), out var ip) && !IsAllowedAddress(ip, blockPrivate: false))
+        {
+            error = "This network address is not allowed as webhook target.";
+            return false;
+        }
         return true;
     }
 
