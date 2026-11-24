@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
+using SpoolManager.Client.Components;
 using SpoolManager.Client.Services;
 using SpoolManager.Shared.DTOs.Spools;
 using SpoolManager.Shared.DTOs.Tags;
@@ -89,6 +90,18 @@ public partial class SpoolList : IDisposable
         _searchTimer = new System.Timers.Timer(300);
         _searchTimer.Elapsed += async (_, _) => { _searchTimer?.Stop(); await InvokeAsync(LoadAsync); };
         _searchTimer.Start();
+    }
+
+    private SpoolDto? _findTarget;
+    private FindSpoolModal? _findModal;
+
+    private async Task FindSpoolAsync(SpoolDto spool)
+    {
+        _findTarget = spool;
+        StateHasChanged();
+        await Task.Yield();
+        if (_findModal != null)
+            await _findModal.OpenAsync();
     }
 
     private void SetGrouped(bool grouped)

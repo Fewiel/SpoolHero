@@ -235,6 +235,12 @@ else
                     <div class="d-flex gap-2 flex-wrap align-items-center">
                         @if (_nfcSupported)
                         {
+                            <button class="btn btn-outline-success" @onclick="FindSpoolAsync">
+                                <i class="bi bi-search me-1"></i>@L["spool.find.title"]
+                            </button>
+                        }
+                        @if (_nfcSupported)
+                        {
                             <button class="btn btn-outline-primary" @onclick="WriteNfcAsync" disabled="@_writingNfc">
                                 @if (_writingNfc) { <span class="spinner-border spinner-border-sm me-2"></span> }
                                 <i class="bi bi-broadcast me-1"></i>@L["tag.nfc.write"]
@@ -273,3 +279,7 @@ else
     </div>
 }
 
+@if (_spool != null)
+{
+    <FindSpoolModal @ref="_findModal" Spool="_spool" />
+}

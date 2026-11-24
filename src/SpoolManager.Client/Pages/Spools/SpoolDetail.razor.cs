@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
+using SpoolManager.Client.Components;
 using SpoolManager.Client.Services;
 using SpoolManager.Shared.DTOs.Spools;
 using SpoolManager.Shared.DTOs.Tags;
@@ -63,6 +64,14 @@ public partial class SpoolDetail : IDisposable
         await Spools.UpdateRemainingAsync(Id, new UpdateRemainingRequest { RemainingWeightGrams = _remainingGrams, RemainingPercent = _remainingPct });
         _spool = await Spools.GetByIdAsync(Id);
         _showRemainingForm = false;
+    }
+
+    private FindSpoolModal? _findModal;
+
+    private async Task FindSpoolAsync()
+    {
+        if (_findModal != null)
+            await _findModal.OpenAsync();
     }
 
     private void OpenWeighForm()

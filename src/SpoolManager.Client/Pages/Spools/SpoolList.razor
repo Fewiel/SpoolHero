@@ -206,6 +206,13 @@ else
                         </a>
                         @if (_nfcAvailable && spool.ConsumedAt == null)
                         {
+                            <button class="btn btn-sm btn-outline-success" title="@L["spool.find.title"]"
+                                    @onclick="() => FindSpoolAsync(spool)">
+                                <i class="bi bi-search"></i>
+                            </button>
+                        }
+                        @if (_nfcAvailable && spool.ConsumedAt == null)
+                        {
                             <button class="btn btn-sm btn-outline-info" title="@L["spool.nfc.write.quick"]"
                                     @onclick="() => WriteNfcAsync(spool)"
                                     disabled="@(_nfcWriting && _nfcTarget?.Id == spool.Id)">
@@ -248,3 +255,7 @@ else
     </div>
 }
 
+@if (_findTarget != null)
+{
+    <FindSpoolModal @ref="_findModal" Spool="_findTarget" />
+}
