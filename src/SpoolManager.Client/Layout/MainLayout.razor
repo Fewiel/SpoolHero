@@ -132,6 +132,7 @@ else
                             <li><a class="dropdown-item" href="/settings/account"><i class="bi bi-person-gear me-2"></i>@L["nav.settings.account"]</a></li>
                             <li><a class="dropdown-item" href="/settings/password"><i class="bi bi-key me-2"></i>@L["auth.change.password"]</a></li>
                             <li><a class="dropdown-item" href="/settings/notifications"><i class="bi bi-bell me-2"></i>@L["settings.notifications.title"]</a></li>
+                            <li><a class="dropdown-item" href="/webhooks"><i class="bi bi-broadcast-pin me-2"></i>@L["nav.webhooks"]</a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li>
                                 <button class="dropdown-item text-danger" @onclick="LogoutAsync">
@@ -251,6 +252,11 @@ else
                 <li class="nav-item mt-1">
                     <a class="btn btn-outline-secondary w-100" href="/settings/notifications" @onclick="CloseOffcanvas">
                         <i class="bi bi-bell me-2"></i>@L["settings.notifications.title"]
+                    </a>
+                </li>
+                <li class="nav-item mt-1">
+                    <a class="btn btn-outline-secondary w-100" href="/webhooks" @onclick="CloseOffcanvas">
+                        <i class="bi bi-broadcast-pin me-2"></i>@L["nav.webhooks"]
                     </a>
                 </li>
                 <li class="nav-item mt-2">

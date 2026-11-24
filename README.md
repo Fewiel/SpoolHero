@@ -13,6 +13,7 @@ SpoolHero is a self-hosted filament management tool for 3D printing. It allows y
 - Klipper/Moonraker integration through a Spoolman-compatible API
 - Admin panel with branding, SMTP, user management, and support tickets
 - Email notifications for spool levels, dryer cycles, and ticket replies
+- Webhooks per project for Discord, Telegram, Home Assistant, or any JSON endpoint (dryer finished, spool low, spool consumed)
 - Self-hostable, open source, no external dependencies
 
 ## Quick Start with Docker

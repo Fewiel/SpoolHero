@@ -2,6 +2,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using SpoolManager.Infrastructure.Repositories;
+using SpoolManager.Infrastructure.Services.Webhooks;
+using SpoolManager.Shared.Models;
 
 namespace SpoolManager.Infrastructure.Services;
 
@@ -29,9 +31,10 @@ public class NotificationBackgroundService : BackgroundService
                 var dryers = scope.ServiceProvider.GetRequiredService<IDryerRepository>();
                 var spools = scope.ServiceProvider.GetRequiredService<ISpoolRepository>();
                 var users = scope.ServiceProvider.GetRequiredService<IUserRepository>();
+                var webhooks = scope.ServiceProvider.GetRequiredService<IWebhookDispatcher>();
 
-                await CheckDryersAsync(dryers, users, email);
-                await CheckSpoolsAsync(spools, users, email);
+                await CheckDryersAsync(dryers, users, email, webhooks);
+                await CheckSpoolsAsync(spools, users, email, webhooks);
 
                 if (DateTime.UtcNow - _lastCleanup > TimeSpan.FromHours(24))
                 {
@@ -50,7 +53,7 @@ public class NotificationBackgroundService : BackgroundService
         }
     }
 
-    private static async Task CheckDryersAsync(IDryerRepository dryers, IUserRepository users, IEmailService email)
+    private static async Task CheckDryersAsync(IDryerRepository dryers, IUserRepository users, IEmailService email, IWebhookDispatcher webhooks)
     {
         var done = await dryers.GetDryersNeedingNotificationAsync();
         foreach (var dryer in done)
@@ -59,10 +62,11 @@ public class NotificationBackgroundService : BackgroundService
             await email.NotifyDryerDoneAsync(dryer, members);
             dryer.DryingNotifiedAt = DateTime.UtcNow;
             await dryers.UpdateAsync(dryer);
+            webhooks.Enqueue(WebhookEventData.ForDryer(dryer));
         }
     }
 
-    private static async Task CheckSpoolsAsync(ISpoolRepository spools, IUserRepository users, IEmailService email)
+    private static async Task CheckSpoolsAsync(ISpoolRepository spools, IUserRepository users, IEmailService email, IWebhookDispatcher webhooks)
     {
         var low = await spools.GetSpoolsNeedingLowNotificationAsync();
         foreach (var spool in low)
@@ -71,6 +75,7 @@ public class NotificationBackgroundService : BackgroundService
             await email.NotifySpoolLowAsync(spool, members);
             spool.LowSpoolNotifiedAt = DateTime.UtcNow;
             await spools.UpdateAsync(spool);
+            webhooks.Enqueue(WebhookEventData.ForSpool(WebhookEvents.SpoolLow, spool));
         }
     }
 }

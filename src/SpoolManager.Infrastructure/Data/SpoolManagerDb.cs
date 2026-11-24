@@ -26,4 +26,5 @@ public class SpoolManagerDb : DataConnection
     public ITable<UserMaterialFavorite> UserMaterialFavorites => this.GetTable<UserMaterialFavorite>();
     public ITable<SpoolmanApiKey> SpoolmanApiKeys => this.GetTable<SpoolmanApiKey>();
     public ITable<SpoolmanCallLog> SpoolmanCallLogs => this.GetTable<SpoolmanCallLog>();
+    public ITable<Webhook> Webhooks => this.GetTable<Webhook>();
 }
