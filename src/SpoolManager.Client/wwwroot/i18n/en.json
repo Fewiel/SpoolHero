@@ -567,5 +567,28 @@
 
   "auth.terms.accept": "I accept the",
   "auth.privacy.accept": "I have read and agree to the",
-  "auth.terms.required": "Please accept the Terms of Use and Privacy Policy."
+  "auth.terms.required": "Please accept the Terms of Use and Privacy Policy.",
+
+  "spoolman.title": "Klipper / Moonraker (Spoolman API)",
+  "spoolman.intro": "SpoolHero provides a Spoolman-compatible API for the spools of this project:",
+  "spoolman.setup": "Setup",
+  "spoolman.hint": "Create an API key below and add the following to your moonraker.conf. Moonraker then shows your SpoolHero spools and books used filament automatically.",
+  "spoolman.hint.clients": "Other Spoolman clients (e.g. nfc2klipper, SpoolPainter) use the same server URL. Anyone who knows the URL can read the project's spools and book filament usage – keep it private.",
+  "spoolman.settings.teaser": "Connect Klipper/Moonraker and other Spoolman clients to this project.",
+  "spoolman.no.permission": "Only project admins and managers can manage API keys.",
+  "spoolman.apikeys": "API Keys",
+  "spoolman.apikeys.manage": "Manage API keys",
+  "spoolman.apikeys.create": "Create API Key",
+  "spoolman.apikeys.name": "Name",
+  "spoolman.apikeys.name.placeholder": "e.g. Voron 2.4 Moonraker",
+  "spoolman.apikeys.lastused": "Last Used",
+  "spoolman.apikeys.empty": "No API keys yet. Create one to connect Moonraker.",
+  "spoolman.apikeys.url": "Server URL",
+  "spoolman.apikeys.logs": "API calls (last 24h)",
+  "spoolman.apikeys.logs.empty": "No calls in the last 24 hours.",
+  "spoolman.apikeys.delete": "Delete API key",
+  "spoolman.apikeys.delete.confirm": "Clients using this key will lose access immediately.",
+  "spoolman.copy": "Copy",
+  "spoolman.id": "Spoolman ID",
+  "spoolman.id.hint": "Spool ID used by Klipper/Moonraker (e.g. SET_ACTIVE_SPOOL ID=…)"
 }

@@ -10,6 +10,7 @@ SpoolHero is a self-hosted filament management tool for 3D printing. It allows y
 - Shared material database with import/export
 - Dryer monitoring with notifications
 - Inventory scanning via NFC
+- Klipper/Moonraker integration through a Spoolman-compatible API
 - Admin panel with branding, SMTP, user management, and support tickets
 - Email notifications for spool levels, dryer cycles, and ticket replies
 - Self-hostable, open source, no external dependencies
@@ -119,9 +120,22 @@ Pull requests are welcome. Please keep changes focused and describe what you cha
 
 For larger features, open an issue first to discuss the approach.
 
-## Roadmap
+## Klipper / Moonraker (Spoolman API)
 
-- Klipper integration (read/write spool data directly from Klipper via Moonraker API)
+SpoolHero exposes a Spoolman-compatible API, so Moonraker/Klipper and other Spoolman clients (e.g. nfc2klipper, SpoolPainter) can use it in place of a Spoolman server. Used filament is booked automatically and updates the spool's remaining weight.
+
+1. Open **Projects → Project Settings → Klipper / Moonraker** and create an API key (project admins and managers only).
+2. Copy the server URL shown there into your `moonraker.conf`:
+
+```ini
+[spoolman]
+server: https://spoolhero.example.com/<API_KEY>
+sync_rate: 5
+```
+
+3. Restart Moonraker and select a spool with `SET_ACTIVE_SPOOL ID=<id>`. The ID is the "Spoolman ID" shown on the spool detail page; NFC tags written by SpoolHero also contain it (`SPOOL:<id>` text record for nfc2klipper).
+
+The API key is part of the URL, so treat the URL like a password. If you use a reverse proxy, make sure it forwards WebSocket connections (nginx: `proxy_http_version 1.1; proxy_set_header Upgrade $http_upgrade; proxy_set_header Connection "upgrade";`).
 
 ## License
 
