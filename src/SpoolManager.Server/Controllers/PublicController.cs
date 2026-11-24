@@ -1,9 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
-using SixLabors.ImageSharp.Processing;
 using SpoolManager.Infrastructure.Repositories;
+using SpoolManager.Infrastructure.Services;
 using SpoolManager.Shared.DTOs.Admin;
 
 namespace SpoolManager.Server.Controllers;
@@ -14,8 +12,13 @@ namespace SpoolManager.Server.Controllers;
 public class PublicController : ControllerBase
 {
     private readonly ISiteSettingsRepository _settings;
+    private readonly IImageService _images;
 
-    public PublicController(ISiteSettingsRepository settings) => _settings = settings;
+    public PublicController(ISiteSettingsRepository settings, IImageService images)
+    {
+        _settings = settings;
+        _images = images;
+    }
 
     [HttpGet("legal")]
     public async Task<IActionResult> GetLegal()
@@ -48,46 +51,21 @@ public class PublicController : ControllerBase
     [ResponseCache(Duration = 3600, Location = ResponseCacheLocation.Any)]
     public async Task<IActionResult> GetOgImage()
     {
-        const int width = 1200;
-        const int height = 630;
-        var bgColor = new Rgba32(15, 23, 42);
-
-        using var canvas = new Image<Rgba32>(width, height, bgColor);
-
+        byte[]? logo = null;
         var logoDataUrl = await _settings.GetAsync("branding_logo");
-        if (!string.IsNullOrEmpty(logoDataUrl))
+        var commaIdx = logoDataUrl?.IndexOf(',') ?? -1;
+        if (commaIdx >= 0)
         {
-            var commaIdx = logoDataUrl.IndexOf(',');
-            if (commaIdx >= 0)
-            {
-                try
-                {
-                    var bytes = Convert.FromBase64String(logoDataUrl[(commaIdx + 1)..]);
-                    using var logoStream = new MemoryStream(bytes);
-                    using var logo = await Image.LoadAsync(logoStream);
-                    var scale = Math.Min(800f / logo.Width, 400f / logo.Height);
-                    var newW = (int)(logo.Width * scale);
-                    var newH = (int)(logo.Height * scale);
-                    logo.Mutate(x => x.Resize(newW, newH));
-                    canvas.Mutate(ctx => ctx.DrawImage(logo, new Point((width - newW) / 2, (height - newH) / 2), 1f));
-                }
-                catch { }
-            }
-        }
-        else
-        {
-            var iconPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "icon-192.png");
-            if (System.IO.File.Exists(iconPath))
-            {
-                using var icon = await Image.LoadAsync(iconPath);
-                icon.Mutate(x => x.Resize(300, 300));
-                canvas.Mutate(ctx => ctx.DrawImage(icon, new Point(450, 165), 1f));
-            }
+            try { logo = Convert.FromBase64String(logoDataUrl![(commaIdx + 1)..]); }
+            catch (FormatException) { }
         }
 
-        using var ms = new MemoryStream();
-        await canvas.SaveAsPngAsync(ms);
-        return File(ms.ToArray(), "image/png");
+        byte[]? icon = null;
+        var iconPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "icon-192.png");
+        if (logo == null && System.IO.File.Exists(iconPath))
+            icon = await System.IO.File.ReadAllBytesAsync(iconPath);
+
+        return File(_images.RenderOgImage(logo, icon), "image/png");
     }
 
     [HttpGet("favicon")]
