@@ -157,18 +157,6 @@ jobs:
         with:
           name: spoolhero
 
-      - name: Stop service
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          proxy_host: ${{ secrets.PROXY_HOST }}
-          proxy_port: 22
-          proxy_username: ${{ secrets.PROXY_USER }}
-          proxy_key: ${{ secrets.PROXY_SSH_KEY }}
-          script: systemctl stop spoolhero || true
-
       - name: Upload archive
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -193,13 +181,42 @@ jobs:
           proxy_username: ${{ secrets.PROXY_USER }}
           proxy_key: ${{ secrets.PROXY_SSH_KEY }}
           script: |
-            rm -rf /opt/spoolhero
-            mkdir -p /opt/spoolhero
-            unzip /tmp/${{ needs.build.outputs.artifact }} -d /opt/spoolhero
-            rm /tmp/${{ needs.build.outputs.artifact }}
-            cp /opt/appsettings.json /opt/spoolhero/appsettings.json
-            chown -R www-data:www-data /opt/spoolhero
+            set -e
+            ARCHIVE=/tmp/${{ needs.build.outputs.artifact }}
+            APP=/opt/spoolhero
+
+            # Prepare the new release next to the running one
+            rm -rf $APP.new
+            mkdir -p $APP.new
+            unzip -q $ARCHIVE -d $APP.new
+            rm $ARCHIVE
+            cp /opt/appsettings.json $APP.new/appsettings.json
+            chown -R www-data:www-data $APP.new
+
+            # Swap releases, keep the previous one for rollback
+            systemctl stop spoolhero || true
+            rm -rf $APP.prev
+            if [ -d $APP ]; then mv $APP $APP.prev; fi
+            mv $APP.new $APP
             systemctl start spoolhero
+
+            # Health check: the service must still be running after startup (migrations included)
+            sleep 20
+            if systemctl is-active --quiet spoolhero; then
+              echo "Deployment successful"
+              exit 0
+            fi
+
+            echo "Service failed to start, rolling back"
+            journalctl -u spoolhero -n 50 --no-pager || true
+            systemctl stop spoolhero || true
+            if [ -d $APP.prev ]; then
+              rm -rf $APP.failed
+              mv $APP $APP.failed
+              mv $APP.prev $APP
+              systemctl start spoolhero
+            fi
+            exit 1
 
   release:
     runs-on: ubuntu-latest
