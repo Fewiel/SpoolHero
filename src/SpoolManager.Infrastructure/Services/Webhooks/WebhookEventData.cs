@@ -25,6 +25,7 @@ public class WebhookEventData
             RemainingPercent = spool.RemainingPercent,
             RemainingWeightGrams = spool.RemainingWeightGrams,
             RfidTagUid = spool.RfidTagUid,
+            OwnerName = spool.OwnerName,
             ConsumedAt = spool.ConsumedAt
         },
         Material = spool.FilamentMaterial == null ? null : WebhookMaterialData.From(spool.FilamentMaterial)
@@ -56,6 +57,7 @@ public class WebhookSpoolData
     public decimal RemainingPercent { get; init; }
     public decimal RemainingWeightGrams { get; init; }
     public string? RfidTagUid { get; init; }
+    public string? OwnerName { get; init; }
     public DateTime? ConsumedAt { get; init; }
 }
 

@@ -73,6 +73,7 @@ public static class WebhookPayloadBuilder
                 ["remaining_percent"] = e.Spool.RemainingPercent,
                 ["remaining_weight_grams"] = e.Spool.RemainingWeightGrams,
                 ["rfid_tag_uid"] = e.Spool.RfidTagUid,
+                ["owner"] = e.Spool.OwnerName,
                 ["consumed_at"] = Utc(e.Spool.ConsumedAt)
             };
         if (e.Material != null)
@@ -108,6 +109,8 @@ public static class WebhookPayloadBuilder
         }
         if (e.Spool != null && e.EventType == WebhookEvents.SpoolLow)
             fields.Add(new { name = "Remaining", value = $"{Num(e.Spool.RemainingPercent)}% ({Num(e.Spool.RemainingWeightGrams)} g)", inline = true });
+        if (!string.IsNullOrWhiteSpace(e.Spool?.OwnerName))
+            fields.Add(new { name = "Owner", value = Truncate(e.Spool.OwnerName, 1024), inline = true });
         if (e.Dryer != null)
             fields.Add(new { name = "Dryer", value = Truncate(e.Dryer.Name, 1024), inline = true });
 
