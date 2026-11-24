@@ -195,6 +195,13 @@ else
                             <small class="text-muted d-block">@L["spool.price"]</small>
                             @(_spool.PurchasePrice?.ToString("C") ?? "–")
                         </div>
+                        @if (_spool.SpoolmanId > 0)
+                        {
+                            <div class="col-6 col-md-3">
+                                <small class="text-muted d-block" title="@L["spoolman.id.hint"]">@L["spoolman.id"]</small>
+                                <code>@_spool.SpoolmanId</code>
+                            </div>
+                        }
                         @if (_spool.RfidTagUid != null)
                         {
                             <div class="col-12">

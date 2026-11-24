@@ -7,10 +7,10 @@ namespace SpoolManager.Infrastructure.Services;
 
 public interface IOpenSpoolService
 {
-    byte[] Encode(FilamentMaterial material, Guid? spoolId = null);
+    byte[] Encode(FilamentMaterial material, Guid? spoolId = null, int? spoolmanId = null);
     byte[] EncodeEntityTag(string entityType, Guid entityId);
     (FilamentMaterial material, bool isValid) Decode(byte[] ndefBytes);
-    string ToJson(FilamentMaterial material, Guid? spoolId = null);
+    string ToJson(FilamentMaterial material, Guid? spoolId = null, int? spoolmanId = null);
     OpenSpoolParseResult FromJson(string json);
 }
 
@@ -23,7 +23,7 @@ public class OpenSpoolService : IOpenSpoolService
         DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
     };
 
-    public string ToJson(FilamentMaterial material, Guid? spoolId = null)
+    public string ToJson(FilamentMaterial material, Guid? spoolId = null, int? spoolmanId = null)
     {
         var payload = new OpenSpoolPayload
         {
@@ -34,7 +34,8 @@ public class OpenSpoolService : IOpenSpoolService
             Brand = material.Brand,
             MinTemp = material.MinTempCelsius,
             MaxTemp = material.MaxTempCelsius,
-            SmSpoolId = spoolId?.ToString()
+            SmSpoolId = spoolId?.ToString(),
+            SpoolmanId = spoolmanId > 0 ? spoolmanId : null
         };
         return JsonSerializer.Serialize(payload, _jsonOptions);
     }
@@ -111,12 +112,30 @@ public class OpenSpoolService : IOpenSpoolService
         }
     }
 
-    public byte[] Encode(FilamentMaterial material, Guid? spoolId = null)
+    public byte[] Encode(FilamentMaterial material, Guid? spoolId = null, int? spoolmanId = null)
     {
-        var json = ToJson(material, spoolId);
+        var json = ToJson(material, spoolId, spoolmanId);
         var jsonBytes = Encoding.UTF8.GetBytes(json);
         var typeBytes = Encoding.UTF8.GetBytes("application/json");
-        return BuildNdefMessage(typeBytes, jsonBytes);
+
+        if (spoolmanId is not > 0)
+            return BuildNdefMessage(typeBytes, jsonBytes);
+
+        // Second NDEF text record in the format nfc2klipper expects, so Spoolman-based setups can
+        // select the spool by scanning the same tag.
+        var jsonRecord = BuildNdefRecord(typeBytes, jsonBytes, isFirst: true, isLast: false);
+        var textRecord = BuildNdefRecord(Encoding.ASCII.GetBytes("T"), BuildTextPayload(SpoolmanTagText(spoolmanId.Value)),
+            isFirst: false, isLast: true, tnf: 0x01);
+        return [.. jsonRecord, .. textRecord];
+    }
+
+    public static string SpoolmanTagText(int spoolmanId) => $"SPOOL:{spoolmanId}\nFILAMENT:{spoolmanId}\n";
+
+    private static byte[] BuildTextPayload(string text)
+    {
+        var textBytes = Encoding.UTF8.GetBytes(text);
+        var langCode = Encoding.ASCII.GetBytes("en");
+        return [(byte)langCode.Length, .. langCode, .. textBytes];
     }
 
     public byte[] EncodeEntityTag(string entityType, Guid entityId)
@@ -145,12 +164,22 @@ public class OpenSpoolService : IOpenSpoolService
         }
     }
 
-    private static byte[] BuildNdefMessage(byte[] typeBytes, byte[] payload)
+    private static byte[] BuildNdefMessage(byte[] typeBytes, byte[] payload) =>
+        BuildNdefRecord(typeBytes, payload, isFirst: true, isLast: true);
+
+    // tnf 0x02 = MIME media type, 0x01 = NFC Forum well-known type
+    private static byte[] BuildNdefRecord(byte[] typeBytes, byte[] payload, bool isFirst, bool isLast, byte tnf = 0x02)
     {
         var typeLength = (byte)typeBytes.Length;
         bool isShortRecord = payload.Length <= 255;
 
-        var flags = (byte)(0xD0 | (isShortRecord ? 0x10 : 0x00) | 0x02);
+        var flags = tnf;
+        if (isFirst)
+            flags |= 0x80;
+        if (isLast)
+            flags |= 0x40;
+        if (isShortRecord)
+            flags |= 0x10;
 
         using var ms = new MemoryStream();
         ms.WriteByte(flags);
@@ -184,5 +213,7 @@ public class OpenSpoolService : IOpenSpoolService
         public int? MaxTemp { get; set; }
         [JsonPropertyName("_sm_spool_id")]
         public string? SmSpoolId { get; set; }
+        [JsonPropertyName("spool_id")]
+        public int? SpoolmanId { get; set; }
     }
 }

@@ -3,6 +3,7 @@ namespace SpoolManager.Shared.Models;
 public class Spool
 {
     public Guid Id { get; set; }
+    public int SpoolmanId { get; set; }
     public Guid ProjectId { get; set; }
     public Guid FilamentMaterialId { get; set; }
     public FilamentMaterial? FilamentMaterial { get; set; }

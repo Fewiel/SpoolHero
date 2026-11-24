@@ -172,6 +172,7 @@ public static class SpoolManagerMappings
             .HasTableName("spools")
             .HasPrimaryKey(x => x.Id)
             .Property(x => x.Id).HasColumnName("id")
+            .Property(x => x.SpoolmanId).HasColumnName("spoolman_id").HasSkipOnInsert().HasSkipOnUpdate()
             .Property(x => x.ProjectId).HasColumnName("project_id")
             .Property(x => x.FilamentMaterialId).HasColumnName("filament_material_id")
             .Property(x => x.RfidTagUid).HasColumnName("rfid_tag_uid")
@@ -269,6 +270,26 @@ public static class SpoolManagerMappings
             .Property(x => x.UserId).HasColumnName("user_id")
             .Property(x => x.MaterialId).HasColumnName("material_id")
             .Property(x => x.CreatedAt).HasColumnName("created_at");
+
+        builder.Entity<SpoolmanApiKey>()
+            .HasTableName("spoolman_api_keys")
+            .HasPrimaryKey(x => x.Id)
+            .Property(x => x.Id).HasColumnName("id")
+            .Property(x => x.ProjectId).HasColumnName("project_id")
+            .Property(x => x.ApiKey).HasColumnName("api_key")
+            .Property(x => x.Name).HasColumnName("name")
+            .Property(x => x.CreatedAt).HasColumnName("created_at")
+            .Property(x => x.LastUsedAt).HasColumnName("last_used_at");
+
+        builder.Entity<SpoolmanCallLog>()
+            .HasTableName("spoolman_call_logs")
+            .HasPrimaryKey(x => x.Id)
+            .Property(x => x.Id).HasColumnName("id")
+            .Property(x => x.ApiKeyId).HasColumnName("api_key_id")
+            .Property(x => x.CalledAt).HasColumnName("called_at")
+            .Property(x => x.Method).HasColumnName("method")
+            .Property(x => x.Path).HasColumnName("path")
+            .Property(x => x.StatusCode).HasColumnName("status_code");
 
         builder.Build();
         return schema;

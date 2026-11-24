@@ -585,5 +585,28 @@
 
   "auth.terms.accept": "Ich akzeptiere die",
   "auth.privacy.accept": "Ich habe die",
-  "auth.terms.required": "Bitte akzeptiere die Nutzungsbedingungen und die Datenschutzerklärung."
+  "auth.terms.required": "Bitte akzeptiere die Nutzungsbedingungen und die Datenschutzerklärung.",
+
+  "spoolman.title": "Klipper / Moonraker (Spoolman-API)",
+  "spoolman.intro": "SpoolHero stellt eine Spoolman-kompatible API für die Spulen dieses Projekts bereit:",
+  "spoolman.setup": "Einrichtung",
+  "spoolman.hint": "Erstelle unten einen API-Schlüssel und füge Folgendes in deine moonraker.conf ein. Moonraker zeigt dann deine SpoolHero-Spulen an und bucht verbrauchtes Filament automatisch ab.",
+  "spoolman.hint.clients": "Andere Spoolman-Clients (z. B. nfc2klipper, SpoolPainter) verwenden dieselbe Server-URL. Wer die URL kennt, kann die Spulen des Projekts lesen und Verbrauch buchen – halte sie geheim.",
+  "spoolman.settings.teaser": "Verbinde Klipper/Moonraker und andere Spoolman-Clients mit diesem Projekt.",
+  "spoolman.no.permission": "Nur Projekt-Admins und -Manager können API-Schlüssel verwalten.",
+  "spoolman.apikeys": "API-Schlüssel",
+  "spoolman.apikeys.manage": "API-Schlüssel verwalten",
+  "spoolman.apikeys.create": "API-Schlüssel erstellen",
+  "spoolman.apikeys.name": "Name",
+  "spoolman.apikeys.name.placeholder": "z. B. Voron 2.4 Moonraker",
+  "spoolman.apikeys.lastused": "Zuletzt benutzt",
+  "spoolman.apikeys.empty": "Noch keine API-Schlüssel. Erstelle einen, um Moonraker zu verbinden.",
+  "spoolman.apikeys.url": "Server-URL",
+  "spoolman.apikeys.logs": "API-Aufrufe (letzte 24 h)",
+  "spoolman.apikeys.logs.empty": "Keine Aufrufe in den letzten 24 Stunden.",
+  "spoolman.apikeys.delete": "API-Schlüssel löschen",
+  "spoolman.apikeys.delete.confirm": "Clients mit diesem Schlüssel verlieren sofort den Zugriff.",
+  "spoolman.copy": "Kopieren",
+  "spoolman.id": "Spoolman-ID",
+  "spoolman.id.hint": "Spulen-ID für Klipper/Moonraker (z. B. SET_ACTIVE_SPOOL ID=…)"
 }

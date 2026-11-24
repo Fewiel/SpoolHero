@@ -110,7 +110,7 @@ public partial class SpoolDetail : IDisposable
             return;
         }
         _tagJson = encoded.JsonPayload;
-        await Nfc.WriteAsync(encoded.JsonPayload, DotNetObjectReference.Create(this));
+        await Nfc.WriteAsync(encoded.JsonPayload, DotNetObjectReference.Create(this), encoded.SpoolmanId);
     }
 
     private async Task ShowTagJsonAsync()
