@@ -44,9 +44,10 @@ public class TagsController : ControllerBase
             if (spool?.FilamentMaterial == null)
                 return NotFound();
 
-            var ndefBytes = _openSpool.Encode(spool.FilamentMaterial, spool.Id);
-            var json = _openSpool.ToJson(spool.FilamentMaterial, spool.Id);
-            return Ok(new TagEncodeResponse { Base64 = Convert.ToBase64String(ndefBytes), JsonPayload = json });
+            var spoolmanId = spool.SpoolmanId > 0 ? spool.SpoolmanId : (int?)null;
+            var ndefBytes = _openSpool.Encode(spool.FilamentMaterial, spool.Id, spoolmanId);
+            var json = _openSpool.ToJson(spool.FilamentMaterial, spool.Id, spoolmanId);
+            return Ok(new TagEncodeResponse { Base64 = Convert.ToBase64String(ndefBytes), JsonPayload = json, SpoolmanId = spoolmanId });
         }
         else if (request.MaterialId.HasValue)
         {
@@ -148,7 +149,7 @@ public class TagsController : ControllerBase
         if (spool?.FilamentMaterial == null)
             return NotFound();
 
-        var bytes = _openSpool.Encode(spool.FilamentMaterial, spool.Id);
+        var bytes = _openSpool.Encode(spool.FilamentMaterial, spool.Id, spool.SpoolmanId > 0 ? spool.SpoolmanId : null);
         var filename = $"openspool_{spool.FilamentMaterial.Brand}_{spool.FilamentMaterial.Type}_{spoolId}.bin".Replace(" ", "_");
         return File(bytes, "application/octet-stream", filename);
     }
@@ -160,7 +161,7 @@ public class TagsController : ControllerBase
         if (spool?.FilamentMaterial == null)
             return NotFound();
 
-        var json = _openSpool.ToJson(spool.FilamentMaterial, spool.Id);
+        var json = _openSpool.ToJson(spool.FilamentMaterial, spool.Id, spool.SpoolmanId > 0 ? spool.SpoolmanId : null);
         var filename = $"openspool_{spool.FilamentMaterial.Brand}_{spool.FilamentMaterial.Type}_{spoolId}.json".Replace(" ", "_");
         return File(System.Text.Encoding.UTF8.GetBytes(json), "application/json", filename);
     }

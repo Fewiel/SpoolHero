@@ -132,7 +132,7 @@ public partial class SpoolList : IDisposable
             return;
         }
 
-        await Nfc.WriteAsync(encoded.JsonPayload, DotNetObjectReference.Create(this));
+        await Nfc.WriteAsync(encoded.JsonPayload, DotNetObjectReference.Create(this), encoded.SpoolmanId);
     }
 
     private static string GetBarClass(decimal p) => p >= 50 ? "high" : p >= 20 ? "medium" : "low";
