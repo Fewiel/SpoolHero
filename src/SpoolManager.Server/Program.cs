@@ -165,6 +165,11 @@ if (!File.Exists(indexHtmlPath))
 }
 app.MapFallback(async (HttpContext ctx) =>
 {
+    if (ctx.Request.Path.StartsWithSegments("/api"))
+    {
+        ctx.Response.StatusCode = StatusCodes.Status404NotFound;
+        return;
+    }
     if (!File.Exists(indexHtmlPath))
     {
         ctx.Response.StatusCode = 404;

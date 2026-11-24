@@ -151,7 +151,7 @@ public partial class SpoolForm
         {
             _nfcImportError = L["spool.nfc.import.invalid"];
         }
-        InvokeAsync(StateHasChanged);
+        await InvokeAsync(StateHasChanged);
     }
 
     [JSInvokable]

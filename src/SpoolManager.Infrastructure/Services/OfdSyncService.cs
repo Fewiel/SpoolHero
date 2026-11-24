@@ -21,7 +21,7 @@ public class OfdSyncService : IOfdSyncService
 {
     private readonly HttpClient _http;
     private readonly SpoolManagerDb _db;
-    private const string BaseUrl = "http://api.openfilamentdatabase.org/csv/";
+    private const string BaseUrl = "https://api.openfilamentdatabase.org/csv/";
 
     public OfdSyncService(HttpClient http, SpoolManagerDb db)
     {
