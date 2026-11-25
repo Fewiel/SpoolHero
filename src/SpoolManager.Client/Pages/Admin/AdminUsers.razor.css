@@ -1,0 +1,39 @@
+.au-count {
+    font-size: .78rem;
+    font-weight: 600;
+    opacity: .75;
+}
+
+.au-placeholder { height: 2.25rem; border-radius: 8px; }
+
+.au-user { min-width: 220px; }
+.min-w-0 { min-width: 0; }
+
+.au-actions {
+    display: inline-flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: .35rem;
+}
+
+.au-cards {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: .75rem;
+}
+
+.au-card {
+    display: flex;
+    flex-direction: column;
+    gap: .75rem;
+    padding: 1rem;
+}
+
+.au-kv { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; }
+
+.au-card .au-actions { justify-content: flex-start; }
+.au-card .au-actions .btn { min-height: 44px; flex: 1 1 auto; }
+
+.table .au-actions { flex-wrap: nowrap; white-space: nowrap; }

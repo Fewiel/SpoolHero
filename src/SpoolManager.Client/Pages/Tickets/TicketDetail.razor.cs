@@ -19,6 +19,12 @@ public partial class TicketDetail
     private bool _isInternal;
     private bool _sending;
     private bool _confirmClose;
+    private string? _sendError;
+
+    private bool IsMine(Guid userId) => userId == Auth.CurrentUser?.Id;
+
+    private static string Initial(string name) =>
+        string.IsNullOrWhiteSpace(name) ? "?" : name.Trim()[..1].ToUpperInvariant();
 
     private bool IsAdmin => Auth.CurrentUser?.IsPlatformAdmin == true;
     private string BackUrl => IsAdmin ? "/admin/tickets" : "/tickets";
@@ -27,8 +33,15 @@ public partial class TicketDetail
 
     private async Task LoadAsync()
     {
-        _loading = true;
-        _ticket = await Tickets.GetDetailAsync(Id);
+        _loading = _ticket == null;
+        try
+        {
+            _ticket = await Tickets.GetDetailAsync(Id);
+        }
+        catch (HttpRequestException)
+        {
+            _ticket = null;
+        }
         _loading = false;
     }
 
@@ -59,14 +72,29 @@ public partial class TicketDetail
         if (string.IsNullOrWhiteSpace(_comment))
             return;
         _sending = true;
-        if (IsAdmin)
-            await Admin.AddAdminCommentAsync(Id, _comment.Trim(), _isInternal);
-        else
-            await Tickets.AddCommentAsync(Id, _comment.Trim());
-        _comment = string.Empty;
-        _isInternal = false;
-        _sending = false;
-        await LoadAsync();
+        _sendError = null;
+        try
+        {
+            var resp = IsAdmin
+                ? await Admin.AddAdminCommentAsync(Id, _comment.Trim(), _isInternal)
+                : await Tickets.AddCommentAsync(Id, _comment.Trim());
+            if (!resp.IsSuccessStatusCode)
+            {
+                _sendError = await ResponseMessages.ReadAsync(resp, L["ticket.send.error"]);
+                return;
+            }
+            _comment = string.Empty;
+            _isInternal = false;
+            await LoadAsync();
+        }
+        catch (HttpRequestException)
+        {
+            _sendError = L["ticket.send.error"];
+        }
+        finally
+        {
+            _sending = false;
+        }
     }
 
     private async Task ConfirmCloseAsync()
@@ -75,20 +103,4 @@ public partial class TicketDetail
         await Tickets.CloseAsync(Id);
         await LoadAsync();
     }
-
-    private static string StatusBadgeClass(string status) => status switch
-    {
-        "in_progress" => "bg-primary",
-        "answered"    => "bg-success",
-        "closed"      => "bg-secondary",
-        _             => "bg-warning text-dark"
-    };
-
-    private string StatusLabel(string status) => status switch
-    {
-        "in_progress" => L["ticket.status.in_progress"],
-        "answered"    => L["ticket.status.answered"],
-        "closed"      => L["ticket.status.closed"],
-        _             => L["ticket.status.open"]
-    };
 }

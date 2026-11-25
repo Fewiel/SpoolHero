@@ -1,0 +1,36 @@
+.find-box { max-width: 440px; display: flex; flex-direction: column; gap: 1.25rem; }
+.min-w-0 { min-width: 0; }
+
+.find-target {
+    display: flex;
+    align-items: center;
+    gap: .85rem;
+    padding: .75rem 1rem;
+    border-radius: var(--sh-radius);
+    background: var(--sh-surface-2);
+}
+
+.find-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: .6rem;
+    padding: 1rem 0 .5rem;
+}
+
+.find-icon {
+    display: grid;
+    place-items: center;
+    width: 84px;
+    height: 84px;
+    border-radius: 50%;
+    font-size: 2.4rem;
+    background: var(--sh-accent-soft);
+    color: var(--sh-accent-text);
+}
+
+.find-found .find-icon { background: var(--sh-ok-soft); color: var(--sh-ok-text); }
+.find-found p { color: var(--sh-ok-text); }
+.find-mismatch .find-icon { background: var(--sh-danger-soft); color: var(--sh-danger-text); }
+.find-mismatch p.fw-semibold { color: var(--sh-danger-text); }

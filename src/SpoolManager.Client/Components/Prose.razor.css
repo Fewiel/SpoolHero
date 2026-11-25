@@ -1,0 +1,85 @@
+.sh-prose {
+    max-width: 72ch;
+    font-size: 1rem;
+    line-height: 1.7;
+    color: var(--sh-text);
+    overflow-wrap: anywhere;
+}
+
+.sh-prose ::deep :first-child { margin-top: 0; }
+
+.sh-prose ::deep h1,
+.sh-prose ::deep h2,
+.sh-prose ::deep h3,
+.sh-prose ::deep h4 {
+    font-family: var(--sh-font-display);
+    line-height: 1.25;
+    margin: 2rem 0 .75rem;
+}
+
+.sh-prose ::deep h1 { font-size: 1.6rem; }
+.sh-prose ::deep h2 { font-size: 1.3rem; }
+.sh-prose ::deep h3 { font-size: 1.1rem; }
+.sh-prose ::deep h4 { font-size: 1rem; }
+
+.sh-prose ::deep p,
+.sh-prose ::deep ul,
+.sh-prose ::deep ol,
+.sh-prose ::deep blockquote,
+.sh-prose ::deep table { margin: 0 0 1rem; }
+
+.sh-prose ::deep ul,
+.sh-prose ::deep ol { padding-left: 1.4rem; }
+
+.sh-prose ::deep li { margin-bottom: .35rem; }
+.sh-prose ::deep li::marker { color: var(--sh-muted); }
+
+.sh-prose ::deep a { color: var(--sh-accent-text); text-decoration: underline; text-underline-offset: 2px; }
+
+.sh-prose ::deep strong { font-weight: 600; }
+
+.sh-prose ::deep code {
+    font-size: .88em;
+    padding: .1em .35em;
+    border-radius: 6px;
+    background: var(--sh-surface-2);
+    border: 1px solid var(--sh-border);
+}
+
+.sh-prose ::deep pre {
+    padding: 1rem;
+    border-radius: var(--sh-radius-sm);
+    background: var(--sh-surface-2);
+    border: 1px solid var(--sh-border);
+    overflow-x: auto;
+}
+
+.sh-prose ::deep pre code { padding: 0; border: 0; background: none; }
+
+.sh-prose ::deep blockquote {
+    padding: .5rem 1rem;
+    border-left: 4px solid var(--sh-border-strong);
+    color: var(--sh-muted);
+}
+
+.sh-prose ::deep hr { margin: 2rem 0; }
+
+.sh-prose ::deep table {
+    width: 100%;
+    border-collapse: collapse;
+    display: block;
+    overflow-x: auto;
+}
+
+.sh-prose ::deep th,
+.sh-prose ::deep td {
+    padding: .5rem .75rem;
+    border: 1px solid var(--sh-border);
+    text-align: left;
+}
+
+.sh-prose ::deep th { background: var(--sh-surface-2); font-weight: 600; }
+
+.sh-prose ::deep img { max-width: 100%; height: auto; border-radius: var(--sh-radius-sm); }
+
+.sh-prose ::deep :last-child { margin-bottom: 0; }

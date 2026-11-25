@@ -1,5 +1,3 @@
-using System.Net.Http.Json;
-using System.Text.Json;
 using Microsoft.AspNetCore.Components;
 using SpoolManager.Client.Services;
 using SpoolManager.Shared.DTOs.Webhooks;
@@ -12,7 +10,16 @@ public partial class WebhookList
     [Inject] private LocalizationService L { get; set; } = default!;
     [Inject] private ProjectService Project { get; set; } = default!;
 
+    private static readonly string[] Types = ["discord", "telegram", "homeassistant", "generic"];
+
     private bool _loading = true;
+    private bool _loadError;
+    private bool _deleting;
+    private Guid? _togglingId;
+    private string? _notice;
+    private bool _noticeSuccess;
+
+    private bool IsAdmin => Project.CurrentProject?.MyRole == "admin";
     private List<WebhookDto> _webhooks = [];
     private SaveWebhookRequest? _form;
     private Guid? _editId;
@@ -29,14 +36,26 @@ public partial class WebhookList
     protected override async Task OnInitializedAsync()
     {
         if (Project.CurrentProject == null)
+        {
+            _loading = false;
             return;
+        }
         await LoadAsync();
     }
 
     private async Task LoadAsync()
     {
-        _loading = true;
-        _webhooks = await Webhooks.GetAllAsync() ?? [];
+        // Only show the spinner on the first load; refreshes keep the cards on screen.
+        _loading = _webhooks.Count == 0;
+        _loadError = false;
+        try
+        {
+            _webhooks = await Webhooks.GetAllAsync() ?? [];
+        }
+        catch (HttpRequestException)
+        {
+            _loadError = true;
+        }
         _loading = false;
     }
 
@@ -69,6 +88,12 @@ public partial class WebhookList
 
     private void Cancel()
     {
+        if (!_saving)
+            CloseForm();
+    }
+
+    private void CloseForm()
+    {
         _form = null;
         _editId = null;
         _editTokenMasked = null;
@@ -88,7 +113,7 @@ public partial class WebhookList
                 : await Webhooks.CreateAsync(_form);
             if (resp.IsSuccessStatusCode)
             {
-                Cancel();
+                CloseForm();
                 await LoadAsync();
             }
             else
@@ -100,19 +125,73 @@ public partial class WebhookList
         }
     }
 
+    private void AskDelete(WebhookDto w)
+    {
+        _deleteError = null;
+        _deleteTarget = w;
+    }
+
     private async Task DeleteAsync()
     {
         if (_deleteTarget == null)
             return;
-        var resp = await Webhooks.DeleteAsync(_deleteTarget.Id);
-        if (!resp.IsSuccessStatusCode)
+        _deleting = true;
+        try
         {
-            _deleteError = await ReadErrorAsync(resp);
-            return;
+            var resp = await Webhooks.DeleteAsync(_deleteTarget.Id);
+            if (!resp.IsSuccessStatusCode)
+            {
+                _deleteError = await ReadErrorAsync(resp);
+                return;
+            }
+            var name = _deleteTarget.Name;
+            _deleteTarget = null;
+            _deleteError = null;
+            await LoadAsync();
+            ShowNotice(L.Format("webhook.deleted", name), true);
         }
-        _deleteTarget = null;
-        _deleteError = null;
-        await LoadAsync();
+        finally
+        {
+            _deleting = false;
+        }
+    }
+
+    private async Task ToggleEnabledAsync(WebhookDto w)
+    {
+        _togglingId = w.Id;
+        try
+        {
+            var request = new SaveWebhookRequest
+            {
+                Name = w.Name,
+                Type = w.Type,
+                Url = w.Url,
+                ChatId = w.ChatId,
+                BotToken = null,
+                IsEnabled = !w.IsEnabled,
+                OnDryerFinished = w.OnDryerFinished,
+                OnSpoolLow = w.OnSpoolLow,
+                OnSpoolConsumed = w.OnSpoolConsumed
+            };
+            var resp = await Webhooks.UpdateAsync(w.Id, request);
+            if (resp.IsSuccessStatusCode)
+            {
+                await LoadAsync();
+                ShowNotice(L.Format(request.IsEnabled ? "webhook.resumed" : "webhook.paused.notice", w.Name), true);
+            }
+            else
+                ShowNotice(await ReadErrorAsync(resp), false);
+        }
+        finally
+        {
+            _togglingId = null;
+        }
+    }
+
+    private void ShowNotice(string text, bool success)
+    {
+        _notice = text;
+        _noticeSuccess = success;
     }
 
     private async Task TestAsync(WebhookDto w)
@@ -140,18 +219,7 @@ public partial class WebhookList
         await LoadAsync();
     }
 
-    private async Task<string> ReadErrorAsync(HttpResponseMessage resp)
-    {
-        try
-        {
-            var json = await resp.Content.ReadFromJsonAsync<JsonElement>();
-            if (json.ValueKind == JsonValueKind.Object && json.TryGetProperty("message", out var msg))
-                return msg.GetString() ?? L["common.error"];
-        }
-        catch (JsonException) { }
-        catch (NotSupportedException) { }
-        return L["common.error"];
-    }
+    private Task<string> ReadErrorAsync(HttpResponseMessage resp) => ResponseMessages.ReadAsync(resp, L["common.error"]);
 
     private string TypeLabel(string type) => L[$"webhook.type.{type}"];
 
@@ -182,5 +250,5 @@ public partial class WebhookList
     private string UrlHint(string type) => L[$"webhook.url.hint.{type}"];
 
     private static string FormatTime(DateTime? dt) =>
-        dt == null ? "" : DateTime.SpecifyKind(dt.Value, DateTimeKind.Utc).ToLocalTime().ToString("dd.MM.yy HH:mm");
+        dt == null ? "" : DateTime.SpecifyKind(dt.Value, DateTimeKind.Utc).ToLocalTime().ToString("g");
 }

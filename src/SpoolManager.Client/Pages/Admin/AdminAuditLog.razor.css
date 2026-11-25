@@ -1,0 +1,17 @@
+.al-action { flex: 0 1 240px; width: auto; }
+.al-placeholder { height: 1.75rem; border-radius: 6px; }
+
+.al-table { min-width: 960px; font-size: .9rem; }
+
+.al-details {
+    max-width: 280px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.al-busy { opacity: .6; transition: opacity .15s ease; }
+
+@media (max-width: 575.98px) {
+    .al-action { flex: 1 1 100%; }
+}

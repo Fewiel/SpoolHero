@@ -1,0 +1,16 @@
+<span class="sh-ring @Class" style="width:@(Size)px;height:@(Size)px" role="@(Decorative ? null : "img")" aria-hidden="@(Decorative ? "true" : null)" aria-label="@(Decorative ? null : AriaLabel)">
+    <svg width="@Size" height="@Size" viewBox="0 0 56 56" aria-hidden="true" focusable="false">
+        <circle cx="28" cy="28" r="26.5" fill="none" stroke="var(--sh-border-strong)" stroke-width="@OutlineWidth" />
+        <circle cx="28" cy="28" r="22" fill="none" stroke="var(--sh-track)" stroke-width="8" />
+        @if (ClampedPercent > 0)
+        {
+            <circle cx="28" cy="28" r="22" fill="none" stroke="@ColorCss" stroke-width="8"
+                    stroke-dasharray="@DashArray" transform="rotate(-90 28 28)" />
+        }
+        <circle cx="28" cy="28" r="17.6" fill="var(--sh-surface)" stroke="var(--sh-border-strong)" stroke-width="@OutlineWidth" />
+    </svg>
+    @if (ChildContent != null)
+    {
+        <span class="sh-ring-label" style="font-size:@(LabelSize)px">@ChildContent</span>
+    }
+</span>

@@ -1,256 +1,353 @@
 @page "/spools"
+@using SpoolManager.Client.Helpers
 
 <PageTitle>@L["spool.title"] – @L["app.name"]</PageTitle>
 
+@{
+    var list = Filtered;
+}
+
 <div class="page-header">
-    <h1><i class="bi bi-archive me-2"></i>@L["spool.title"]</h1>
-    <button class="btn btn-primary" @onclick='() => Nav.NavigateTo("/spools/new")'>
-        <i class="bi bi-plus-lg me-1"></i>@L["spool.add"]
-    </button>
+    <div>
+        <h1>@L["spool.title"]</h1>
+        <p class="page-subtitle">
+            @if (_loading) { @L["common.loading"] }
+            else { @SummaryText(list) }
+        </p>
+    </div>
+    <div class="page-actions">
+        <div class="sh-segmented" role="group" aria-label="@L["spool.view"]">
+            <button type="button" aria-pressed="@(!_grouped ? "true" : "false")" @onclick="() => SetGrouped(false)">
+                <i class="bi bi-grid-3x3-gap" aria-hidden="true"></i>@L["spool.view.spools"]
+            </button>
+            <button type="button" aria-pressed="@(_grouped ? "true" : "false")" @onclick="() => SetGrouped(true)">
+                <i class="bi bi-collection" aria-hidden="true"></i>@L["spool.view.materials"]
+            </button>
+        </div>
+        <a class="btn btn-primary d-none d-sm-inline-flex" href="/spools/new"><i class="bi bi-plus-lg" aria-hidden="true"></i>@L["spool.add"]</a>
+    </div>
 </div>
 
-<div class="row g-2 mb-3">
-    <div class="col-12 col-md-6">
-        <input class="form-control" placeholder="@L["spool.search"]" value="@_search" @oninput="OnSearch" />
+<div class="shelf-filters" role="search">
+    <div class="shelf-filter-row">
+        <div class="shelf-search">
+            <i class="bi bi-search" aria-hidden="true"></i>
+            <label for="spool-search" class="visually-hidden">@L["spool.search.label"]</label>
+            <input id="spool-search" class="form-control" type="search" placeholder="@L["spool.search.placeholder"]"
+                   value="@_search" @oninput="OnSearch" autocomplete="off" />
+            @if (!string.IsNullOrEmpty(_search))
+            {
+                <button type="button" class="shelf-search-clear" aria-label="@L["spool.search.clear"]" @onclick="ClearSearch"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+            }
+        </div>
+        <div class="sh-segmented" role="group" aria-label="@L["spool.filter.status"]">
+            <button type="button" aria-pressed="@(_status == "active" ? "true" : "false")" @onclick='() => SetStatus("active")'>@L["spool.filter.active"]</button>
+            <button type="button" aria-pressed="@(_status == "consumed" ? "true" : "false")" @onclick='() => SetStatus("consumed")'>@L["spool.filter.consumed"]</button>
+            <button type="button" aria-pressed="@(_status == "all" ? "true" : "false")" @onclick='() => SetStatus("all")'>@L["spool.filter.all"]</button>
+        </div>
     </div>
-    <div class="col-auto">
-        <select class="form-select" @bind="_filter" @bind:after="LoadAsync">
-            <option value="">@L["spool.filter.all"]</option>
-            <option value="active">@L["spool.filter.active"]</option>
-            <option value="consumed">@L["spool.filter.consumed"]</option>
-        </select>
-    </div>
-    @if (_owners.Count > 0)
-    {
-        <div class="col-auto">
-            <select class="form-select" @bind="_owner" @bind:after="LoadAsync" aria-label="@L["spool.owner"]">
-                <option value="">@L["spool.owner.all"]</option>
-                <option value="-">@L["spool.owner.none"]</option>
-                @foreach (var o in _owners)
+
+    <div class="shelf-filter-row">
+        <div class="shelf-chips" role="group" aria-label="@L["spool.filter.type"]">
+            <button type="button" class="sh-chip" aria-pressed="@(_type == "" ? "true" : "false")" @onclick='() => SetType("")'>@L["spool.filter.all.materials"]</button>
+            @foreach (var t in Types)
+            {
+                var type = t;
+                <button type="button" class="sh-chip" aria-pressed="@(string.Equals(_type, type, StringComparison.OrdinalIgnoreCase) ? "true" : "false")" @onclick="() => SetType(type)">@type</button>
+            }
+            @if (_type != "" && !Types.Contains(_type, StringComparer.OrdinalIgnoreCase))
+            {
+                <button type="button" class="sh-chip" aria-pressed="true" @onclick="() => SetType(_type)">@_type</button>
+            }
+            <button type="button" class="sh-chip @(LowCount > 0 && !_lowOnly ? "shelf-chip-warn" : "")" aria-pressed="@(_lowOnly ? "true" : "false")" @onclick="ToggleLow">
+                <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>@L["spool.filter.low"] · @LowCount
+            </button>
+        </div>
+        <div class="shelf-selects">
+            @if (_owners.Count > 0)
+            {
+                <label class="visually-hidden" for="spool-owner">@L["spool.owner"]</label>
+                <select id="spool-owner" class="form-select" value="@_owner" @onchange="OnOwnerChanged">
+                    <option value="">@L["spool.owner.all"]</option>
+                    <option value="-">@L["spool.owner.none"]</option>
+                    @foreach (var o in _owners)
+                    {
+                        <option value="@o">@o</option>
+                    }
+                </select>
+            }
+            <label class="visually-hidden" for="spool-location">@L["spool.location"]</label>
+            <select id="spool-location" class="form-select" value="@_location" @onchange="OnLocationChanged">
+                <option value="">@L["spool.location.all"]</option>
+                <option value="none">@L["dashboard.no.location"]</option>
+                @foreach (var loc in Locations)
                 {
-                    <option value="@o">@o</option>
+                    <option value="@loc.Key">@(loc.Kind switch { "printer" => L["spool.printer"], "storage" => L["spool.storage"], _ => L["spool.dryer"] }): @loc.Name</option>
+                }
+                @if (_location.Length > 2 && _location != "none" && Locations.All(l => l.Key != _location))
+                {
+                    <option value="@_location">@L["spool.location.selected"]</option>
                 }
             </select>
-        </div>
-    }
-    <div class="col-auto ms-md-auto">
-        <div class="btn-group" role="group" aria-label="@L["spool.view"]">
-            <button class="btn @(_grouped ? "btn-outline-secondary" : "btn-secondary")" title="@L["spool.view.spools"]" @onclick="() => SetGrouped(false)">
-                <i class="bi bi-grid-3x3-gap"></i><span class="d-none d-lg-inline ms-1">@L["spool.view.spools"]</span>
-            </button>
-            <button class="btn @(_grouped ? "btn-secondary" : "btn-outline-secondary")" title="@L["spool.view.materials"]" @onclick="() => SetGrouped(true)">
-                <i class="bi bi-collection"></i><span class="d-none d-lg-inline ms-1">@L["spool.view.materials"]</span>
-            </button>
+            @if (!_grouped)
+            {
+                <label class="visually-hidden" for="spool-sort">@L["spool.sort"]</label>
+                <select id="spool-sort" class="form-select" value="@_sort" @onchange="OnSortChanged">
+                    <option value="low">@L["spool.sort.low"]</option>
+                    <option value="new">@L["spool.sort.new"]</option>
+                    <option value="name">@L["spool.sort.name"]</option>
+                </select>
+            }
         </div>
     </div>
 </div>
+
+@if (_actionError != null && _deleteTarget == null)
+{
+    <div class="alert alert-danger d-flex align-items-center gap-2" role="alert">
+        <span class="flex-grow-1">@_actionError</span>
+        <button type="button" class="btn-close" aria-label="@L["common.close"]" @onclick="() => _actionError = null"></button>
+    </div>
+}
+
+@if (_nfcTarget != null && (_nfcWriting || _nfcMessage != null))
+{
+    <div class="alert @(_nfcWriting ? "alert-info" : _nfcSuccess ? "alert-success" : "alert-danger") d-flex align-items-center gap-2" role="status">
+        @if (_nfcWriting)
+        {
+            <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+            <span class="flex-grow-1">@L.Format("spool.nfc.writing.for", SpoolUi.Title(_nfcTarget))</span>
+        }
+        else
+        {
+            <span class="flex-grow-1">@SpoolUi.Title(_nfcTarget): @_nfcMessage</span>
+            <button type="button" class="btn-close" aria-label="@L["common.close"]" @onclick="DismissNfc"></button>
+        }
+    </div>
+}
 
 @if (_loading)
 {
-    <div class="text-center py-5"><div class="spinner-border"></div></div>
+    <div class="text-center py-5"><div class="spinner-border" role="status"><span class="visually-hidden">@L["common.loading"]</span></div></div>
 }
-else if (_spools.Count == 0)
+else if (_loadFailed)
 {
-    <div class="text-center py-5 text-muted">
-        <i class="bi bi-archive fs-1"></i>
-        <p class="mt-2">@L["common.none"]</p>
+    <div class="alert alert-danger d-flex align-items-center gap-3 flex-wrap" role="alert">
+        <span class="flex-grow-1">@L["spool.list.load.error"]</span>
+        <button type="button" class="btn btn-outline-danger" @onclick="ReloadAsync"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i>@L["common.retry"]</button>
+    </div>
+}
+else if (list.Count == 0 && !HasFilters)
+{
+    <div class="sh-empty">
+        <i class="bi bi-record-circle" aria-hidden="true"></i>
+        <h2>@L["spool.list.empty.title"]</h2>
+        <p>@L["spool.list.empty.text"]</p>
+        <div class="d-flex gap-2 flex-wrap justify-content-center mt-2">
+            <a class="btn btn-primary" href="/spools/new"><i class="bi bi-plus-lg" aria-hidden="true"></i>@L["spool.add"]</a>
+            <a class="btn btn-outline-secondary" href="/tags/read"><i class="bi bi-broadcast" aria-hidden="true"></i>@L["nav.scan"]</a>
+        </div>
+    </div>
+}
+else if (list.Count == 0)
+{
+    <div class="sh-empty">
+        <i class="bi bi-funnel" aria-hidden="true"></i>
+        <h2>@L["spool.list.nomatch.title"]</h2>
+        <p>@L["spool.list.nomatch.text"]</p>
+        <button type="button" class="btn btn-primary mt-2" @onclick="ResetFilters"><i class="bi bi-x-circle" aria-hidden="true"></i>@L["spool.filter.reset"]</button>
     </div>
 }
 else if (_grouped)
 {
-    <div class="row g-3">
-        @foreach (var group in MaterialGroups)
-        {
-            <div class="col-12 col-md-6 col-xl-4">
-                <div class="spool-card h-100">
-                    <div class="d-flex justify-content-between align-items-start mb-2">
-                        <div class="d-flex align-items-center gap-2">
-                            <div class="color-dot" style="background-color: #@group.ColorHex"></div>
-                            <div>
-                                <div class="fw-semibold">@group.Brand @group.Type</div>
-                                <small class="text-muted">@(group.ColorName ?? "#" + group.ColorHex)</small>
+    @foreach (var section in Sections(list))
+    {
+        <section class="shelf-section" aria-label="@section.Type">
+            <div class="shelf-section-head">
+                <h2 class="sh-section-title">@section.Type</h2>
+                <span class="text-muted">@GroupMeta(section.SpoolCount, section.TotalGrams)</span>
+            </div>
+            <div class="shelf-material-grid">
+                @foreach (var m in section.Materials)
+                {
+                    <article class="sh-card shelf-material">
+                        <div class="d-flex align-items-center gap-3">
+                            <SpoolRing ColorHex="@m.ColorHex" Percent="m.Percent" Size="64"
+                                       AriaLabel="@L.Format("spool.ring.label", m.ColorName ?? m.Type, SpoolUi.Percent(m.Percent))">
+                                <span>@((int)Math.Round(m.Percent))<small>%</small></span>
+                            </SpoolRing>
+                            <div class="min-w-0">
+                                <h3 class="shelf-material-title">@(m.ColorName ?? "#" + m.ColorHex)</h3>
+                                <div class="small text-muted text-truncate">@m.Brand @m.Type</div>
+                                <div><span class="fw-semibold">@SpoolUi.Weight(m.TotalGrams)</span> <span class="small text-muted">· @(m.Spools.Count == 1 ? L["overview.place.one"] : L.Format("overview.place.many", m.Spools.Count))</span></div>
                             </div>
                         </div>
-                        <span class="badge bg-primary-subtle text-primary-emphasis">@group.Spools.Count× </span>
-                    </div>
-                    <div class="fs-5 fw-semibold">@group.TotalGrams.ToString("0.#") g</div>
-                    @if (group.CapacityGrams > 0)
-                    {
-                        var pct = Math.Min(group.TotalGrams / group.CapacityGrams * 100, 100);
-                        <div class="remaining-bar mb-1">
-                            <div class="remaining-bar-fill @GetBarClass(pct)" style="width: @((int)pct)%"></div>
-                        </div>
-                    }
-                    <ul class="list-unstyled small mb-0 mt-2">
-                        @foreach (var spool in group.Spools)
-                        {
-                            <li class="d-flex align-items-center gap-2 py-1 border-top">
-                                <a href="/spools/@spool.Id" class="font-monospace text-decoration-none" style="font-size:.7rem">#@spool.Id.ToString("N")[..5].ToUpper()</a>
-                                <span>@spool.RemainingWeightGrams.ToString("0.#") g</span>
-                                <span class="text-muted text-truncate">@LocationLabel(spool)</span>
-                                @if (spool.OwnerName != null)
-                                {
-                                    <span class="badge text-bg-light border ms-auto text-truncate" style="max-width:40%"><i class="bi bi-person me-1"></i>@spool.OwnerName</span>
-                                }
-                            </li>
-                        }
-                    </ul>
-                </div>
+                        <ul class="list-unstyled mb-0 shelf-material-spools">
+                            @foreach (var s in m.Spools)
+                            {
+                                <li>
+                                    <a href="/spools/@s.Id" class="shelf-material-spool @(SpoolUi.IsLow(s) ? "is-low" : "")">
+                                        <SpoolRing ColorHex="@s.MaterialColorHex" Percent="s.RemainingPercent" Size="32" />
+                                        <span class="fw-semibold text-nowrap">@SpoolUi.Grams(s.RemainingWeightGrams)</span>
+                                        <span class="text-muted text-truncate flex-grow-1">
+                                            @if (s.ConsumedAt != null) { @L["spool.status.consumed"] }
+                                            else if (SpoolUi.HasLocation(s)) { @SpoolUi.LocationName(s) }
+                                            else { @L["dashboard.no.location"] }
+                                        </span>
+                                        @if (s.OwnerName != null)
+                                        {
+                                            <span class="sh-chip sh-chip-sm shelf-owner"><i class="bi bi-person" aria-hidden="true"></i>@s.OwnerName</span>
+                                        }
+                                        <span class="visually-hidden">#@SpoolUi.ShortId(s)</span>
+                                    </a>
+                                </li>
+                            }
+                        </ul>
+                        <a class="btn btn-outline-secondary btn-sm align-self-start" href="/spools/new?material=@m.MaterialId">
+                            <i class="bi bi-plus-lg" aria-hidden="true"></i>@L["spool.add.same.material"]
+                        </a>
+                    </article>
+                }
             </div>
-        }
-    </div>
+        </section>
+    }
 }
 else
 {
-    <div class="row g-3">
-        @foreach (var spool in _spools)
+    <div class="sh-tile-grid shelf-grid">
+        @foreach (var spool in list)
         {
-            <div class="col-12 col-md-6 col-xl-4">
-                <div class="spool-card">
-                    <div class="d-flex justify-content-between align-items-start mb-2">
-                        <div class="d-flex align-items-center gap-2">
-                            <div class="color-dot" style="background-color: #@spool.MaterialColorHex"></div>
-                            <div>
-                                <div class="fw-semibold">@spool.MaterialBrand @spool.MaterialType</div>
-                                <small class="text-muted">@(spool.MaterialColorName ?? "#" + spool.MaterialColorHex)</small>
-                            </div>
-                        </div>
-                        <div class="d-flex align-items-center gap-2">
-                            <span class="font-monospace text-muted" style="font-size:.7rem">#@spool.Id.ToString("N")[..5].ToUpper()</span>
-                            <span class="badge @(spool.ConsumedAt != null ? "bg-secondary" : "bg-success") lifecycle-badge">
-                                @(spool.ConsumedAt != null ? L["spool.status.consumed"] : L["spool.status.active"])
-                            </span>
-                        </div>
-                    </div>
-
-                    <div class="remaining-bar mb-1">
-                        <div class="remaining-bar-fill @GetBarClass(spool.RemainingPercent)"
-                             style="width: @((int)Math.Min(spool.RemainingPercent, 100))%"></div>
-                    </div>
-                    <small class="text-muted d-block mb-2">@spool.RemainingWeightGrams g – @spool.RemainingPercent%</small>
-
-                    @if (spool.OwnerName != null)
-                    {
-                        <div class="mb-1"><span class="badge text-bg-light border"><i class="bi bi-person me-1"></i>@spool.OwnerName</span></div>
-                    }
-                    @if (spool.DryerId != null && spool.DriedAt == null)
-                    {
-                        <small class="text-muted me-2"><i class="bi bi-thermometer-half me-1 text-warning"></i>@spool.DryerName</small>
-                    }
-                    @if (spool.DryerId != null && spool.DriedAt != null)
-                    {
-                        var (elapsed, total, done) = GetDryingState(spool);
-                        var pct = total > 0 ? Math.Min(elapsed / total * 100, 100) : 100;
-                        <div class="@(done ? "drying-done" : "")">
-                            <small class="text-muted">
-                                <i class="bi bi-thermometer-half me-1"></i>
-                                @spool.DryerName –
-                                @if (done)
-                                {
-                                    <span class="text-success fw-semibold">@L["spool.drying.done"]</span>
-                                }
-                                else
-                                {
-                                    <span>@elapsed.ToString("F1")h / @total h</span>
-                                }
-                            </small>
-                            <div class="drying-bar">
-                                <div class="drying-bar-fill @(done ? "done" : "")" style="width:@((int)pct)%"></div>
-                            </div>
-                        </div>
-                    }
-                    @if (spool.PrinterName != null)
-                    {
-                        <small class="text-muted"><i class="bi bi-printer me-1"></i>@spool.PrinterName</small>
-                    }
-                    @if (spool.StorageLocationName != null)
-                    {
-                        <small class="text-muted ms-2"><i class="bi bi-box me-1"></i>@spool.StorageLocationName</small>
-                    }
-
-                    @if (_nfcTarget?.Id == spool.Id)
-                    {
-                        <div class="mt-2">
-                            @if (_nfcWriting)
+            var s = spool;
+            var low = SpoolUi.IsLow(s);
+            var dry = SpoolUi.GetDrying(s);
+            <article class="sh-spool-tile shelf-tile @(low ? "sh-low" : "") @(s.ConsumedAt != null ? "sh-consumed" : "")">
+                <div class="shelf-tile-top">
+                    <SpoolRing ColorHex="@s.MaterialColorHex" Percent="s.RemainingPercent" Size="84"
+                               AriaLabel="@L.Format("spool.ring.label", SpoolUi.Title(s), SpoolUi.Percent(s.RemainingPercent))">
+                        <span>@((int)Math.Round(s.RemainingPercent))<small>%</small></span>
+                    </SpoolRing>
+                    <div class="dropdown shelf-menu">
+                        <button type="button" class="btn btn-outline-secondary shelf-menu-btn" data-bs-toggle="dropdown" aria-expanded="false"
+                                aria-label="@L.Format("spool.actions.for", SpoolUi.Title(s))">
+                            <i class="bi bi-three-dots" aria-hidden="true"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="/spools/@s.Id/edit"><i class="bi bi-pencil" aria-hidden="true"></i>@L["common.edit"]</a></li>
+                            @if (_nfcAvailable && s.ConsumedAt == null)
                             {
-                                <div class="d-flex align-items-center gap-2 text-muted small">
-                                    <span class="spinner-border spinner-border-sm"></span>
-                                    <span>@L["tag.nfc.scanning"]</span>
-                                </div>
+                                <li><button type="button" class="dropdown-item" @onclick="() => FindSpoolAsync(s)"><i class="bi bi-search" aria-hidden="true"></i>@L["spool.find.title"]</button></li>
+                                <li><button type="button" class="dropdown-item" @onclick="() => WriteNfcAsync(s)" disabled="@_nfcWriting"><i class="bi bi-broadcast" aria-hidden="true"></i>@L["tag.nfc.write"]</button></li>
                             }
-                            else if (_nfcMessage != null)
-                            {
-                                <div class="alert @(_nfcSuccess ? "alert-success" : "alert-danger") py-1 mb-0 small">
-                                    @_nfcMessage
-                                </div>
-                            }
-                        </div>
-                    }
-
-                    @if (_jsonTarget == spool.Id && _jsonPayload != null)
-                    {
-                        <div class="position-relative mt-2">
-                            <pre class="small bg-body-secondary text-body border rounded p-2 pe-5 mb-0" style="font-size:0.7rem;word-break:break-all;white-space:pre-wrap;">@_jsonPayload</pre>
-                            <button class="btn btn-sm btn-outline-secondary position-absolute top-0 end-0 m-1" @onclick="CopyJsonAsync" title="@L["common.copy"]">
-                                <i class="bi @(_jsonCopied ? "bi-check-lg text-success" : "bi-clipboard")"></i>
-                            </button>
-                        </div>
-                    }
-
-                    <div class="mt-2 d-flex gap-1">
-                        <a href="/spools/@spool.Id" class="btn btn-sm btn-outline-primary flex-fill">
-                            <i class="bi bi-eye"></i>
-                        </a>
-                        <a href="/spools/@spool.Id/edit" class="btn btn-sm btn-outline-secondary">
-                            <i class="bi bi-pencil"></i>
-                        </a>
-                        @if (_nfcAvailable && spool.ConsumedAt == null)
-                        {
-                            <button class="btn btn-sm btn-outline-success" title="@L["spool.find.title"]"
-                                    @onclick="() => FindSpoolAsync(spool)">
-                                <i class="bi bi-search"></i>
-                            </button>
-                        }
-                        @if (_nfcAvailable && spool.ConsumedAt == null)
-                        {
-                            <button class="btn btn-sm btn-outline-info" title="@L["spool.nfc.write.quick"]"
-                                    @onclick="() => WriteNfcAsync(spool)"
-                                    disabled="@(_nfcWriting && _nfcTarget?.Id == spool.Id)">
-                                <i class="bi bi-broadcast"></i>
-                            </button>
-                        }
-                        <button class="btn btn-sm btn-outline-secondary" title="@L["tag.download.bin"]"
-                                @onclick="@(() => Tags.DownloadSpoolBinAsync(spool.Id))">
-                            <i class="bi bi-download"></i>
-                        </button>
-                        <button class="btn btn-sm btn-outline-secondary" title="@L["tag.show.json"]"
-                                @onclick="@(() => ShowSpoolJsonAsync(spool.Id))">
-                            <i class="bi bi-code"></i>
-                        </button>
-                        <button class="btn btn-sm btn-outline-secondary" title="@L["common.copy"]" @onclick="() => CopyAsync(spool)">
-                            <i class="bi bi-copy"></i>
-                        </button>
-                        <button class="btn btn-sm btn-outline-danger" @onclick="() => ConfirmDelete(spool)">
-                            <i class="bi bi-trash"></i>
-                        </button>
+                            <li><button type="button" class="dropdown-item" @onclick="() => Tags.DownloadSpoolBinAsync(s.Id)"><i class="bi bi-download" aria-hidden="true"></i>@L["tag.download.bin"]</button></li>
+                            <li><button type="button" class="dropdown-item" @onclick="() => ShowSpoolJsonAsync(s)"><i class="bi bi-code" aria-hidden="true"></i>@L["tag.show.json"]</button></li>
+                            <li><button type="button" class="dropdown-item" @onclick="() => CopyAsync(s)"><i class="bi bi-copy" aria-hidden="true"></i>@L["spool.duplicate"]</button></li>
+                            <li><hr class="dropdown-divider" /></li>
+                            <li><button type="button" class="dropdown-item text-danger" @onclick="() => ConfirmDelete(s)"><i class="bi bi-trash" aria-hidden="true"></i>@L["common.delete"]</button></li>
+                        </ul>
                     </div>
                 </div>
-            </div>
+                <div class="min-w-0">
+                    <a class="shelf-tile-title stretched-link" href="/spools/@s.Id">@SpoolUi.Title(s)</a>
+                    <div class="small text-muted text-truncate">@s.MaterialBrand · @SpoolUi.Grams(s.RemainingWeightGrams)</div>
+                </div>
+                <div class="d-flex flex-wrap gap-1">
+                    @if (s.ConsumedAt != null)
+                    {
+                        <span class="sh-chip sh-chip-sm">@L["spool.status.consumed"]</span>
+                    }
+                    else if (low)
+                    {
+                        <span class="sh-chip sh-chip-sm sh-chip-warn"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i>@L["dashboard.attention.low.kind"]</span>
+                    }
+                    @if (dry?.Done == true)
+                    {
+                        <span class="sh-chip sh-chip-sm sh-chip-ok">@L["spool.drying.finished"]</span>
+                    }
+                    @if (SpoolUi.HasLocation(s))
+                    {
+                        <span class="sh-chip sh-chip-sm shelf-chip-trunc"><i class="bi @SpoolUi.LocationIcon(s)" aria-hidden="true"></i>@SpoolUi.LocationName(s)</span>
+                    }
+                    else if (s.ConsumedAt == null)
+                    {
+                        <span class="sh-chip sh-chip-sm sh-chip-accent">@L["dashboard.no.location"]</span>
+                    }
+                    @if (s.OwnerName != null)
+                    {
+                        <span class="sh-chip sh-chip-sm shelf-chip-trunc"><i class="bi bi-person" aria-hidden="true"></i>@s.OwnerName</span>
+                    }
+                    <span class="sh-chip sh-chip-sm shelf-id" title="@L["spool.short.id"]">#@SpoolUi.ShortId(s)</span>
+                </div>
+                @if (dry is { Total: not null, Done: false })
+                {
+                    <div>
+                        <div class="sh-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@dry.Percent"
+                             aria-label="@L.Format("spool.drying.progress.label", SpoolUi.Title(s))">
+                            <span class="sh-warn" style="width:@(dry.Percent)%"></span>
+                        </div>
+                        <div class="small text-muted mt-1">@L.Format("spool.drying.left", SpoolUi.Duration(dry.Remaining))</div>
+                    </div>
+                }
+            </article>
         }
+        <a class="sh-add-tile" href="/spools/new">
+            <i class="bi bi-plus-lg" aria-hidden="true"></i>@L["spool.add"]
+        </a>
     </div>
 }
 
 @if (_deleteTarget != null)
 {
     <div class="modal-backdrop-custom" @onclick="() => _deleteTarget = null">
-        <div class="modal-box" @onclick:stopPropagation>
-            <h5>@L["spool.delete"]</h5>
-            <p>@L["spool.delete.confirm"]</p>
-            <p><strong>@_deleteTarget.MaterialBrand @_deleteTarget.MaterialType</strong></p>
-            <div class="d-flex gap-2 justify-content-end">
-                <button class="btn btn-secondary" @onclick="() => _deleteTarget = null">@L["common.cancel"]</button>
-                <button class="btn btn-danger" @onclick="DeleteAsync">@L["common.delete"]</button>
+        <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="delete-title" @onclick:stopPropagation>
+            <h5 id="delete-title">@L["spool.delete"]</h5>
+            <div class="d-flex align-items-center gap-3 my-3">
+                <SpoolRing ColorHex="@_deleteTarget.MaterialColorHex" Percent="_deleteTarget.RemainingPercent" Size="48" />
+                <div>
+                    <div class="fw-semibold">@SpoolUi.FullTitle(_deleteTarget)</div>
+                    <div class="small text-muted">@SpoolUi.Grams(_deleteTarget.RemainingWeightGrams) · #@SpoolUi.ShortId(_deleteTarget)</div>
+                </div>
             </div>
+            <p>@L["spool.delete.confirm.text"]</p>
+            @if (_actionError != null)
+            {
+                <div class="alert alert-danger py-2">@_actionError</div>
+            }
+            <div class="d-flex gap-2 justify-content-end flex-wrap">
+                <button type="button" class="btn btn-outline-secondary" @onclick="() => _deleteTarget = null">@L["common.cancel"]</button>
+                <button type="button" class="btn btn-danger" @onclick="DeleteAsync" disabled="@_deleting">
+                    @if (_deleting) { <span class="spinner-border spinner-border-sm" aria-hidden="true"></span> }
+                    <i class="bi bi-trash" aria-hidden="true"></i>@L["spool.delete.confirm.button"]
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@if (_jsonTarget != null)
+{
+    <div class="modal-backdrop-custom" @onclick="CloseJson">
+        <div class="modal-box shelf-json-box" role="dialog" aria-modal="true" aria-labelledby="json-title" @onclick:stopPropagation>
+            <div class="d-flex align-items-start justify-content-between gap-2">
+                <div>
+                    <h5 id="json-title" class="mb-1">@L["tag.show.json"]</h5>
+                    <p class="small text-muted mb-0">@SpoolUi.FullTitle(_jsonTarget) · #@SpoolUi.ShortId(_jsonTarget)</p>
+                </div>
+                <button type="button" class="btn-close" aria-label="@L["common.close"]" @onclick="CloseJson"></button>
+            </div>
+            @if (_jsonLoading)
+            {
+                <div class="text-center py-4"><div class="spinner-border" role="status"><span class="visually-hidden">@L["common.loading"]</span></div></div>
+            }
+            else
+            {
+                <pre class="shelf-json">@_jsonPayload</pre>
+                <div class="d-flex gap-2 justify-content-end">
+                    <button type="button" class="btn btn-outline-secondary" @onclick="CopyJsonAsync">
+                        <i class="bi @(_jsonCopied ? "bi-check-lg" : "bi-clipboard")" aria-hidden="true"></i>@(_jsonCopied ? L["common.copied"] : L["common.copy"])
+                    </button>
+                    <button type="button" class="btn btn-primary" @onclick="CloseJson">@L["common.close"]</button>
+                </div>
+            }
         </div>
     </div>
 }

@@ -2,149 +2,287 @@
 
 <PageTitle>@L["project.settings"] – @L["app.name"]</PageTitle>
 
-@if (_loading) { <div class="text-center py-5"><div class="spinner-border"></div></div> }
-else
+@if (_loading)
+{
+    <div class="text-center py-5" role="status">
+        <div class="spinner-border text-primary" aria-hidden="true"></div>
+        <span class="visually-hidden">@L["common.loading"]</span>
+    </div>
+}
+else if (_project != null)
 {
     <div class="page-header">
-        <h1><i class="bi bi-gear me-2"></i>@(_project?.Name ?? L["project.settings"])</h1>
-        <a href="/projects" class="btn btn-outline-secondary">
-            <i class="bi bi-arrow-left me-1"></i>@L["common.cancel"]
-        </a>
+        <div class="min-w-0">
+            <h1 class="text-break">@_project.Name</h1>
+            <p class="page-subtitle">@L.Format("project.settings.subtitle", L[$"project.role.{_myRole}"])</p>
+        </div>
+        <div class="page-actions">
+            <a href="/projects" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left" aria-hidden="true"></i>@L["project.back"]
+            </a>
+        </div>
     </div>
 
-    <div class="row g-4">
-        <div class="col-12 col-lg-7">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title"><i class="bi bi-people me-2"></i>@L["project.members"]</h5>
-                    @if (_members.Count == 0)
-                    {
-                        <p class="text-muted">@L["common.none"]</p>
-                    }
-                    else
-                    {
-                        <div class="table-responsive">
-                            <table class="table table-sm mb-0">
-                                <thead>
-                                    <tr>
-                                        <th>@L["auth.username"]</th>
-                                        <th>@L["project.role"]</th>
-                                        <th></th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach (var m in _members)
-                                    {
-                                        <tr>
-                                            <td>
-                                                @m.Username
-                                                <small class="text-muted d-block">@m.Email</small>
-                                            </td>
-                                            <td>
-                                                @if (_myRole == "admin" && m.UserId != _myUserId)
-                                                {
-                                                    <select class="form-select form-select-sm" style="width:auto"
-                                                            value="@m.Role"
-                                                            @onchange="e => ChangeRoleAsync(m, e.Value?.ToString() ?? m.Role)">
-                                                        <option value="admin">@L["project.role.admin"]</option>
-                                                        <option value="manager">@L["project.role.manager"]</option>
-                                                        <option value="member">@L["project.role.member"]</option>
-                                                    </select>
-                                                }
-                                                else
-                                                {
-                                                    <span class="badge bg-secondary">@L[$"project.role.{m.Role}"]</span>
-                                                }
-                                            </td>
-                                            <td>
-                                                @if (_myRole == "admin" && m.UserId != _myUserId)
-                                                {
-                                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => _removeTarget = m">
-                                                        <i class="bi bi-person-dash"></i>
-                                                    </button>
-                                                }
-                                            </td>
-                                        </tr>
-                                    }
-                                </tbody>
-                            </table>
-                        </div>
-                    }
-                </div>
-            </div>
+    @if (_notice != null)
+    {
+        <div class="alert @(_noticeSuccess ? "alert-success" : "alert-danger") d-flex align-items-start gap-2" role="status">
+            <span class="flex-grow-1">@_notice</span>
+            <button type="button" class="btn-close" aria-label="@L["common.close"]" @onclick="() => _notice = null"></button>
         </div>
+    }
 
-        @if (_myRole == "admin" || _myRole == "manager")
-        {
-            <div class="col-12 col-lg-5">
-                <div class="card mb-3">
-                    <div class="card-body">
-                        <h5 class="card-title"><i class="bi bi-plug me-2"></i>@L["spoolman.title"]</h5>
-                        <p class="small text-muted">@L["spoolman.settings.teaser"]</p>
-                        <a href="/projects/@Id/spoolman" class="btn btn-outline-primary w-100">
-                            <i class="bi bi-key me-1"></i>@L["spoolman.apikeys.manage"]
-                        </a>
+    <div class="ps-sections">
+        @* General *@
+        <section class="sh-card" aria-labelledby="ps-general">
+            <h2 class="sh-card-title" id="ps-general">@L["project.general"]</h2>
+            @if (IsAdmin)
+            {
+                <p class="sh-card-sub mb-3">@L["project.general.text"]</p>
+                <form @onsubmit="SaveGeneralAsync" @onsubmit:preventDefault class="ps-form">
+                    <div class="mb-3">
+                        <label class="form-label" for="ps-name">@L["project.name"]</label>
+                        <input id="ps-name" class="form-control" @bind="_name" @bind:event="oninput" maxlength="200" required autocomplete="off" />
                     </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="ps-desc">@L["project.description"] <span class="text-muted fw-normal">@L["common.optional"]</span></label>
+                        <textarea id="ps-desc" class="form-control" rows="2" @bind="_description" @bind:event="oninput"></textarea>
+                    </div>
+                    @if (_generalError != null)
+                    {
+                        <div class="alert alert-danger py-2" role="alert">@_generalError</div>
+                    }
+                    <button type="submit" class="btn btn-primary" disabled="@(_savingGeneral || !GeneralDirty || string.IsNullOrWhiteSpace(_name))">
+                        @if (_savingGeneral) { <span class="spinner-border spinner-border-sm" aria-hidden="true"></span> }
+                        @L["common.save"]
+                    </button>
+                </form>
+            }
+            else
+            {
+                <p class="sh-card-sub mb-0">@(string.IsNullOrWhiteSpace(_project.Description) ? L["project.no.description"] : _project.Description)</p>
+            }
+        </section>
+
+        @* Members *@
+        <section class="sh-card" aria-labelledby="ps-members">
+            <div class="ps-section-head">
+                <div>
+                    <h2 class="sh-card-title" id="ps-members">@L["project.members"]</h2>
+                    <p class="sh-card-sub">@L["project.members.text"]</p>
                 </div>
-
-                <div class="card mb-3">
-                    <div class="card-body">
-                        <h5 class="card-title"><i class="bi bi-link-45deg me-2"></i>@L["project.invite.create"]</h5>
-                        <div class="mb-3">
-                            <label class="form-label">@L["project.invite.role"]</label>
-                            <select class="form-select" @bind="_inviteRole">
-                                <option value="member">@L["project.role.member"]</option>
-                                <option value="manager">@L["project.role.manager"]</option>
-                                @if (_myRole == "admin")
-                                {
-                                    <option value="admin">@L["project.role.admin"]</option>
-                                }
-                            </select>
-                        </div>
-                        <button class="btn btn-primary w-100" @onclick="CreateInviteAsync" disabled="@_creatingInvite">
-                            @if (_creatingInvite) { <span class="spinner-border spinner-border-sm me-2"></span> }
-                            @L["project.invite.create"]
-                        </button>
-                    </div>
-                </div>
-
-                @if (_invitations.Count > 0)
-                {
-                    <div class="card">
-                        <div class="card-body">
-                            <h6 class="card-title">@L["project.invite.link"]</h6>
-                            <div class="d-flex flex-column gap-2">
-                                @foreach (var inv in _invitations.Where(i => !i.IsUsed && i.ExpiresAt > DateTime.UtcNow))
-                                {
-                                    <div class="input-group input-group-sm">
-                                        <input class="form-control font-monospace" readonly value="@inv.Token" />
-                                        <button class="btn btn-outline-secondary" @onclick="() => CopyToken(inv.Token)">
-                                            <i class="bi bi-clipboard"></i>
-                                        </button>
-                                    </div>
-                                    <small class="text-muted">@L[$"project.role.{inv.Role}"] · gültig bis @inv.ExpiresAt.ToLocalTime().ToString("d")</small>
-                                }
-                            </div>
-                        </div>
-                    </div>
-                }
+                <span class="sh-chip sh-chip-sm">@_members.Count</span>
             </div>
+            <ul class="ps-members">
+                @foreach (var m in _members.OrderBy(m => RoleOrder(m.Role)).ThenBy(m => m.Username))
+                {
+                    var isMe = m.UserId == _myUserId;
+                    <li class="ps-member">
+                        <span class="ps-avatar" aria-hidden="true">@Initials(m.Username)</span>
+                        <div class="ps-member-info">
+                            <span class="fw-semibold">
+                                @m.Username
+                                @if (isMe) { <span class="sh-chip sh-chip-sm sh-chip-accent ms-1">@L["project.member.you"]</span> }
+                            </span>
+                            <span class="small text-muted text-break">@m.Email</span>
+                        </div>
+                        <div class="ps-member-actions">
+                            @if (IsAdmin && !isMe)
+                            {
+                                <label class="visually-hidden" for="role-@m.UserId">@L.Format("project.member.role.for", m.Username)</label>
+                                <select id="role-@m.UserId" class="form-select" value="@m.Role"
+                                        @onchange="e => ChangeRoleAsync(m, e.Value?.ToString() ?? m.Role)">
+                                    <option value="admin">@L["project.role.admin"]</option>
+                                    <option value="manager">@L["project.role.manager"]</option>
+                                    <option value="member">@L["project.role.member"]</option>
+                                </select>
+                                <button type="button" class="btn btn-outline-danger ps-icon-btn" @onclick="() => _removeTarget = m"
+                                        aria-label="@L.Format("project.member.remove.for", m.Username)" title="@L["project.member.remove"]">
+                                    <i class="bi bi-person-dash" aria-hidden="true"></i>
+                                </button>
+                            }
+                            else
+                            {
+                                <span class="sh-chip">@L[$"project.role.{m.Role}"]</span>
+                            }
+                        </div>
+                    </li>
+                }
+            </ul>
+            <details class="ps-roles">
+                <summary>@L["project.roles.explained"]</summary>
+                <dl>
+                    <dt>@L["project.role.admin"]</dt><dd>@L["project.role.admin.hint"]</dd>
+                    <dt>@L["project.role.manager"]</dt><dd>@L["project.role.manager.hint"]</dd>
+                    <dt>@L["project.role.member"]</dt><dd>@L["project.role.member.hint"]</dd>
+                </dl>
+            </details>
+        </section>
+
+        @if (CanManage)
+        {
+            @* Invitations *@
+            <section class="sh-card" aria-labelledby="ps-invites">
+                <h2 class="sh-card-title" id="ps-invites">@L["project.invitations"]</h2>
+                <p class="sh-card-sub mb-3">@L["project.invitations.text"]</p>
+                <form class="ps-invite-form" @onsubmit="CreateInviteAsync" @onsubmit:preventDefault>
+                    <div>
+                        <label class="form-label" for="ps-invite-role">@L["project.invite.role"]</label>
+                        <select id="ps-invite-role" class="form-select" @bind="_inviteRole">
+                            <option value="member">@L["project.role.member"]</option>
+                            <option value="manager">@L["project.role.manager"]</option>
+                            @if (IsAdmin)
+                            {
+                                <option value="admin">@L["project.role.admin"]</option>
+                            }
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary" disabled="@_creatingInvite">
+                        @if (_creatingInvite) { <span class="spinner-border spinner-border-sm" aria-hidden="true"></span> }
+                        else { <i class="bi bi-plus-lg" aria-hidden="true"></i> }
+                        @L["project.invite.create"]
+                    </button>
+                </form>
+                @if (_inviteError != null)
+                {
+                    <div class="alert alert-danger py-2 mt-3 mb-0" role="alert">@_inviteError</div>
+                }
+
+                @if (OpenInvitations.Count == 0)
+                {
+                    <p class="ps-muted-box mt-3 mb-0">@L["project.invitations.none"]</p>
+                }
+                else
+                {
+                    <ul class="ps-invites">
+                        @foreach (var inv in OpenInvitations)
+                        {
+                            <li class="ps-invite @(inv.Id == _newInviteId ? "is-new" : "")">
+                                <div class="ps-invite-code">
+                                    <label class="visually-hidden" for="code-@inv.Id">@L["project.invite.link"]</label>
+                                    <input id="code-@inv.Id" class="form-control font-monospace" readonly value="@inv.Token" />
+                                    <button type="button" class="btn btn-outline-secondary" @onclick="() => CopyTokenAsync(inv)">
+                                        <i class="bi @(_copiedId == inv.Id ? "bi-check-lg" : "bi-clipboard")" aria-hidden="true"></i>@(_copiedId == inv.Id ? L["place.copied"] : L["common.copy"])
+                                    </button>
+                                </div>
+                                <span class="small text-muted">@L.Format("project.invite.meta", L[$"project.role.{inv.Role}"], FormatDate(inv.ExpiresAt))</span>
+                            </li>
+                        }
+                    </ul>
+                }
+            </section>
+
+            @* Integrations *@
+            <section class="sh-card" aria-labelledby="ps-integrations">
+                <h2 class="sh-card-title" id="ps-integrations">@L["project.integrations"]</h2>
+                <p class="sh-card-sub mb-3">@L["project.integrations.text"]</p>
+                <div class="ps-links">
+                    <a class="ps-link" href="/projects/@Id/spoolman">
+                        <i class="bi bi-plug" aria-hidden="true"></i>
+                        <span>
+                            <strong>@L["spoolman.title"]</strong>
+                            <span>@L["spoolman.settings.teaser"]</span>
+                        </span>
+                        <i class="bi bi-chevron-right ms-auto" aria-hidden="true"></i>
+                    </a>
+                    @if (IsCurrent)
+                    {
+                        <a class="ps-link" href="/webhooks">
+                            <i class="bi bi-broadcast-pin" aria-hidden="true"></i>
+                            <span>
+                                <strong>@L["webhook.title"]</strong>
+                                <span>@L["project.integrations.webhooks"]</span>
+                            </span>
+                            <i class="bi bi-chevron-right ms-auto" aria-hidden="true"></i>
+                        </a>
+                    }
+                </div>
+            </section>
         }
+
+        @* Danger zone *@
+        <section class="sh-card ps-danger" aria-labelledby="ps-danger">
+            <h2 class="sh-card-title" id="ps-danger">@L["project.danger"]</h2>
+            <div class="ps-danger-row">
+                <div>
+                    <strong>@L["project.leave"]</strong>
+                    <p class="sh-card-sub">@(IsLastAdmin ? L["project.leave.last.admin"] : L["project.leave.text"])</p>
+                </div>
+                <button type="button" class="btn btn-outline-danger" disabled="@IsLastAdmin" @onclick="() => { _leaveError = null; _confirmLeave = true; }">
+                    <i class="bi bi-box-arrow-right" aria-hidden="true"></i>@L["project.leave"]
+                </button>
+            </div>
+            @if (IsAdmin)
+            {
+                <div class="ps-danger-row">
+                    <div>
+                        <strong>@L["project.delete"]</strong>
+                        <p class="sh-card-sub">@L["project.delete.text"]</p>
+                    </div>
+                    <button type="button" class="btn btn-danger" @onclick="OpenDelete">
+                        <i class="bi bi-trash" aria-hidden="true"></i>@L["project.delete"]
+                    </button>
+                </div>
+            }
+        </section>
     </div>
 }
 
 @if (_removeTarget != null)
 {
     <div class="modal-backdrop-custom" @onclick="() => _removeTarget = null">
-        <div class="modal-box" @onclick:stopPropagation>
-            <h5>@L["project.member.remove"]</h5>
-            <p>@L["project.member.remove.confirm"]</p>
-            <p><strong>@_removeTarget.Username</strong></p>
-            <div class="d-flex gap-2 justify-content-end">
-                <button class="btn btn-secondary" @onclick="() => _removeTarget = null">@L["common.cancel"]</button>
-                <button class="btn btn-danger" @onclick="RemoveMemberAsync">@L["common.delete"]</button>
+        <div class="modal-box" role="alertdialog" aria-modal="true" aria-labelledby="ps-remove-title" @onclick:stopPropagation>
+            <h5 id="ps-remove-title">@L["project.member.remove"]</h5>
+            <p>@L.Format("project.member.remove.text", _removeTarget.Username)</p>
+            <div class="d-flex gap-2 justify-content-end flex-wrap">
+                <button type="button" class="btn btn-outline-secondary" @onclick="() => _removeTarget = null">@L["common.cancel"]</button>
+                <button type="button" class="btn btn-danger" @onclick="RemoveMemberAsync">@L["project.member.remove"]</button>
             </div>
         </div>
     </div>
 }
 
+@if (_confirmLeave && _project != null)
+{
+    <div class="modal-backdrop-custom" @onclick="() => _confirmLeave = false">
+        <div class="modal-box" role="alertdialog" aria-modal="true" aria-labelledby="ps-leave-title" @onclick:stopPropagation>
+            <h5 id="ps-leave-title">@L["project.leave"]</h5>
+            <p>@L.Format("project.leave.confirm", _project.Name)</p>
+            @if (_leaveError != null)
+            {
+                <div class="alert alert-danger py-2" role="alert">@_leaveError</div>
+            }
+            <div class="d-flex gap-2 justify-content-end flex-wrap">
+                <button type="button" class="btn btn-outline-secondary" @onclick="() => _confirmLeave = false">@L["common.cancel"]</button>
+                <button type="button" class="btn btn-danger" @onclick="LeaveAsync" disabled="@_busy">
+                    @if (_busy) { <span class="spinner-border spinner-border-sm" aria-hidden="true"></span> }
+                    @L["project.leave"]
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@if (_confirmDelete && _project != null)
+{
+    <div class="modal-backdrop-custom" @onclick="() => _confirmDelete = false">
+        <div class="modal-box" role="alertdialog" aria-modal="true" aria-labelledby="ps-delete-title" @onclick:stopPropagation>
+            <form @onsubmit="DeleteProjectAsync" @onsubmit:preventDefault>
+                <h5 id="ps-delete-title" class="text-danger">@L["project.delete"]</h5>
+                <p>@L["project.delete.confirm.text"]</p>
+                <label class="form-label" for="ps-delete-name">@L.Format("project.delete.type", _project.Name)</label>
+                <input id="ps-delete-name" class="form-control" @bind="_deleteConfirmText" @bind:event="oninput" autocomplete="off" />
+                @if (_deleteError != null)
+                {
+                    <div class="alert alert-danger py-2 mt-3 mb-0" role="alert">@_deleteError</div>
+                }
+                <div class="d-flex gap-2 justify-content-end flex-wrap mt-3">
+                    <button type="button" class="btn btn-outline-secondary" @onclick="() => _confirmDelete = false">@L["common.cancel"]</button>
+                    <button type="submit" class="btn btn-danger" disabled="@(_busy || _deleteConfirmText.Trim() != _project.Name.Trim())">
+                        @if (_busy) { <span class="spinner-border spinner-border-sm" aria-hidden="true"></span> }
+                        @L["project.delete.final"]
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+}

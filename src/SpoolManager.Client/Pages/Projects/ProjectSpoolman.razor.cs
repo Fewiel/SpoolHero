@@ -23,6 +23,8 @@ public partial class ProjectSpoolman
     private string _newKeyName = string.Empty;
     private bool _creating;
     private string? _error;
+    private string? _createError;
+    private Guid? _newKeyId;
     private SpoolmanApiKeyDto? _deleteTarget;
     private Guid? _copiedKeyId;
 
@@ -50,29 +52,49 @@ public partial class ProjectSpoolman
         _loading = false;
     }
 
+    private void OpenCreate()
+    {
+        _newKeyName = string.Empty;
+        _createError = null;
+        _showCreate = true;
+    }
+
     private void CancelCreate()
     {
+        if (_creating)
+            return;
         _showCreate = false;
         _newKeyName = string.Empty;
+        _createError = null;
     }
+
+    private static DateTime AsLocal(DateTime dt) =>
+        (dt.Kind == DateTimeKind.Unspecified ? DateTime.SpecifyKind(dt, DateTimeKind.Utc) : dt).ToLocalTime();
+
+    private static string FormatTime(DateTime dt) => AsLocal(dt).ToString("g");
+
+    private static string FormatClock(DateTime dt) => AsLocal(dt).ToString("HH:mm:ss");
 
     private async Task CreateKeyAsync()
     {
         if (string.IsNullOrWhiteSpace(_newKeyName))
             return;
         _creating = true;
-        _error = null;
-        var created = await ApiKeys.CreateAsync(Id, _newKeyName.Trim());
+        _createError = null;
+        SpoolmanApiKeyDto? created = null;
+        try { created = await ApiKeys.CreateAsync(Id, _newKeyName.Trim()); }
+        catch (HttpRequestException) { }
+        _creating = false;
         if (created != null)
         {
             _keys.Insert(0, created);
+            _newKeyId = created.Id;
             CancelCreate();
         }
         else
         {
-            _error = L["common.error"];
+            _createError = L["common.error"];
         }
-        _creating = false;
     }
 
     private async Task DeleteKeyAsync()
@@ -81,6 +103,7 @@ public partial class ProjectSpoolman
             return;
         var id = _deleteTarget.Id;
         _deleteTarget = null;
+        _error = null;
         var response = await ApiKeys.DeleteAsync(Id, id);
         if (!response.IsSuccessStatusCode)
         {

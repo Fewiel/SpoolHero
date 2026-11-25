@@ -1,14 +1,36 @@
 window.themeHelper = {
-    getTheme: () => localStorage.getItem('theme') || 'light',
+    // Stored preference: 'light', 'dark' or 'auto' (follow the operating system)
+    getPreference: () => {
+        try { return localStorage.getItem('theme') || 'auto'; } catch { return 'auto'; }
+    },
 
-    setTheme: (theme) => {
-        localStorage.setItem('theme', theme);
+    resolve: (pref) => {
+        if (pref === 'light' || pref === 'dark') return pref;
+        return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    },
+
+    // Effective theme currently shown ('light' or 'dark')
+    getTheme: () => window.themeHelper.resolve(window.themeHelper.getPreference()),
+
+    apply: () => {
+        const theme = window.themeHelper.getTheme();
         document.documentElement.setAttribute('data-bs-theme', theme);
+        const meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) meta.setAttribute('content', theme === 'dark' ? '#0C0E13' : '#F4F5F7');
+    },
+
+    setTheme: (pref) => {
+        try { localStorage.setItem('theme', pref); } catch { }
+        window.themeHelper.apply();
     },
 
     init: () => {
-        const saved = localStorage.getItem('theme') || 'light';
-        document.documentElement.setAttribute('data-bs-theme', saved);
+        window.themeHelper.apply();
+        if (window.matchMedia) {
+            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+                if (window.themeHelper.getPreference() === 'auto') window.themeHelper.apply();
+            });
+        }
     }
 };
 
@@ -46,3 +68,16 @@ window.spoolHeroSetDocMeta = (lang) => {
     setMeta('meta[name="twitter:title"]', m.title);
     setMeta('meta[name="twitter:description"]', m.description);
 };
+
+// Ctrl/Cmd + K (or "/" outside of inputs) focuses the global search
+document.addEventListener('keydown', (e) => {
+    const target = e.target;
+    const typing = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable);
+    const isShortcut = ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') || (!typing && e.key === '/');
+    if (!isShortcut) return;
+    const input = document.getElementById('sh-search-input');
+    if (!input || input.offsetParent === null) return;
+    e.preventDefault();
+    input.focus();
+    input.select();
+});

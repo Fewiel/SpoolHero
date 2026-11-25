@@ -1,0 +1,57 @@
+<nav class="sh-nav" aria-label="@L["nav.main"]">
+    <NavLink class="sh-nav-link" href="/" Match="NavLinkMatch.All" @onclick="OnNavigate">
+        <i class="bi bi-house" aria-hidden="true"></i>@L["nav.dashboard"]
+    </NavLink>
+    <NavLink class="sh-nav-link" href="/spools" @onclick="OnNavigate">
+        <i class="bi bi-record-circle" aria-hidden="true"></i>@L["nav.spools"]
+    </NavLink>
+    <NavLink class="sh-nav-link" href="/materials" Match="NavLinkMatch.All" @onclick="OnNavigate">
+        <i class="bi bi-layers" aria-hidden="true"></i>@L["nav.materials"]
+    </NavLink>
+    <NavLink class="sh-nav-link" href="/overview" @onclick="OnNavigate">
+        <i class="bi bi-geo-alt" aria-hidden="true"></i>@L["nav.group.locations"]
+    </NavLink>
+    <NavLink class="sh-nav-link sh-nav-sub" href="/printers" @onclick="OnNavigate">@L["nav.printers"]</NavLink>
+    <NavLink class="sh-nav-link sh-nav-sub" href="/storage" @onclick="OnNavigate">@L["nav.storage"]</NavLink>
+    <NavLink class="sh-nav-link sh-nav-sub" href="/dryers" @onclick="OnNavigate">@L["nav.dryers"]</NavLink>
+
+    <div class="sh-nav-section">@L["nav.group.tools"]</div>
+    <NavLink class="sh-nav-link" href="/inventory" @onclick="OnNavigate">
+        <i class="bi bi-arrow-left-right" aria-hidden="true"></i>@L["nav.inventory"]
+    </NavLink>
+    <NavLink class="sh-nav-link" href="/tags" @onclick="OnNavigate">
+        <i class="bi bi-broadcast" aria-hidden="true"></i>@L["nav.tags"]
+    </NavLink>
+    <NavLink class="sh-nav-link" href="/materials/orca" @onclick="OnNavigate">
+        <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>@L["nav.orca"]
+    </NavLink>
+    <NavLink class="sh-nav-link" href="/tickets" @onclick="OnNavigate">
+        <i class="bi bi-life-preserver" aria-hidden="true"></i>@L["nav.tickets"]
+    </NavLink>
+
+    @if (IsAdmin)
+    {
+        <div class="sh-nav-section">@L["nav.group.admin"]</div>
+        <NavLink class="sh-nav-link" href="/admin" Match="NavLinkMatch.All" @onclick="OnNavigate">
+            <i class="bi bi-speedometer2" aria-hidden="true"></i>@L["nav.admin.dashboard"]
+        </NavLink>
+        <NavLink class="sh-nav-link" href="/admin/users" @onclick="OnNavigate">
+            <i class="bi bi-people" aria-hidden="true"></i>@L["nav.admin.users"]
+        </NavLink>
+        <NavLink class="sh-nav-link" href="/admin/materials" @onclick="OnNavigate">
+            <i class="bi bi-database" aria-hidden="true"></i>@L["nav.admin"]
+        </NavLink>
+        <NavLink class="sh-nav-link" href="/admin/suggestions" @onclick="OnNavigate">
+            <i class="bi bi-lightbulb" aria-hidden="true"></i>@L["admin.suggestions"]
+        </NavLink>
+        <NavLink class="sh-nav-link" href="/admin/tickets" @onclick="OnNavigate">
+            <i class="bi bi-ticket-perforated" aria-hidden="true"></i>@L["nav.admin.tickets"]
+        </NavLink>
+        <NavLink class="sh-nav-link" href="/admin/audit" @onclick="OnNavigate">
+            <i class="bi bi-journal-text" aria-hidden="true"></i>@L["admin.audit.title"]
+        </NavLink>
+        <NavLink class="sh-nav-link" href="/admin/settings" @onclick="OnNavigate">
+            <i class="bi bi-gear" aria-hidden="true"></i>@L["admin.settings.title"]
+        </NavLink>
+    }
+</nav>

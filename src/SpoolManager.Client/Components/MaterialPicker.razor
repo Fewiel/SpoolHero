@@ -1,81 +1,88 @@
-<div class="material-picker position-relative" @ref="_root">
-    <div class="form-control d-flex align-items-center gap-2 @(_open ? "border-primary" : "")"
-         style="cursor:pointer" @onclick="Open" role="combobox" aria-expanded="@_open">
+<div class="mp" @ref="_root" @onkeydown="OnKeyDown">
+    <button type="button" class="mp-trigger form-select @(Invalid ? "is-invalid" : "") @(_open ? "mp-open" : "")" @onclick="Toggle"
+            aria-haspopup="listbox" aria-expanded="@(_open ? "true" : "false")" aria-labelledby="@AriaLabelledBy">
         @if (_selectedMaterial != null)
         {
-            <span style="width:1em;height:1em;background:#@_selectedMaterial.ColorHex;border-radius:50%;border:1px solid var(--bs-border-color);flex-shrink:0"></span>
-            <span class="text-truncate">@_selectedMaterial.Brand @_selectedMaterial.Type @(_selectedMaterial.ColorName != null ? $"- {_selectedMaterial.ColorName}" : "")</span>
+            <span class="sh-color-swatch mp-swatch" style="background:#@_selectedMaterial.ColorHex" aria-hidden="true"></span>
+            <span class="mp-trigger-text">
+                <span class="fw-semibold">@_selectedMaterial.Brand @_selectedMaterial.Type</span>
+                <span class="text-muted">@(_selectedMaterial.ColorName ?? "#" + _selectedMaterial.ColorHex)</span>
+            </span>
         }
         else
         {
-            <span class="text-muted">@L["spool.material.select"]</span>
+            <span class="text-muted mp-trigger-text">@L["spool.material.select"]</span>
         }
-        <i class="bi bi-chevron-down ms-auto flex-shrink-0"></i>
-    </div>
+    </button>
 
     @if (_open)
     {
-        <div class="position-absolute w-100 bg-body border rounded-bottom shadow-lg" style="z-index:1050;max-height:350px;overflow:hidden;display:flex;flex-direction:column">
-            <div class="p-2 border-bottom">
-                <input class="form-control form-control-sm" placeholder="@L["material.search"]"
+        <div class="mp-panel">
+            <div class="mp-search">
+                <i class="bi bi-search" aria-hidden="true"></i>
+                <input class="form-control" type="search" placeholder="@L["material.search"]" aria-label="@L["material.search"]"
                        @ref="_searchInput" value="@_query" @oninput="OnQuery" autocomplete="off" />
             </div>
-            <div style="overflow-y:auto;flex:1">
+            <div class="mp-list" role="listbox" aria-label="@L["spool.material"]">
                 @if (_searching)
                 {
-                    <div class="text-center py-3"><div class="spinner-border spinner-border-sm"></div></div>
+                    <div class="text-center py-3"><div class="spinner-border spinner-border-sm" role="status"><span class="visually-hidden">@L["common.loading"]</span></div></div>
                 }
                 else if (string.IsNullOrWhiteSpace(_query))
                 {
                     @if (_favorites.Count > 0)
                     {
-                        <div class="px-3 py-1 text-muted small fw-semibold">@L["material.favorites"]</div>
+                        <div class="mp-group">@L["material.favorites"]</div>
                         @foreach (var m in _favorites)
                         {
-                            <div class="material-picker-item d-flex align-items-center gap-2 px-3 py-2 @(m.Id == Value ? "bg-primary-subtle" : "")"
-                                 role="option" @onclick="() => Select(m)" @onclick:stopPropagation>
-                                <span style="width:1.2em;height:1.2em;background:#@m.ColorHex;border-radius:50%;border:1px solid var(--bs-border-color);flex-shrink:0"></span>
-                                <div class="d-flex flex-column min-w-0">
-                                    <span class="text-truncate fw-semibold small">@m.Brand @m.Type</span>
-                                    <span class="text-truncate text-muted" style="font-size:.75rem">
-                                        @(m.ColorName ?? $"#{m.ColorHex}")
-                                    </span>
-                                </div>
-                                <i class="bi bi-star-fill text-warning ms-auto"></i>
-                            </div>
+                            <button type="button" class="mp-item @(m.Id == Value ? "mp-selected" : "")" role="option" aria-selected="@(m.Id == Value ? "true" : "false")"
+                                    @onclick="() => Select(m)" @onclick:stopPropagation>
+                                <span class="sh-color-swatch mp-swatch-lg" style="background:#@m.ColorHex" aria-hidden="true"></span>
+                                <span class="mp-item-text">
+                                    <span class="fw-semibold">@m.Brand @m.Type</span>
+                                    <span class="small text-muted">@(m.ColorName ?? $"#{m.ColorHex}")</span>
+                                </span>
+                                <i class="bi bi-star-fill mp-star" aria-hidden="true"></i>
+                            </button>
                         }
                     }
                     else
                     {
-                        <div class="text-center text-muted py-3 small">@L["material.picker.hint"]</div>
+                        <div class="text-center text-muted py-3 px-3 small">@L["material.picker.hint"]</div>
                     }
                 }
                 else if (_results.Count == 0)
                 {
-                    <div class="text-center text-muted py-3 small">@L["common.none"]</div>
+                    <div class="text-center text-muted py-3 px-3 small">
+                        @L["material.picker.nomatch"]
+                        <div class="mt-2"><a href="/materials">@L["material.picker.manage"]</a></div>
+                    </div>
                 }
                 else
                 {
                     @foreach (var m in _results)
                     {
-                        <div class="material-picker-item d-flex align-items-center gap-2 px-3 py-2 @(m.Id == Value ? "bg-primary-subtle" : "")"
-                             role="option" @onclick="() => Select(m)" @onclick:stopPropagation>
-                            <span style="width:1.2em;height:1.2em;background:#@m.ColorHex;border-radius:50%;border:1px solid var(--bs-border-color);flex-shrink:0"></span>
-                            <div class="d-flex flex-column min-w-0">
-                                <span class="text-truncate fw-semibold small">@m.Brand @m.Type</span>
-                                <span class="text-truncate text-muted" style="font-size:.75rem">
+                        <button type="button" class="mp-item @(m.Id == Value ? "mp-selected" : "")" role="option" aria-selected="@(m.Id == Value ? "true" : "false")"
+                                @onclick="() => Select(m)" @onclick:stopPropagation>
+                            <span class="sh-color-swatch mp-swatch-lg" style="background:#@m.ColorHex" aria-hidden="true"></span>
+                            <span class="mp-item-text">
+                                <span class="fw-semibold">@m.Brand @m.Type</span>
+                                <span class="small text-muted">
                                     @(m.ColorName ?? $"#{m.ColorHex}")
                                     @if (m.MinTempCelsius > 0 || m.MaxTempCelsius > 0)
                                     {
-                                        <span class="ms-1">@m.MinTempCelsius–@m.MaxTempCelsius °C</span>
+                                        <span> · @m.MinTempCelsius–@m.MaxTempCelsius °C</span>
                                     }
                                 </span>
-                            </div>
-                        </div>
+                            </span>
+                            @if (m.Id == Value)
+                            {
+                                <i class="bi bi-check-lg mp-check" aria-hidden="true"></i>
+                            }
+                        </button>
                     }
                 }
             </div>
         </div>
     }
 </div>
-

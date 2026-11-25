@@ -3,79 +3,123 @@
 <PageTitle>@L["material.share"] – @L["app.name"]</PageTitle>
 
 <div class="page-header">
-    <h1><i class="bi bi-share me-2"></i>@L["material.share"]</h1>
-    <a href="/materials" class="btn btn-outline-secondary">
-        <i class="bi bi-arrow-left me-1"></i>@L["common.cancel"]
-    </a>
+    <div>
+        <h1>@L["material.share"]</h1>
+        <p class="page-subtitle">@L["material.share.subtitle"]</p>
+    </div>
+    <div class="page-actions">
+        <a href="/materials" class="btn btn-outline-secondary"><i class="bi bi-arrow-left" aria-hidden="true"></i>@L["material.form.back"]</a>
+    </div>
 </div>
 
-<div class="row g-4">
-    <div class="col-12 col-lg-6">
-        <div class="card h-100">
-            <div class="card-body">
-                <h5 class="card-title"><i class="bi bi-box-arrow-up me-2"></i>@L["material.export"]</h5>
+<div class="sh-segmented share-tabs mb-3" role="group" aria-label="@L["material.share"]">
+    <button type="button" aria-pressed="@(!_importTab ? "true" : "false")" @onclick="() => _importTab = false">
+        <i class="bi bi-box-arrow-up" aria-hidden="true"></i>@L["material.share.tab.export"]
+    </button>
+    <button type="button" aria-pressed="@(_importTab ? "true" : "false")" @onclick="() => _importTab = true">
+        <i class="bi bi-box-arrow-in-down" aria-hidden="true"></i>@L["material.share.tab.import"]
+    </button>
+</div>
 
-                <div class="mb-3">
-                    <MaterialPicker Value="_exportPickerId" OnSelected="OnExportPicked" />
+@if (!_importTab)
+{
+    <div class="share-grid">
+        <section class="sh-card" aria-labelledby="share-step1">
+            <div class="share-step"><span class="share-step-no" aria-hidden="true">1</span>
+                <div>
+                    <h2 class="sh-card-title" id="share-step1">@L["material.share.step.pick"]</h2>
+                    <p class="sh-card-sub">@L["material.share.step.pick.hint"]</p>
                 </div>
+            </div>
 
+            <h3 class="share-subhead">@L["material.export.orca.from.spools"]</h3>
+            <SpoolMaterialQuickPick SelectedIds="SelectedIds" OnAdd="AddByIdAsync" OnRemove="Remove" />
+
+            <h3 class="share-subhead">@L["material.share.search"]</h3>
+            <MaterialPicker Value="_exportPickerId" OnSelected="OnExportPicked" />
+        </section>
+
+        <section class="sh-card" aria-labelledby="share-step2">
+            <div class="share-step"><span class="share-step-no" aria-hidden="true">2</span>
+                <div>
+                    <h2 class="sh-card-title" id="share-step2">@L["material.share.step.code"]</h2>
+                    <p class="sh-card-sub">@L["material.share.step.code.hint"]</p>
+                </div>
+            </div>
+
+            <SelectedMaterials Items="_selectedMaterials" OnRemove="Remove" EmptyText="@L["material.share.none.selected"]" />
+
+            <div class="d-flex flex-wrap gap-2 mt-3">
+                <button type="button" class="btn btn-primary" @onclick="ExportAsync" disabled="@(_selectedMaterials.Count == 0 || _exporting)">
+                    @if (_exporting) { <span class="spinner-border spinner-border-sm" aria-hidden="true"></span> }
+                    else { <i class="bi bi-qr-code" aria-hidden="true"></i> }
+                    @L.Format("material.share.create", _selectedMaterials.Count)
+                </button>
                 @if (_selectedMaterials.Count > 0)
                 {
-                    <div class="d-flex flex-wrap gap-1 mb-3">
-                        @foreach (var m in _selectedMaterials)
-                        {
-                            <span class="badge bg-body-secondary text-body border d-flex align-items-center gap-1 py-1 px-2" style="font-size:.75rem">
-                                <span style="width:.7em;height:.7em;background:#@m.ColorHex;border-radius:50%;border:1px solid var(--bs-border-color)"></span>
-                                @m.Brand @m.Type
-                                <button type="button" class="btn-close ms-1" style="font-size:.5rem"
-                                        @onclick="() => _selectedMaterials.RemoveAll(x => x.Id == m.Id)"></button>
-                            </span>
-                        }
-                    </div>
+                    <button type="button" class="btn btn-outline-secondary" @onclick="ClearSelection">@L["common.clear"]</button>
                 }
+            </div>
 
-                <button class="btn btn-primary" @onclick="ExportAsync" disabled="@(_selectedMaterials.Count == 0 || _exporting)">
-                    @if (_exporting) { <span class="spinner-border spinner-border-sm me-2"></span> }
-                    <i class="bi bi-download me-1"></i>@L["material.export"] (@_selectedMaterials.Count)
-                </button>
+            @if (_exportError != null)
+            {
+                <div class="alert alert-danger py-2 mt-3" role="alert">@_exportError</div>
+            }
 
-                @if (_exportBase64 != null)
-                {
-                    <div class="mt-3">
-                        <textarea class="form-control font-monospace" rows="5" readonly>@_exportBase64</textarea>
-                        <button class="btn btn-sm btn-outline-secondary mt-2" @onclick="CopyExportAsync">
-                            <i class="bi bi-clipboard me-1"></i>@(_copied ? L["material.export.copied"] : L["material.export.copy"])
+            @if (_exportBase64 != null)
+            {
+                <div class="share-result mt-3">
+                    <label class="form-label" for="share-code">@L["material.share.code.label"]</label>
+                    <textarea id="share-code" class="form-control font-monospace share-code" rows="5" readonly>@_exportBase64</textarea>
+                    <div class="d-flex flex-wrap gap-2 mt-2">
+                        <button type="button" class="btn btn-outline-primary" @onclick="CopyExportAsync">
+                            <i class="bi @(_copied ? "bi-check-lg" : "bi-clipboard")" aria-hidden="true"></i>@(_copied ? L["material.export.copied"] : L["material.export.copy"])
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" @onclick="DownloadExportAsync">
+                            <i class="bi bi-download" aria-hidden="true"></i>@L["material.share.download"]
                         </button>
                     </div>
-                }
-            </div>
-        </div>
-    </div>
-
-    <div class="col-12 col-lg-6">
-        <div class="card h-100">
-            <div class="card-body">
-                <h5 class="card-title"><i class="bi bi-box-arrow-in-down me-2"></i>@L["material.import"]</h5>
-
-                <div class="mb-3">
-                    <label class="form-label">@L["material.import.paste"]</label>
-                    <textarea class="form-control font-monospace" rows="5" @bind="_importBase64" placeholder="Base64..."></textarea>
+                    <span class="visually-hidden" role="status">@(_copied ? L["material.export.copied"] : "")</span>
                 </div>
-
-                @if (_importError != null)
-                {
-                    <div class="alert alert-danger py-2">@_importError</div>
-                }
-                @if (_importSuccess != null)
-                {
-                    <div class="alert alert-success py-2">@_importSuccess</div>
-                }
-
-                <button class="btn btn-primary" @onclick="DoImportAsync" disabled="@(string.IsNullOrWhiteSpace(_importBase64) || _importing)">
-                    @if (_importing) { <span class="spinner-border spinner-border-sm me-2"></span> }
-                    <i class="bi bi-box-arrow-in-down me-1"></i>@L["material.import.confirm"]
-                </button>
-            </div>
-        </div>
+            }
+        </section>
     </div>
-</div>
+}
+else
+{
+    <section class="sh-card share-import" aria-labelledby="share-import-title">
+        <h2 class="sh-card-title" id="share-import-title">@L["material.import"]</h2>
+        <p class="sh-card-sub mb-3">@L["material.share.import.hint"]</p>
+
+        @if (_importSuccess != null)
+        {
+            <div class="alert alert-success d-flex flex-wrap align-items-center gap-2" role="status">
+                <i class="bi bi-check-circle" aria-hidden="true"></i>
+                <span class="flex-grow-1">@_importSuccess</span>
+                <a class="btn btn-sm btn-success" href="/materials">@L["material.share.import.view"]</a>
+            </div>
+        }
+
+        <label class="form-label" for="share-import-code">@L["material.import.paste"]</label>
+        <textarea id="share-import-code" class="form-control font-monospace share-code" rows="6" @bind="_importBase64" @bind:event="oninput" placeholder="eyJWZXJzaW9uIjox…"></textarea>
+
+        <div class="share-file mt-2">
+            <span class="text-muted small">@L["material.share.import.or"]</span>
+            <label class="btn btn-outline-secondary btn-sm mb-0">
+                <i class="bi bi-file-earmark-arrow-up" aria-hidden="true"></i>@L["material.share.import.file"]
+                <InputFile class="visually-hidden" accept=".txt,.b64,text/plain" OnChange="OnImportFileAsync" />
+            </label>
+        </div>
+
+        @if (_importError != null)
+        {
+            <div class="alert alert-danger py-2 mt-3" role="alert">@_importError</div>
+        }
+
+        <button type="button" class="btn btn-primary mt-3" @onclick="DoImportAsync" disabled="@(string.IsNullOrWhiteSpace(_importBase64) || _importing)">
+            @if (_importing) { <span class="spinner-border spinner-border-sm" aria-hidden="true"></span> }
+            else { <i class="bi bi-box-arrow-in-down" aria-hidden="true"></i> }
+            @L["material.share.import.button"]
+        </button>
+    </section>
+}

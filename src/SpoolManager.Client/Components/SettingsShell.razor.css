@@ -1,0 +1,154 @@
+.settings-layout {
+    display: grid;
+    grid-template-columns: 220px minmax(0, 1fr);
+    gap: 1.5rem;
+    align-items: start;
+}
+
+.settings-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    position: sticky;
+    top: 96px;
+}
+
+.settings-nav ::deep .settings-nav-link {
+    display: flex;
+    align-items: center;
+    gap: .7rem;
+    min-height: 44px;
+    padding: .5rem .85rem;
+    border-radius: var(--sh-radius-sm);
+    color: var(--sh-text);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.settings-nav ::deep .settings-nav-link .bi {
+    color: var(--sh-muted);
+    font-size: 1.05rem;
+}
+
+.settings-nav ::deep .settings-nav-link:hover {
+    background: var(--sh-surface-2);
+}
+
+.settings-nav ::deep .settings-nav-link.active {
+    background: var(--sh-accent-soft);
+    color: var(--sh-accent-text);
+    font-weight: 600;
+}
+
+.settings-nav ::deep .settings-nav-link.active .bi {
+    color: var(--sh-accent-text);
+}
+
+.settings-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    max-width: 760px;
+    min-width: 0;
+}
+
+/* Sections used by the pages inside the shell */
+.settings-content ::deep .settings-section {
+    background: var(--sh-surface);
+    border: 1px solid var(--sh-border);
+    border-radius: var(--sh-radius-lg);
+    padding: 1.25rem;
+}
+
+.settings-content ::deep .settings-section > h2 {
+    font-family: var(--sh-font-display);
+    font-size: 1.15rem;
+    font-weight: 600;
+    margin: 0 0 .25rem;
+}
+
+.settings-content ::deep .settings-section-text {
+    color: var(--sh-muted);
+    margin: 0 0 1rem;
+}
+
+.settings-content ::deep .settings-section.is-danger {
+    border-color: var(--sh-danger);
+}
+
+.settings-content ::deep .settings-section.is-danger > h2 {
+    color: var(--sh-danger-text);
+}
+
+.settings-content ::deep .settings-toggle {
+    display: flex;
+    align-items: flex-start;
+    gap: .9rem;
+    padding: .85rem 0;
+    border-top: 1px solid var(--sh-border);
+    margin: 0;
+    padding-left: 0;
+    min-height: 44px;
+}
+
+.settings-content ::deep .settings-toggle:first-of-type {
+    border-top: 0;
+}
+
+.settings-content ::deep .settings-toggle .form-check-input {
+    margin: .2rem 0 0;
+    float: none;
+    flex: 0 0 auto;
+    cursor: pointer;
+}
+
+.settings-content ::deep .settings-toggle-label {
+    display: flex;
+    flex-direction: column;
+    gap: .15rem;
+    cursor: pointer;
+}
+
+.settings-content ::deep .settings-toggle-label strong {
+    font-weight: 600;
+}
+
+.settings-content ::deep .settings-toggle-label span {
+    color: var(--sh-muted);
+    font-size: .9rem;
+}
+
+.settings-content ::deep .settings-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+    align-items: center;
+    margin-top: 1rem;
+}
+
+@media (max-width: 991.98px) {
+    .settings-layout {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 1rem;
+    }
+
+    .settings-nav {
+        position: static;
+        flex-direction: row;
+        gap: .35rem;
+        overflow-x: auto;
+        padding-bottom: .25rem;
+    }
+
+    .settings-nav ::deep .settings-nav-link {
+        flex: 0 0 auto;
+        border: 1px solid var(--sh-border);
+        background: var(--sh-surface);
+        border-radius: 999px;
+        padding: .4rem .95rem;
+    }
+
+    .settings-nav ::deep .settings-nav-link.active {
+        border-color: transparent;
+    }
+}

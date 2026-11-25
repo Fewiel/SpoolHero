@@ -19,14 +19,18 @@ public class MaterialsController : ControllerBase
     private readonly IMaterialExportService _exportService;
     private readonly IOrcaExportService _orcaExport;
     private readonly IAuditService _audit;
+    private readonly IFavoriteRepository _favorites;
+    private readonly ISpoolRepository _spools;
     private ProjectMember ProjectMember => (ProjectMember)HttpContext.Items["ProjectMember"]!;
     private string? UserName => User.FindFirst(ClaimTypes.Name)?.Value;
     private Guid UserId => Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
     private string? ClientIp => HttpContext.Connection.RemoteIpAddress?.ToString();
 
     public MaterialsController(IMaterialRepository materials, IMaterialExportService exportService,
-        IOrcaExportService orcaExport, IAuditService audit)
+        IOrcaExportService orcaExport, IAuditService audit, IFavoriteRepository favorites, ISpoolRepository spools)
     {
+        _favorites = favorites;
+        _spools = spools;
         _materials = materials;
         _exportService = exportService;
         _orcaExport = orcaExport;
@@ -52,10 +56,13 @@ public class MaterialsController : ControllerBase
     }
 
     [HttpGet("paged")]
-    public async Task<IActionResult> GetPaged([FromQuery] int page = 0, [FromQuery] int pageSize = 50, [FromQuery] string? type = null, [FromQuery] string? brand = null, [FromQuery] string? color = null, [FromQuery] string? sortBy = null, [FromQuery] bool sortAsc = true)
+    public async Task<IActionResult> GetPaged([FromQuery] int page = 0, [FromQuery] int pageSize = 50, [FromQuery] string? type = null, [FromQuery] string? brand = null, [FromQuery] string? color = null, [FromQuery] string? sortBy = null, [FromQuery] bool sortAsc = true,
+        [FromQuery] string? scope = null, [FromQuery] bool onSpool = false, [FromQuery] bool favorites = false)
     {
         pageSize = Math.Clamp(pageSize, 1, 100);
-        var (items, totalCount) = await _materials.GetPagedAsync(ProjectMember.ProjectId, page, pageSize, type, brand, color, sortBy, sortAsc);
+        page = Math.Max(0, page);
+        IReadOnlyCollection<Guid>? onlyIds = favorites ? await _favorites.GetMaterialIdsByUserAsync(UserId) : null;
+        var (items, totalCount) = await _materials.GetPagedAsync(ProjectMember.ProjectId, page, pageSize, type, brand, color, sortBy, sortAsc, scope, onSpool, onlyIds);
         var types = await _materials.GetDistinctTypesAsync(ProjectMember.ProjectId);
         var brands = await _materials.GetDistinctBrandsAsync(ProjectMember.ProjectId);
         var colors = await _materials.GetDistinctColorsAsync(ProjectMember.ProjectId);
@@ -137,6 +144,11 @@ public class MaterialsController : ControllerBase
             return Forbid();
         if (material.ProjectId != ProjectMember.ProjectId)
             return NotFound();
+
+        // Spools reference the material (FK) – deleting would fail with a database error.
+        var usedBy = await _spools.GetAllAsync(ProjectMember.ProjectId, materialId: id);
+        if (usedBy.Count > 0)
+            return Conflict(new { message = "Material is still used by spools.", spoolCount = usedBy.Count });
 
         await _audit.LogAsync("material.delete",
             userId: UserId, username: UserName,
@@ -290,7 +302,8 @@ public class MaterialsController : ControllerBase
         ColorName = m.ColorName, MinTempCelsius = m.MinTempCelsius,
         MaxTempCelsius = m.MaxTempCelsius, DiameterMm = m.DiameterMm,
         ReorderUrl = m.ReorderUrl, OfdVariantId = m.OfdVariantId,
-        HasActiveSpool = hasActiveSpool
+        HasActiveSpool = hasActiveSpool, IsGlobal = m.ProjectId == null,
+        BedTempCelsius = m.BedTempCelsius, WeightGrams = m.WeightGrams, PricePerKg = m.PricePerKg
     };
 
     internal static FilamentMaterialDto MapToDto(FilamentMaterial m) => new()
@@ -303,6 +316,7 @@ public class MaterialsController : ControllerBase
         Notes = m.Notes, ReorderUrl = m.ReorderUrl, PricePerKg = m.PricePerKg,
         IsPublic = m.IsPublic, ReorderClickCount = m.ReorderClickCount,
         OfdFilamentId = m.OfdFilamentId, OfdVariantId = m.OfdVariantId,
+        IsGlobal = m.ProjectId == null,
         CreatedAt = m.CreatedAt, UpdatedAt = m.UpdatedAt
     };
 

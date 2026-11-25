@@ -1,0 +1,16 @@
+.sh-consent {
+    display: grid;
+    gap: .6rem;
+    padding: .9rem 1rem;
+    margin-bottom: 1.25rem;
+    border-radius: var(--sh-radius);
+    background: var(--sh-surface-2);
+    border: 1px solid var(--sh-border);
+}
+
+.sh-consent .form-check { margin: 0; min-height: 28px; }
+.sh-consent .form-check-input { width: 1.2em; height: 1.2em; margin-top: .15em; }
+.sh-consent .form-check-label { font-size: .92rem; }
+
+.sh-consent-invalid { border-color: var(--sh-danger); background: var(--sh-danger-soft); }
+.sh-consent-error { color: var(--sh-danger-text); font-size: .875rem; font-weight: 500; }

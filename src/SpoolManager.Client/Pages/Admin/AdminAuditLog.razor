@@ -4,121 +4,113 @@
 
 @if (Auth.CurrentUser?.IsPlatformAdmin != true)
 {
-    <div class="alert alert-danger mt-3">@L["common.access.denied"]</div>
+    <AdminAccessDenied />
 }
 else
 {
     <div class="page-header">
-        <h1><i class="bi bi-journal-text me-2"></i>@L["admin.audit.title"]</h1>
-    </div>
-
-    <div class="row g-2 mb-3">
-        <div class="col-12 col-md-5">
-            <input class="form-control" placeholder="@L["admin.audit.filter.user"]"
-                   value="@_userFilter" @oninput="OnUserFilter" />
+        <div>
+            <h1>@L["admin.audit.title"]</h1>
+            <p class="page-subtitle">@L["admin.audit.subtitle"]</p>
         </div>
-        <div class="col-12 col-md-5">
-            <select class="form-select" @bind="_actionFilter" @bind:after="LoadAsync">
-                <option value="">@L["admin.audit.filter.action"] – @L["common.filter"]</option>
-                <option value="auth.">Auth</option>
-                <option value="auth.login.fail">@L["admin.audit.action.login.fail"]</option>
-                <option value="project.">Projects</option>
-                <option value="project.member">@L["admin.audit.action.member"]</option>
-                <option value="admin.material">@L["admin.audit.action.global.material"]</option>
-                <option value="material.">@L["material.title"]</option>
-                <option value="spool.">@L["spool.title"]</option>
-            </select>
-        </div>
-        <div class="col-12 col-md-2">
-            <button class="btn btn-outline-secondary w-100" @onclick="LoadAsync">
-                <i class="bi bi-arrow-clockwise me-1"></i>@L["common.search"]
+        <div class="page-actions">
+            <button type="button" class="btn btn-outline-secondary" @onclick="LoadAsync" disabled="@_loading">
+                <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>@L["common.refresh"]
             </button>
         </div>
     </div>
 
-    @if (_loading)
+    <div class="sh-toolbar">
+        <SearchBox Id="auditUser" Label="@L["admin.audit.filter.user"]" Value="@_userFilter" ValueChanged="OnUserFilter" />
+        <label for="auditAction" class="visually-hidden">@L["admin.audit.filter.action"]</label>
+        <select id="auditAction" class="form-select al-action" value="@_actionFilter" @onchange="OnActionChanged">
+            <option value="">@L["admin.audit.filter.all"]</option>
+            <option value="auth.">@L["admin.audit.action.auth"]</option>
+            <option value="auth.login.fail">@L["admin.audit.action.login.fail"]</option>
+            <option value="project.">@L["admin.audit.action.projects"]</option>
+            <option value="project.member">@L["admin.audit.action.member"]</option>
+            <option value="admin.material">@L["admin.audit.action.global.material"]</option>
+            <option value="material.">@L["material.title"]</option>
+            <option value="spool.">@L["spool.title"]</option>
+        </select>
+        @if (!string.IsNullOrEmpty(_actionFilter) || !string.IsNullOrWhiteSpace(_userFilter))
+        {
+            <button type="button" class="btn btn-link" @onclick="ResetFiltersAsync">@L["common.filter.reset"]</button>
+        }
+    </div>
+
+    @if (_loading && _logs.Count == 0)
     {
-        <div class="text-center py-5"><div class="spinner-border"></div></div>
+        <div class="table-responsive placeholder-glow p-3" role="status">
+            @for (var i = 0; i < 8; i++)
+            {
+                <span class="placeholder col-12 mb-2 al-placeholder"></span>
+            }
+            <span class="visually-hidden">@L["common.loading"]</span>
+        </div>
+    }
+    else if (_loadFailed)
+    {
+        <div class="sh-empty">
+            <i class="bi bi-cloud-slash" aria-hidden="true"></i>
+            <h2>@L["admin.load.failed.title"]</h2>
+            <p>@L["admin.load.failed.text"]</p>
+            <button type="button" class="btn btn-primary mt-2" @onclick="LoadAsync"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i>@L["common.retry"]</button>
+        </div>
     }
     else if (_logs.Count == 0)
     {
-        <div class="text-center py-5 text-muted">
-            <i class="bi bi-journal fs-1"></i>
-            <p class="mt-2">@L["admin.audit.no.entries"]</p>
+        <div class="sh-empty">
+            <i class="bi bi-journal" aria-hidden="true"></i>
+            <h2>@L["admin.audit.no.entries"]</h2>
+            <p>@L["admin.audit.empty.text"]</p>
+            @if (!string.IsNullOrEmpty(_actionFilter) || !string.IsNullOrWhiteSpace(_userFilter))
+            {
+                <button type="button" class="btn btn-primary mt-2" @onclick="ResetFiltersAsync">@L["common.filter.reset"]</button>
+            }
         </div>
     }
     else
     {
-        <div class="table-responsive">
-            <table class="table table-sm table-hover mb-0">
+        <div class="table-responsive @(_loading ? "al-busy" : "")" aria-busy="@(_loading ? "true" : "false")">
+            <table class="table table-sm table-hover align-middle al-table">
                 <thead>
                     <tr>
-                        <th style="white-space:nowrap">@L["admin.audit.timestamp"]</th>
-                        <th>@L["admin.audit.user"]</th>
-                        <th>@L["admin.audit.action"]</th>
-                        <th>@L["admin.audit.entity"]</th>
-                        <th class="d-none d-md-table-cell">@L["admin.audit.project"]</th>
-                        <th class="d-none d-lg-table-cell">IP</th>
-                        <th class="d-none d-lg-table-cell">@L["admin.audit.details"]</th>
+                        <th scope="col">@L["admin.audit.timestamp"]</th>
+                        <th scope="col">@L["admin.audit.user"]</th>
+                        <th scope="col">@L["admin.audit.action"]</th>
+                        <th scope="col">@L["admin.audit.entity"]</th>
+                        <th scope="col">@L["admin.audit.project"]</th>
+                        <th scope="col">IP</th>
+                        <th scope="col">@L["admin.audit.details"]</th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach (var log in _logs)
                     {
                         <tr>
-                            <td style="white-space:nowrap">
-                                <small>@log.Timestamp.ToLocalTime().ToString("dd.MM. HH:mm:ss")</small>
-                            </td>
-                            <td>
-                                @if (log.Username != null)
-                                {
-                                    <span>@log.Username</span>
-                                }
-                                else
-                                {
-                                    <span class="text-muted">–</span>
-                                }
-                            </td>
-                            <td>
-                                <span class="badge @GetActionBadgeClass(log.Action)">@log.Action</span>
-                            </td>
+                            <td class="text-nowrap">@log.Timestamp.ToLocalTime().ToString("dd.MM.yy HH:mm:ss")</td>
+                            <td class="text-nowrap">@(log.Username ?? "–")</td>
+                            <td><span class="sh-chip sh-chip-sm @ActionChipClass(log.Action)">@log.Action</span></td>
                             <td>
                                 @if (log.EntityName != null)
                                 {
-                                    <small>
-                                        @if (log.EntityType != null)
-                                        {
-                                            <span class="text-muted me-1">@log.EntityType</span>
-                                        }
-                                        @log.EntityName
-                                    </small>
+                                    @if (log.EntityType != null)
+                                    {
+                                        <span class="text-muted me-1">@log.EntityType</span>
+                                    }
+                                    @log.EntityName
                                 }
                             </td>
-                            <td class="d-none d-md-table-cell">
-                                <small class="text-muted">@log.ProjectName</small>
-                            </td>
-                            <td class="d-none d-lg-table-cell">
-                                <small class="font-monospace text-muted">@log.IpAddress</small>
-                            </td>
-                            <td class="d-none d-lg-table-cell">
-                                <small class="text-muted">@log.Details</small>
-                            </td>
+                            <td class="text-muted">@log.ProjectName</td>
+                            <td class="font-monospace text-muted small text-nowrap">@log.IpAddress</td>
+                            <td class="text-muted small al-details" title="@log.Details">@log.Details</td>
                         </tr>
                     }
                 </tbody>
             </table>
         </div>
 
-        <div class="d-flex align-items-center justify-content-between mt-3">
-            <small class="text-muted">@(_offset + 1)–@(_offset + _logs.Count) / @_total</small>
-            <div class="btn-group btn-group-sm">
-                <button class="btn btn-outline-secondary" @onclick="PrevPage" disabled="@(_offset == 0)">
-                    <i class="bi bi-chevron-left"></i>
-                </button>
-                <button class="btn btn-outline-secondary" @onclick="NextPage" disabled="@(_offset + _logs.Count >= _total)">
-                    <i class="bi bi-chevron-right"></i>
-                </button>
-            </div>
-        </div>
+        <Pager Page="_offset / PageSize" PageSize="PageSize" TotalItems="_total" PageChanged="GoToPageAsync" />
     }
 }

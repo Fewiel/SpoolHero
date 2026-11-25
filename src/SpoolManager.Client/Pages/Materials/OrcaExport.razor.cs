@@ -2,14 +2,12 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
 using SpoolManager.Client.Services;
 using SpoolManager.Shared.DTOs.Materials;
-using SpoolManager.Shared.DTOs.Spools;
 
 namespace SpoolManager.Client.Pages.Materials;
 
 public partial class OrcaExport
 {
     [Inject] private MaterialService Materials { get; set; } = default!;
-    [Inject] private SpoolService Spools { get; set; } = default!;
     [Inject] private LocalizationService L { get; set; } = default!;
     [Inject] private IJSRuntime JS { get; set; } = default!;
     [Inject] private ProjectService Project { get; set; } = default!;
@@ -19,46 +17,41 @@ public partial class OrcaExport
     private string? _orcaError;
     private Guid? _pickerId;
     private List<FilamentMaterialDto> _selectedMaterials = [];
-    private bool _loadingSpools;
-    private List<SpoolDto> _spools = [];
 
-    protected override async Task OnInitializedAsync()
-    {
-        _loadingSpools = true;
-        _spools = await Spools.GetAllAsync(consumed: false) ?? [];
-        _loadingSpools = false;
-    }
+    private IReadOnlyCollection<Guid> SelectedIds => _selectedMaterials.Select(m => m.Id).ToHashSet();
 
-    private async Task AddFromSpoolAsync(SpoolDto spool)
+    private List<FilamentMaterialDto> Warnings => _selectedMaterials.Where(NeedsTemps).ToList();
+
+    private static bool NeedsTemps(FilamentMaterialDto m) => m.MinTempCelsius == 0 || m.MaxTempCelsius == 0;
+
+    private async Task AddByIdAsync(Guid id)
     {
-        if (_selectedMaterials.Any(m => m.Id == spool.FilamentMaterialId))
+        if (_selectedMaterials.Any(m => m.Id == id))
             return;
-        var material = await Materials.GetByIdAsync(spool.FilamentMaterialId);
-        if (material != null)
+        var material = await Materials.GetByIdAsync(id);
+        if (material != null && _selectedMaterials.All(m => m.Id != id))
+        {
             _selectedMaterials.Add(material);
+            _orcaSuccess = false;
+        }
     }
 
     private void OnPicked(FilamentMaterialDto? m)
     {
-        if (m == null)
-            return;
-        if (_selectedMaterials.Any(x => x.Id == m.Id))
+        if (m == null || _selectedMaterials.Any(x => x.Id == m.Id))
             return;
         _selectedMaterials.Add(m);
+        _orcaSuccess = false;
         _pickerId = null;
     }
 
     private void Remove(Guid id) => _selectedMaterials.RemoveAll(m => m.Id == id);
 
-    private async Task ExportSelectedAsync()
-    {
-        await DoExport(_selectedMaterials.Select(m => m.Id).ToList());
-    }
+    private void Clear() => _selectedMaterials.Clear();
 
-    private async Task ExportAllAsync()
-    {
-        await DoExport(null);
-    }
+    private Task ExportSelectedAsync() => DoExport(_selectedMaterials.Select(m => m.Id).ToList());
+
+    private Task ExportAllAsync() => DoExport(null);
 
     private async Task DoExport(List<Guid>? ids)
     {
@@ -75,12 +68,12 @@ public partial class OrcaExport
             }
             else
             {
-                _orcaError = "Export failed.";
+                _orcaError = L["material.orca.failed"];
             }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            _orcaError = ex.Message;
+            _orcaError = L["material.orca.failed"];
         }
         _exporting = false;
     }

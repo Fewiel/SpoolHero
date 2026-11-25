@@ -1,0 +1,323 @@
+<PageTitle>@L[$"{Kind}.title"] – @L["app.name"]</PageTitle>
+
+<div class="page-header">
+    <div>
+        <h1>@L[$"{Kind}.title"]</h1>
+        <p class="page-subtitle">@L[$"{Kind}.subtitle"]</p>
+    </div>
+    @if (HasProject)
+    {
+        <div class="page-actions">
+            <button type="button" class="btn btn-primary" @onclick="ShowAdd">
+                <i class="bi bi-plus-lg" aria-hidden="true"></i>@L[$"{Kind}.add"]
+            </button>
+        </div>
+    }
+</div>
+
+@if (!HasProject)
+{
+    <div class="sh-empty">
+        <i class="bi bi-diagram-3" aria-hidden="true"></i>
+        <h2>@L["place.no.project.title"]</h2>
+        <p>@L["place.no.project.text"]</p>
+        <a class="btn btn-primary" href="/projects">@L["place.no.project.action"]</a>
+    </div>
+}
+else if (_loading)
+{
+    <div class="text-center py-5" role="status">
+        <div class="spinner-border text-primary" aria-hidden="true"></div>
+        <span class="visually-hidden">@L["common.loading"]</span>
+    </div>
+}
+else if (_loadError)
+{
+    <div class="alert alert-danger d-flex flex-wrap align-items-center gap-2" role="alert">
+        <span class="flex-grow-1">@L["place.load.error"]</span>
+        <button type="button" class="btn btn-outline-danger btn-sm" @onclick="LoadAsync">@L["place.retry"]</button>
+    </div>
+}
+else if (_items.Count == 0)
+{
+    <div class="sh-empty">
+        <i class="bi @Icon" aria-hidden="true"></i>
+        <h2>@L[$"{Kind}.empty.title"]</h2>
+        <p>@L[$"{Kind}.empty.text"]</p>
+        <button type="button" class="btn btn-primary" @onclick="ShowAdd">
+            <i class="bi bi-plus-lg" aria-hidden="true"></i>@L[$"{Kind}.add"]
+        </button>
+    </div>
+}
+else
+{
+    @if (_notice != null)
+    {
+        <div class="alert @(_noticeSuccess ? "alert-success" : "alert-danger") d-flex align-items-start gap-2" role="status">
+            <span class="flex-grow-1">@_notice</span>
+            <button type="button" class="btn-close" aria-label="@L["common.close"]" @onclick="() => _notice = null"></button>
+        </div>
+    }
+
+    <div class="place-grid">
+        @foreach (var item in _items)
+        {
+            var spools = SpoolsIn(item.Id);
+            <article class="sh-card place-card" aria-labelledby="place-@item.Id">
+                <div class="place-head">
+                    <div class="place-thumb">
+                        @if (item.ImageBase64 != null)
+                        {
+                            <img src="data:@item.ImageContentType;base64,@item.ImageBase64" alt="@L.Format("place.image.alt", item.Name)" />
+                        }
+                        else
+                        {
+                            <i class="bi @Icon" aria-hidden="true"></i>
+                        }
+                    </div>
+                    <div class="place-title">
+                        <h2 class="sh-card-title" id="place-@item.Id">@item.Name</h2>
+                        <p class="sh-card-sub">@PlaceSubtitle(spools)</p>
+                    </div>
+                    <div class="dropdown">
+                        <button type="button" class="btn btn-outline-secondary place-more" data-bs-toggle="dropdown" aria-expanded="false"
+                                aria-label="@L.Format("place.more.actions", item.Name)">
+                            <i class="bi bi-three-dots" aria-hidden="true"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><button type="button" class="dropdown-item" @onclick="() => ShowEdit(item)"><i class="bi bi-pencil" aria-hidden="true"></i>@L["common.edit"]</button></li>
+                            <li><hr class="dropdown-divider" /></li>
+                            <li><h3 class="dropdown-header">@L["place.tag.section"]</h3></li>
+                            <li><button type="button" class="dropdown-item" @onclick="() => WriteTagAsync(item)"><i class="bi bi-broadcast" aria-hidden="true"></i>@L["tag.nfc.write"]</button></li>
+                            <li><button type="button" class="dropdown-item" @onclick="() => Tags.DownloadEntityBinAsync(Kind, item.Id)"><i class="bi bi-download" aria-hidden="true"></i>@L["tag.download.bin"]</button></li>
+                            <li><button type="button" class="dropdown-item" @onclick="() => Tags.DownloadEntityJsonAsync(Kind, item.Id)"><i class="bi bi-filetype-json" aria-hidden="true"></i>@L["tag.download.json"]</button></li>
+                            <li><button type="button" class="dropdown-item" @onclick="() => ShowJson(item)"><i class="bi bi-code" aria-hidden="true"></i>@L["tag.show.json"]</button></li>
+                            @if (IsAdmin)
+                            {
+                                <li><hr class="dropdown-divider" /></li>
+                                <li><button type="button" class="dropdown-item text-danger" @onclick="() => AskDelete(item)"><i class="bi bi-trash" aria-hidden="true"></i>@L["common.delete"]</button></li>
+                            }
+                        </ul>
+                    </div>
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(item.Notes) || item.RfidTagUid != null)
+                {
+                    <div class="place-meta">
+                        @if (!string.IsNullOrWhiteSpace(item.Notes))
+                        {
+                            <p class="place-notes">@item.Notes</p>
+                        }
+                        @if (item.RfidTagUid != null)
+                        {
+                            <span class="sh-chip sh-chip-sm" title="@item.RfidTagUid">
+                                <i class="bi bi-broadcast" aria-hidden="true"></i>@L["place.tag.linked"]
+                                <span class="font-monospace">@ShortUid(item.RfidTagUid)</span>
+                            </span>
+                        }
+                    </div>
+                }
+
+                @if (spools.Count == 0)
+                {
+                    <p class="place-nospools">@L[$"{Kind}.spools.none"]</p>
+                }
+                else if (Kind == "dryer")
+                {
+                    <ul class="place-drying" aria-label="@L["place.spools.label"]">
+                        @foreach (var s in spools)
+                        {
+                            var d = Drying(s);
+                            <li class="place-drying-row">
+                                <a href="/spools/@s.Id" class="place-drying-ring" aria-label="@SpoolLabel(s)">
+                                    <SpoolRing ColorHex="@s.MaterialColorHex" Percent="s.RemainingPercent" Size="44" />
+                                </a>
+                                <div class="place-drying-info">
+                                    <a href="/spools/@s.Id" class="place-spool-name">@SpoolName(s)</a>
+                                    @switch (d.State)
+                                    {
+                                        case DryState.Running:
+                                            <div class="sh-progress" role="progressbar" aria-label="@L["place.drying.progress"]"
+                                                 aria-valuemin="0" aria-valuemax="100" aria-valuenow="@((int)d.Percent)">
+                                                <span class="sh-warn" style="width:@((int)d.Percent)%"></span>
+                                            </div>
+                                            <span class="place-drying-text">@L.Format("place.drying.left", Duration(d.Remaining))</span>
+                                            break;
+                                        case DryState.Done:
+                                            <span class="sh-chip sh-chip-sm sh-chip-ok"><i class="bi bi-check-lg" aria-hidden="true"></i>@L["place.drying.done"]</span>
+                                            <span class="place-drying-text">@L["place.drying.done.hint"]</span>
+                                            break;
+                                        case DryState.Unknown:
+                                            <span class="place-drying-text">@L.Format("place.drying.started", FormatTime(s.DriedAt))</span>
+                                            <span class="place-drying-text">@L["place.drying.no.time"]</span>
+                                            break;
+                                        default:
+                                            <span class="place-drying-text">@L["place.drying.idle"]</span>
+                                            break;
+                                    }
+                                </div>
+                                @if (d.State is DryState.Idle or DryState.Done)
+                                {
+                                    <button type="button" class="btn btn-sm btn-outline-secondary place-drying-btn" disabled="@(_dryingId == s.Id)"
+                                            @onclick="() => StartDryingAsync(s)" aria-label="@L.Format("place.drying.start.for", SpoolName(s))">
+                                        @if (_dryingId == s.Id) { <span class="spinner-border spinner-border-sm" aria-hidden="true"></span> }
+                                        else { <i class="bi bi-play-fill" aria-hidden="true"></i> }
+                                        @(d.State == DryState.Done ? L["place.drying.again"] : L["place.drying.start"])
+                                    </button>
+                                }
+                            </li>
+                        }
+                    </ul>
+                }
+                else
+                {
+                    <ul class="place-rings" aria-label="@L["place.spools.label"]">
+                        @foreach (var s in spools.Take(MaxRings))
+                        {
+                            <li>
+                                <a href="/spools/@s.Id" class="place-ring" title="@SpoolLabel(s)" aria-label="@SpoolLabel(s)">
+                                    <SpoolRing ColorHex="@s.MaterialColorHex" Percent="s.RemainingPercent" Size="52">@((int)Math.Round(s.RemainingPercent))%</SpoolRing>
+                                    <span class="place-ring-name">@(s.MaterialColorName ?? s.MaterialType)</span>
+                                </a>
+                            </li>
+                        }
+                        @if (spools.Count > MaxRings)
+                        {
+                            <li>
+                                <a href="@SpoolsLink(item.Id)" class="place-ring place-ring-more" aria-label="@L.Format("place.spools.more", spools.Count - MaxRings)">
+                                    <span class="place-ring-more-badge">+@(spools.Count - MaxRings)</span>
+                                    <span class="place-ring-name">@L["place.spools.all"]</span>
+                                </a>
+                            </li>
+                        }
+                    </ul>
+                }
+
+                @if (_tagMessage != null && _tagTargetId == item.Id)
+                {
+                    <div class="alert @(_tagSuccess ? "alert-success" : "alert-danger") py-2 mb-0 small" role="status">@_tagMessage</div>
+                }
+
+                <div class="place-actions">
+                    <button type="button" class="btn btn-outline-secondary" @onclick="() => ShowEdit(item)">
+                        <i class="bi bi-pencil" aria-hidden="true"></i>@L["common.edit"]
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" @onclick="() => WriteTagAsync(item)">
+                        <i class="bi bi-broadcast" aria-hidden="true"></i>@L["place.tag.write"]
+                    </button>
+                </div>
+            </article>
+        }
+        <button type="button" class="sh-add-tile place-add" @onclick="ShowAdd">
+            <i class="bi bi-plus-lg" aria-hidden="true"></i>
+            <span>@L[$"{Kind}.add"]</span>
+        </button>
+    </div>
+}
+
+@if (_form != null)
+{
+    <div class="modal-backdrop-custom" @onclick="CancelForm">
+        <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="place-form-title" @onclick:stopPropagation>
+            <form @onsubmit="SaveAsync" @onsubmit:preventDefault>
+                <h5 id="place-form-title" class="mb-3">@(_editId == null ? L[$"{Kind}.add"] : L[$"{Kind}.edit"])</h5>
+                @if (_formError != null)
+                {
+                    <div class="alert alert-danger py-2" role="alert">@_formError</div>
+                }
+                <div class="mb-3">
+                    <label class="form-label" for="place-name">@L[$"{Kind}.name"]</label>
+                    <input id="place-name" class="form-control" @bind="_form.Name" @bind:event="oninput" maxlength="200" required
+                           placeholder="@L[$"{Kind}.name.placeholder"]" autocomplete="off" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="place-notes">@L[NotesLabelKey] <span class="text-muted fw-normal">@L["common.optional"]</span></label>
+                    <textarea id="place-notes" class="form-control" rows="2" @bind="_form.Notes" placeholder="@L[$"{Kind}.notes.placeholder"]"></textarea>
+                </div>
+                <div class="mb-3">
+                    <span class="form-label d-block">@L["place.image"] <span class="text-muted fw-normal">@L["common.optional"]</span></span>
+                    <div class="place-image-edit">
+                        <div class="place-thumb place-thumb-lg">
+                            @if (FormImageSrc != null)
+                            {
+                                <img src="@FormImageSrc" alt="@L["place.image.preview"]" />
+                            }
+                            else
+                            {
+                                <i class="bi @Icon" aria-hidden="true"></i>
+                            }
+                        </div>
+                        <div class="d-flex flex-column gap-2 align-items-start">
+                            <label class="btn btn-outline-secondary mb-0">
+                                <i class="bi bi-image" aria-hidden="true"></i>@(FormImageSrc == null ? L["common.image.upload"] : L["place.image.change"])
+                                <InputFile accept="image/*" class="visually-hidden" OnChange="PickImageAsync" />
+                            </label>
+                            @if (FormImageSrc != null)
+                            {
+                                <button type="button" class="btn btn-outline-danger btn-sm" @onclick="RemoveImage">
+                                    <i class="bi bi-image-alt" aria-hidden="true"></i>@L["common.image.delete"]
+                                </button>
+                            }
+                            <span class="form-text mt-0">@L["place.image.hint"]</span>
+                        </div>
+                    </div>
+                </div>
+                <details class="mb-3 place-advanced" open="@(!string.IsNullOrEmpty(_form.RfidTagUid))">
+                    <summary>@L["place.advanced"]</summary>
+                    <label class="form-label mt-2" for="place-uid">@L["place.tag.uid"] <span class="text-muted fw-normal">@L["common.optional"]</span></label>
+                    <input id="place-uid" class="form-control font-monospace" @bind="_form.RfidTagUid" autocomplete="off" />
+                    <div class="form-text">@L["place.tag.uid.hint"]</div>
+                </details>
+                <div class="d-flex gap-2 justify-content-end flex-wrap">
+                    <button type="button" class="btn btn-outline-secondary" @onclick="CancelForm">@L["common.cancel"]</button>
+                    <button type="submit" class="btn btn-primary" disabled="@(_saving || string.IsNullOrWhiteSpace(_form.Name))">
+                        @if (_saving) { <span class="spinner-border spinner-border-sm" aria-hidden="true"></span> }
+                        @L["common.save"]
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+}
+
+@if (_deleteTarget != null)
+{
+    <div class="modal-backdrop-custom" @onclick="() => _deleteTarget = null">
+        <div class="modal-box" role="alertdialog" aria-modal="true" aria-labelledby="place-delete-title" @onclick:stopPropagation>
+            <h5 id="place-delete-title">@L[$"{Kind}.delete"]</h5>
+            <p class="mb-2">@L.Format("place.delete.text", _deleteTarget.Name)</p>
+            @if (SpoolsIn(_deleteTarget.Id).Count > 0)
+            {
+                <p class="text-muted">@L.Format("place.delete.spools", SpoolsIn(_deleteTarget.Id).Count)</p>
+            }
+            @if (_deleteError != null)
+            {
+                <div class="alert alert-danger py-2" role="alert">@_deleteError</div>
+            }
+            <div class="d-flex gap-2 justify-content-end flex-wrap">
+                <button type="button" class="btn btn-outline-secondary" @onclick="() => _deleteTarget = null">@L["common.cancel"]</button>
+                <button type="button" class="btn btn-danger" @onclick="DeleteAsync" disabled="@_deleting">
+                    @if (_deleting) { <span class="spinner-border spinner-border-sm" aria-hidden="true"></span> }
+                    @L[$"{Kind}.delete"]
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@if (_jsonTarget != null)
+{
+    <div class="modal-backdrop-custom" @onclick="() => _jsonTarget = null">
+        <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="place-json-title" @onclick:stopPropagation>
+            <h5 id="place-json-title">@L["place.tag.json.title"]</h5>
+            <p class="text-muted small">@L["place.tag.json.hint"]</p>
+            <pre class="place-json">@JsonPayload(_jsonTarget)</pre>
+            <div class="d-flex gap-2 justify-content-end flex-wrap">
+                <button type="button" class="btn btn-outline-secondary" @onclick="CopyJsonAsync">
+                    <i class="bi @(_jsonCopied ? "bi-check-lg" : "bi-clipboard")" aria-hidden="true"></i>@(_jsonCopied ? L["place.copied"] : L["common.copy"])
+                </button>
+                <button type="button" class="btn btn-primary" @onclick="() => _jsonTarget = null">@L["common.close"]</button>
+            </div>
+        </div>
+    </div>
+}

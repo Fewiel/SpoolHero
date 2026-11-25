@@ -1,0 +1,83 @@
+.projects-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 1.5rem;
+    align-items: start;
+}
+
+@media (max-width: 991.98px) {
+    .projects-layout { grid-template-columns: minmax(0, 1fr); }
+}
+
+.project-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+    gap: 1rem;
+}
+
+.project-card {
+    display: flex;
+    flex-direction: column;
+    gap: .85rem;
+    min-width: 0;
+}
+
+.project-card.is-current {
+    border-color: var(--sh-accent);
+    box-shadow: 0 0 0 1px var(--sh-accent);
+}
+
+.project-card-head {
+    display: flex;
+    align-items: center;
+    gap: .85rem;
+}
+
+.project-card-head .sh-card-title {
+    overflow-wrap: anywhere;
+    margin-bottom: .35rem;
+}
+
+.project-avatar {
+    flex: 0 0 auto;
+    width: 48px;
+    height: 48px;
+    border-radius: var(--sh-radius);
+    display: grid;
+    place-items: center;
+    background: var(--sh-accent-soft);
+    color: var(--sh-accent-text);
+    font-family: var(--sh-font-display);
+    font-weight: 700;
+    font-size: 1.3rem;
+}
+
+.project-desc {
+    margin: 0;
+    color: var(--sh-muted);
+    overflow-wrap: anywhere;
+}
+
+.project-actions {
+    margin-top: auto;
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+}
+
+.project-actions .btn { flex: 1 1 auto; }
+
+.join-info {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: .35rem 1rem;
+    margin: 0 0 1rem;
+    padding: .85rem 1rem;
+    border-radius: var(--sh-radius);
+    background: var(--sh-surface-2);
+}
+
+.join-info dt { font-weight: 600; color: var(--sh-muted); font-size: .85rem; }
+.join-info dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+
+.min-w-0 { min-width: 0; }

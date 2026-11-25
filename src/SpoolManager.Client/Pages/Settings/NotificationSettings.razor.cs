@@ -14,11 +14,27 @@ public partial class NotificationSettings
     private NotificationPrefsDto? _prefs;
     private bool _saving;
     private bool _saved;
+    private bool _saveError;
+    private bool _dirty;
 
     protected override async Task OnInitializedAsync()
     {
-        _prefs = await Settings.GetNotificationPrefsAsync();
+        try
+        {
+            _prefs = await Settings.GetNotificationPrefsAsync();
+        }
+        catch (HttpRequestException)
+        {
+            _prefs = null;
+        }
         _loading = false;
+    }
+
+    private void MarkDirty()
+    {
+        _dirty = true;
+        _saved = false;
+        _saveError = false;
     }
 
     private async Task SaveAsync()
@@ -27,8 +43,19 @@ public partial class NotificationSettings
             return;
         _saving = true;
         _saved = false;
-        await Settings.SaveNotificationPrefsAsync(_prefs);
+        _saveError = false;
+        try
+        {
+            var resp = await Settings.SaveNotificationPrefsAsync(_prefs);
+            _saved = resp.IsSuccessStatusCode;
+            _saveError = !resp.IsSuccessStatusCode;
+            if (_saved)
+                _dirty = false;
+        }
+        catch (HttpRequestException)
+        {
+            _saveError = true;
+        }
         _saving = false;
-        _saved = true;
     }
 }

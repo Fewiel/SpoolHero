@@ -1,0 +1,96 @@
+.ad-stats {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: .9rem;
+}
+
+.ad-stat-link {
+    color: var(--sh-text);
+    text-decoration: none;
+    justify-content: space-between;
+    background: var(--sh-surface-2);
+}
+
+.ad-stat-link .sh-stat-value { color: var(--sh-accent-text); }
+.ad-stat-link:hover { border-color: var(--sh-accent); color: var(--sh-text); }
+.ad-stat-link .sh-stat-label { color: var(--sh-accent-text); font-weight: 600; }
+
+.ad-attention {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: .9rem;
+}
+
+.ad-att-icon {
+    width: 48px;
+    height: 48px;
+    flex: 0 0 48px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-size: 1.3rem;
+    background: var(--sh-accent-soft);
+    color: var(--sh-accent-text);
+}
+
+.ad-att-warn { background: var(--sh-warn-soft); color: var(--sh-warn-text); }
+
+.ad-top {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: .85rem;
+}
+
+.ad-top-row {
+    display: flex;
+    align-items: center;
+    gap: .85rem;
+}
+
+.ad-top-main { flex: 1 1 auto; min-width: 0; }
+
+.ad-areas {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: .9rem;
+}
+
+.ad-area {
+    display: flex;
+    align-items: center;
+    gap: .9rem;
+    padding: 1rem 1.1rem;
+    min-height: 76px;
+    border-radius: var(--sh-radius);
+    border: 1px solid var(--sh-border);
+    background: var(--sh-surface);
+    color: var(--sh-text);
+    text-decoration: none;
+}
+
+.ad-area:hover { border-color: var(--sh-border-strong); color: var(--sh-text); box-shadow: var(--sh-shadow); }
+
+.ad-area-icon {
+    width: 44px;
+    height: 44px;
+    flex: 0 0 44px;
+    border-radius: var(--sh-radius-sm);
+    display: grid;
+    place-items: center;
+    background: var(--sh-accent-soft);
+    color: var(--sh-accent-text);
+    font-size: 1.2rem;
+}
+
+.ad-area-text { display: flex; flex-direction: column; min-width: 0; flex: 1 1 auto; }
+
+@media (max-width: 1199.98px) {
+    .ad-areas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 767.98px) {
+    .ad-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .ad-areas { grid-template-columns: minmax(0, 1fr); }
+}

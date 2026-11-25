@@ -1,285 +1,455 @@
 @page "/spools/{Id:guid}"
+@using SpoolManager.Client.Helpers
 @using SpoolManager.Shared.Helpers
 
-<PageTitle>@L["spool.title"] – @L["app.name"]</PageTitle>
+<PageTitle>@(_spool != null ? SpoolUi.Title(_spool) : L["spool.title"]) – @L["app.name"]</PageTitle>
 
-@if (_loading) { <div class="text-center py-5"><div class="spinner-border"></div></div> }
-else if (_spool == null) { <div class="alert alert-danger mt-3">@L["common.not.found"]</div> }
+@if (_loading)
+{
+    <div class="text-center py-5"><div class="spinner-border" role="status"><span class="visually-hidden">@L["common.loading"]</span></div></div>
+}
+else if (_spool == null)
+{
+    <div class="sh-empty">
+        <i class="bi bi-question-circle" aria-hidden="true"></i>
+        <h2>@L["spool.notfound.title"]</h2>
+        <p>@L["spool.notfound.text"]</p>
+        <a class="btn btn-primary mt-2" href="/spools"><i class="bi bi-arrow-left" aria-hidden="true"></i>@L["spool.back.to.list"]</a>
+    </div>
+}
 else
 {
-    <div class="page-header">
-        <div class="d-flex align-items-center gap-2">
-            <div class="color-dot" style="background-color: #@_spool.MaterialColorHex"></div>
-            <h1>@_spool.MaterialBrand @_spool.MaterialType</h1>
-        </div>
-        <div class="action-btn-group">
-            <a href="/spools/@_spool.Id/edit" class="btn btn-outline-secondary">
-                <i class="bi bi-pencil me-1"></i>@L["common.edit"]
-            </a>
-            <a href="/spools" class="btn btn-outline-secondary">
-                <i class="bi bi-arrow-left me-1"></i>@L["common.cancel"]
-            </a>
-        </div>
-    </div>
+    var s = _spool;
+    var low = SpoolUi.IsLow(s);
+    var consumed = s.ConsumedAt != null;
+    var dry = SpoolUi.GetDrying(s);
 
-    <div class="row g-3">
-        <div class="col-12 col-md-6">
-            <div class="card h-100">
-                <div class="card-body">
-                    <h6 class="card-subtitle mb-3 text-muted">@L["spool.remaining"]</h6>
-                    <div class="remaining-bar mb-2">
-                        <div class="remaining-bar-fill @GetBarClass(_spool.RemainingPercent)"
-                             style="width: @((int)Math.Min(_spool.RemainingPercent, 100))%"></div>
-                    </div>
-                    <div class="mb-3">
-                        <span class="fs-4 fw-bold">@_spool.RemainingWeightGrams g</span>
-                        <span class="text-muted ms-2">(@_spool.RemainingPercent%)</span>
-                    </div>
+    <nav aria-label="@L["common.breadcrumb"]" class="detail-crumbs">
+        <a href="/spools">@L["spool.title"]</a>
+        <span aria-hidden="true">/</span>
+        <a href="/spools?type=@Uri.EscapeDataString(s.MaterialType)">@s.MaterialType</a>
+        <span aria-hidden="true">/</span>
+        <span aria-current="page">@SpoolUi.ColorLabel(s)</span>
+    </nav>
 
-                    @if (_showWeighForm)
+    @if (_error != null)
+    {
+        <div class="alert alert-danger d-flex align-items-center gap-2" role="alert">
+            <span class="flex-grow-1">@_error</span>
+            <button type="button" class="btn-close" aria-label="@L["common.close"]" @onclick="() => _error = null"></button>
+        </div>
+    }
+
+    <section class="sh-card detail-hero" aria-labelledby="spool-name">
+        <SpoolRing ColorHex="@s.MaterialColorHex" Percent="s.RemainingPercent" Size="184" Class="detail-hero-ring"
+                   AriaLabel="@L.Format("spool.ring.label", SpoolUi.Title(s), SpoolUi.Percent(s.RemainingPercent))">
+            <span class="detail-ring-grams">@SpoolUi.Grams(s.RemainingWeightGrams)</span>
+            <small>@L.Format("spool.percent.left", SpoolUi.Percent(s.RemainingPercent))</small>
+        </SpoolRing>
+        <div class="detail-hero-body">
+            <div class="detail-overline">
+                @s.MaterialBrand · #@SpoolUi.ShortId(s)
+                @if (s.SpoolmanId > 0)
+                {
+                    <span title="@L["spoolman.id.hint"]"> · @L["spoolman.id"] @s.SpoolmanId</span>
+                }
+            </div>
+            <h1 id="spool-name" class="detail-title">@SpoolUi.Title(s)</h1>
+            <div class="d-flex flex-wrap gap-2">
+                @if (consumed)
+                {
+                    <span class="sh-chip sh-chip-danger"><i class="bi bi-check2-all" aria-hidden="true"></i>@L["spool.status.consumed"]</span>
+                }
+                else if (low)
+                {
+                    <span class="sh-chip sh-chip-warn"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i>@L["dashboard.attention.low.kind"]</span>
+                }
+                <span class="sh-chip"><span class="sh-color-swatch" style="background:#@s.MaterialColorHex" aria-hidden="true"></span>@SpoolUi.ColorLabel(s)</span>
+                <span class="sh-chip">@s.MaterialType</span>
+                @if (_material != null)
+                {
+                    <span class="sh-chip">@_material.DiameterMm.ToString("0.##") mm</span>
+                    @if (_material.MinTempCelsius > 0 || _material.MaxTempCelsius > 0)
                     {
-                        <div class="row g-2 align-items-end">
-                            <div class="col-6">
-                                <label class="form-label form-label-sm">@L["spool.weigh.gross"]</label>
-                                <input class="form-control form-control-sm" type="number" step="0.1" min="0" @bind="_grossWeight" @bind:event="oninput" />
-                            </div>
-                            <div class="col-6">
-                                <label class="form-label form-label-sm">@L["spool.weigh.tare"]</label>
-                                <input class="form-control form-control-sm" type="number" step="0.1" min="0" @bind="_tareWeight" @bind:event="oninput" />
-                            </div>
-                            @if (_weighError != null)
-                            {
-                                <div class="col-12"><div class="text-danger small">@_weighError</div></div>
-                            }
-                            <div class="col-12 d-flex gap-2 mt-1">
-                                <button class="btn btn-sm btn-primary" @onclick="WeighAsync" disabled="@(_grossWeight == null)">@L["spool.weigh.apply"]</button>
-                                <button class="btn btn-sm btn-secondary" @onclick="() => _showWeighForm = false">@L["common.cancel"]</button>
-                            </div>
-                        </div>
+                        <span class="sh-chip"><i class="bi bi-thermometer-high" aria-hidden="true"></i>@L.Format("spool.chip.nozzle", $"{_material.MinTempCelsius}–{_material.MaxTempCelsius}")</span>
                     }
-                    else if (!_showRemainingForm)
+                    @if (_material.BedTempCelsius is > 0)
                     {
-                        <div class="d-flex flex-wrap gap-2">
-                            <button class="btn btn-sm btn-outline-primary" @onclick="() => _showRemainingForm = true">
-                                <i class="bi bi-pencil me-1"></i>@L["spool.update.remaining"]
-                            </button>
-                            <button class="btn btn-sm btn-outline-primary" @onclick="OpenWeighForm">
-                                <i class="bi bi-speedometer me-1"></i>@L["spool.weigh.title"]
-                            </button>
+                        <span class="sh-chip">@L.Format("spool.chip.bed", _material.BedTempCelsius)</span>
+                    }
+                    @if (_material.DryTempCelsius is > 0 || _material.DryTimeHours is > 0)
+                    {
+                        <span class="sh-chip"><i class="bi bi-wind" aria-hidden="true"></i>@L.Format("spool.chip.dry", _material.DryTempCelsius?.ToString() ?? "–", _material.DryTimeHours?.ToString() ?? "–")</span>
+                    }
+                }
+                @if (s.MaterialWeightGrams is > 0)
+                {
+                    <span class="sh-chip">@L.Format("spool.chip.nominal", SpoolUi.Weight(s.MaterialWeightGrams.Value))</span>
+                }
+            </div>
+            <div class="detail-actions">
+                @if (!consumed)
+                {
+                    <button type="button" class="btn btn-primary" @onclick="FocusWeighAsync"><i class="bi bi-speedometer" aria-hidden="true"></i>@L["spool.weigh.title"]</button>
+                }
+                @if (_nfcSupported && !consumed)
+                {
+                    <button type="button" class="btn btn-outline-secondary" @onclick="FindSpoolAsync"><i class="bi bi-search" aria-hidden="true"></i>@L["spool.find.title"]</button>
+                    <button type="button" class="btn btn-outline-secondary" @onclick="WriteNfcAsync" disabled="@_writingNfc">
+                        @if (_writingNfc) { <span class="spinner-border spinner-border-sm" aria-hidden="true"></span> }
+                        else { <i class="bi bi-broadcast" aria-hidden="true"></i> }
+                        @L["tag.nfc.write"]
+                    </button>
+                }
+                @if (ReorderUrl != null)
+                {
+                    <a class="btn btn-outline-secondary" href="@ReorderUrl" target="_blank" rel="noopener noreferrer" @onclick="TrackReorder">
+                        <i class="bi bi-cart" aria-hidden="true"></i>@L["dashboard.attention.low.reorder"]<span class="visually-hidden"> (@L["common.new.window"])</span>
+                    </a>
+                }
+                <a class="btn btn-outline-secondary" href="/spools/@s.Id/edit"><i class="bi bi-pencil" aria-hidden="true"></i>@L["common.edit"]</a>
+            </div>
+            @if (_nfcMessage != null)
+            {
+                <div class="alert @(_nfcSuccess ? "alert-success" : "alert-danger") py-2 mb-0 mt-3" role="status">@_nfcMessage</div>
+            }
+        </div>
+    </section>
+
+    <div class="detail-grid">
+        <div class="detail-col">
+        @if (!consumed)
+        {
+            <section class="sh-card detail-o1" id="weigh" aria-labelledby="weigh-title">
+                <h2 class="sh-card-title" id="weigh-title">@L["spool.weigh.title"]</h2>
+                <p class="sh-card-sub mb-3">@L["spool.weigh.subtitle"]</p>
+
+                @if (!_showRemainingForm)
+                {
+                    <div class="weigh-formula">
+                        <div class="weigh-term">
+                            <label for="weigh-gross" class="weigh-label">@L["spool.weigh.scale"]</label>
+                            <div class="input-group">
+                                <input id="weigh-gross" class="form-control weigh-input" type="number" inputmode="decimal" step="0.1" min="0"
+                                       @ref="_grossInput" @bind="_grossWeight" @bind:event="oninput" placeholder="0" />
+                                <span class="input-group-text">g</span>
+                            </div>
                         </div>
+                        <span class="weigh-op" aria-hidden="true">−</span>
+                        <div class="weigh-term">
+                            @if (_editTare)
+                            {
+                                <label for="weigh-tare" class="weigh-label">@L["spool.weigh.tare"]</label>
+                                <div class="input-group">
+                                    <input id="weigh-tare" class="form-control weigh-input" type="number" inputmode="decimal" step="0.1" min="0"
+                                           @bind="_tareWeight" @bind:event="oninput" placeholder="0" />
+                                    <span class="input-group-text">g</span>
+                                </div>
+                            }
+                            else
+                            {
+                                <span class="weigh-label">@L["spool.weigh.tare"]</span>
+                                <span class="weigh-value">@(_tareWeight?.ToString("0.#") ?? "–")<small> g</small></span>
+                            }
+                        </div>
+                        <span class="weigh-op" aria-hidden="true">=</span>
+                        <div class="weigh-term weigh-result">
+                            <span class="weigh-label">@L["spool.weigh.left"]</span>
+                            <span class="weigh-value" aria-live="polite">@(WeighResult?.ToString("0.#") ?? "–")<small> g</small></span>
+                        </div>
+                    </div>
+                    <div class="weigh-foot">
+                        <span class="small text-muted">
+                            @if (_editTare)
+                            {
+                                @L["spool.weigh.tare.edit.hint"]
+                            }
+                            else
+                            {
+                                @(s.EmptySpoolWeightGrams is > 0 ? L["spool.weigh.tare.from.spool"] : L["spool.weigh.tare.from.material"])
+                                <button type="button" class="btn btn-link btn-sm p-0 align-baseline" @onclick="() => _editTare = true">@L["spool.weigh.tare.change"]</button>
+                            }
+                        </span>
+                        <button type="button" class="btn btn-primary" @onclick="WeighAsync" disabled="@(_grossWeight == null || _weighing)">
+                            @if (_weighing) { <span class="spinner-border spinner-border-sm" aria-hidden="true"></span> }
+                            @(WeighResult is { } r ? L.Format("spool.weigh.apply.value", r.ToString("0.#")) : L["spool.weigh.apply"])
+                        </button>
+                    </div>
+                    <button type="button" class="btn btn-link px-0 mt-2" @onclick="OpenRemainingForm">@L["spool.remaining.manual"]</button>
+                }
+                else
+                {
+                    <div class="row g-2 align-items-end">
+                        <div class="col-6">
+                            <label class="form-label" for="rem-grams">@L["spool.remaining.grams"]</label>
+                            <input id="rem-grams" class="form-control" type="number" step="0.1" min="0"
+                                   @bind:get="_remainingGrams" @bind:set="SetRemainingGrams" @bind:event="oninput" />
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label" for="rem-pct">@L["spool.remaining.percent"]</label>
+                            <input id="rem-pct" class="form-control" type="number" step="0.1" min="0" max="100"
+                                   @bind:get="_remainingPct" @bind:set="SetRemainingPct" @bind:event="oninput" />
+                        </div>
+                        <div class="col-12 d-flex gap-2 mt-2 flex-wrap">
+                            <button type="button" class="btn btn-primary" @onclick="UpdateRemainingAsync">@L["common.save"]</button>
+                            <button type="button" class="btn btn-outline-secondary" @onclick="() => _showRemainingForm = false">@L["common.cancel"]</button>
+                        </div>
+                    </div>
+                }
+                @if (_weighError != null)
+                {
+                    <div class="alert alert-warning py-2 mt-3 mb-0" role="alert">@_weighError</div>
+                }
+                @if (_weighDone != null)
+                {
+                    <div class="alert alert-success py-2 mt-3 mb-0" role="status"><i class="bi bi-check-circle" aria-hidden="true"></i> @_weighDone</div>
+                }
+            </section>
+        }
+
+        <section class="sh-card detail-o3" aria-labelledby="life-title">
+            <h2 class="sh-card-title" id="life-title">@L["spool.timeline.title"]</h2>
+            <p class="sh-card-sub mb-3">@L["spool.timeline.subtitle"]</p>
+            <ol class="timeline">
+                @foreach (var e in Timeline)
+                {
+                    <li class="timeline-item timeline-@e.Kind">
+                        <span class="timeline-dot" aria-hidden="true"></span>
+                        <div>
+                            <div class="fw-semibold">@e.Title</div>
+                            <div class="small text-muted">@e.Sub</div>
+                        </div>
+                    </li>
+                }
+            </ol>
+            <div class="timeline-actions">
+                @if (!s.OpenedAt.HasValue)
+                {
+                    <button type="button" class="btn btn-outline-secondary" @onclick="MarkOpenedAsync" disabled="@_busy"><i class="bi bi-box-seam" aria-hidden="true"></i>@L["spool.mark.opened"]</button>
+                }
+                <button type="button" class="btn btn-outline-secondary" @onclick="MarkDriedAsync" disabled="@_busy"><i class="bi bi-wind" aria-hidden="true"></i>@L["spool.mark.dried"]</button>
+                <button type="button" class="btn btn-outline-secondary" @onclick="MarkRepackagedAsync" disabled="@_busy"><i class="bi bi-box2" aria-hidden="true"></i>@L["spool.mark.repackaged"]</button>
+                <button type="button" class="btn btn-outline-secondary" @onclick="MarkReopenedAsync" disabled="@_busy"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>@L["spool.mark.reopened"]</button>
+                @if (!consumed)
+                {
+                    <button type="button" class="btn btn-outline-danger" @onclick="() => _confirmConsume = true" disabled="@_busy"><i class="bi bi-check2-all" aria-hidden="true"></i>@L["spool.mark.consumed"]</button>
+                }
+            </div>
+        </section>
+
+        <section class="sh-card detail-o5" aria-labelledby="tag-title">
+            <h2 class="sh-card-title" id="tag-title">@L["spool.tag.title"]</h2>
+            <p class="sh-card-sub mb-3">@L["spool.tag.subtitle"]</p>
+            <div class="d-flex gap-2 flex-wrap">
+                @if (_nfcSupported)
+                {
+                    <button type="button" class="btn btn-outline-secondary" @onclick="WriteNfcAsync" disabled="@_writingNfc">
+                        @if (_writingNfc) { <span class="spinner-border spinner-border-sm" aria-hidden="true"></span> }
+                        else { <i class="bi bi-broadcast" aria-hidden="true"></i> }
+                        @L["tag.nfc.write"]
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" @onclick="FindSpoolAsync"><i class="bi bi-search" aria-hidden="true"></i>@L["spool.find.title"]</button>
+                }
+                <button type="button" class="btn btn-outline-secondary" @onclick="@(() => Tags.DownloadSpoolBinAsync(Id))"><i class="bi bi-download" aria-hidden="true"></i>@L["tag.download.bin"]</button>
+                <button type="button" class="btn btn-outline-secondary" @onclick="@(() => Tags.DownloadSpoolJsonAsync(Id))"><i class="bi bi-file-earmark-code" aria-hidden="true"></i>@L["tag.download.json"]</button>
+                <button type="button" class="btn btn-outline-secondary" @onclick="ToggleTagJsonAsync" aria-expanded="@(_tagJson != null ? "true" : "false")"><i class="bi bi-code" aria-hidden="true"></i>@L["tag.show.json"]</button>
+            </div>
+            @if (_tagJson != null)
+            {
+                <div class="position-relative mt-3">
+                    <pre class="detail-json">@_tagJson</pre>
+                    <button type="button" class="btn btn-outline-secondary detail-json-copy" @onclick="CopyTagJsonAsync" aria-label="@L["common.copy"]">
+                        <i class="bi @(_tagCopied ? "bi-check-lg" : "bi-clipboard")" aria-hidden="true"></i>
+                    </button>
+                </div>
+            }
+            @if (!_nfcSupported)
+            {
+                <p class="text-muted small mt-3 mb-0"><i class="bi bi-info-circle" aria-hidden="true"></i> @L["tag.nfc.not.supported"]</p>
+            }
+        </section>
+
+        </div>
+        <div class="detail-col">
+        <section class="sh-card detail-o2" id="location" aria-labelledby="where-title">
+            <h2 class="sh-card-title" id="where-title">@L["spool.where.title"]</h2>
+            <p class="sh-card-sub mb-3">@L["spool.where.subtitle"]</p>
+
+            @if (_printers.Count + _storages.Count + _dryers.Count == 0)
+            {
+                <p class="text-muted">@L["spool.where.none"]</p>
+                <a class="btn btn-outline-secondary" href="/overview"><i class="bi bi-geo-alt" aria-hidden="true"></i>@L["dashboard.active.locations"]</a>
+            }
+            else
+            {
+                var current = CurrentLocationKey;
+                <div role="radiogroup" aria-labelledby="where-title" class="where-options" @key="_moveVersion">
+                    @if (_printers.Count > 0)
+                    {
+                        <div class="where-group-label" aria-hidden="true">@L["overview.printers"]</div>
+                        @foreach (var p in _printers)
+                        {
+                            var key = "p:" + p.Id;
+                            var name = p.Name;
+                            <input type="radio" class="btn-check" name="spool-location" id="loc-@key" checked="@(current == key)" disabled="@(_movingTo != null)"
+                                   @onchange="() => MoveAsync(key, name)" />
+                            <label class="where-option" for="loc-@key">
+                                <i class="bi bi-printer" aria-hidden="true"></i>
+                                <span class="where-name">@name</span>
+                                @if (_movingTo == key) { <span class="spinner-border spinner-border-sm" aria-hidden="true"></span> }
+                            </label>
+                        }
+                    }
+                    @if (_storages.Count > 0)
+                    {
+                        <div class="where-group-label" aria-hidden="true">@L["overview.storage"]</div>
+                        @foreach (var st in _storages)
+                        {
+                            var key = "s:" + st.Id;
+                            var name = st.Name;
+                            <input type="radio" class="btn-check" name="spool-location" id="loc-@key" checked="@(current == key)" disabled="@(_movingTo != null)"
+                                   @onchange="() => MoveAsync(key, name)" />
+                            <label class="where-option" for="loc-@key">
+                                <i class="bi bi-box-seam" aria-hidden="true"></i>
+                                <span class="where-name">@name</span>
+                                @if (_movingTo == key) { <span class="spinner-border spinner-border-sm" aria-hidden="true"></span> }
+                            </label>
+                        }
+                    }
+                    @if (_dryers.Count > 0)
+                    {
+                        <div class="where-group-label" aria-hidden="true">@L["overview.dryers"]</div>
+                        @foreach (var d in _dryers)
+                        {
+                            var key = "d:" + d.Id;
+                            var name = d.Name;
+                            <input type="radio" class="btn-check" name="spool-location" id="loc-@key" checked="@(current == key)" disabled="@(_movingTo != null)"
+                                   @onchange="() => MoveAsync(key, name)" />
+                            <label class="where-option" for="loc-@key">
+                                <i class="bi bi-thermometer-half" aria-hidden="true"></i>
+                                <span class="where-name">@name</span>
+                                @if (_movingTo == key) { <span class="spinner-border spinner-border-sm" aria-hidden="true"></span> }
+                            </label>
+                        }
+                    }
+                    <div class="where-group-label" aria-hidden="true">@L["spool.where.other"]</div>
+                    <input type="radio" class="btn-check" name="spool-location" id="loc-none" checked="@(current == "none")" disabled="@(_movingTo != null)"
+                           @onchange='() => MoveAsync("none", "")' />
+                    <label class="where-option" for="loc-none">
+                        <i class="bi bi-question-circle" aria-hidden="true"></i>
+                        <span class="where-name">@L["dashboard.no.location"]</span>
+                        @if (_movingTo == "none") { <span class="spinner-border spinner-border-sm" aria-hidden="true"></span> }
+                    </label>
+                </div>
+            }
+
+            @if (_moveMessage != null)
+            {
+                <div class="alert @(_moveFailed ? "alert-danger" : "alert-success") py-2 mt-3 mb-0" role="status">@_moveMessage</div>
+            }
+
+            @if (s.DryerId != null && !consumed)
+            {
+                <div class="where-dry mt-3">
+                    @if (dry is { Total: not null })
+                    {
+                        <div class="d-flex justify-content-between gap-2 small mb-1">
+                            <span class="fw-semibold">@L.Format("spool.drying.in", s.DryerName ?? "")</span>
+                            <span class="@(dry.Done ? "text-success fw-semibold" : "text-muted")">
+                                @(dry.Done ? L["spool.drying.finished"] : L.Format("spool.drying.left", SpoolUi.Duration(dry.Remaining)))
+                            </span>
+                        </div>
+                        <div class="sh-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@dry.Percent"
+                             aria-label="@L.Format("spool.drying.progress.label", SpoolUi.Title(s))">
+                            <span class="@(dry.Done ? "sh-ok" : "sh-warn")" style="width:@(dry.Percent)%"></span>
+                        </div>
+                        <div class="small text-muted mt-1">@L.Format("spool.drying.since", SpoolUi.LocalDateTime(s.DriedAt!.Value), SpoolUi.Duration(dry.Elapsed))</div>
+                    }
+                    else if (dry != null)
+                    {
+                        <div class="small text-muted">@L.Format("spool.drying.since", SpoolUi.LocalDateTime(s.DriedAt!.Value), SpoolUi.Duration(dry.Elapsed))</div>
                     }
                     else
                     {
-                        <div class="row g-2 align-items-end">
-                            <div class="col-6">
-                                <label class="form-label form-label-sm">@L["spool.remaining.grams"]</label>
-                                <input class="form-control form-control-sm" type="number" step="0.1" min="0" @bind="_remainingGrams" />
-                            </div>
-                            <div class="col-6">
-                                <label class="form-label form-label-sm">@L["spool.remaining.percent"]</label>
-                                <input class="form-control form-control-sm" type="number" step="0.1" min="0" max="100" @bind="_remainingPct" />
-                            </div>
-                            <div class="col-12 d-flex gap-2 mt-1">
-                                <button class="btn btn-sm btn-primary" @onclick="UpdateRemainingAsync">@L["common.save"]</button>
-                                <button class="btn btn-sm btn-secondary" @onclick="() => _showRemainingForm = false">@L["common.cancel"]</button>
-                            </div>
-                        </div>
+                        <p class="small text-muted mb-2">@L["spool.drying.not.started"]</p>
                     }
+                    <button type="button" class="btn btn-outline-secondary mt-2" @onclick="MarkDriedAsync" disabled="@_busy">
+                        <i class="bi bi-play-circle" aria-hidden="true"></i>@(dry == null ? L["spool.drying.start"] : L["spool.drying.restart"])
+                    </button>
                 </div>
-            </div>
-        </div>
+            }
 
-        <div class="col-12 col-md-6">
-            <div class="card h-100">
-                <div class="card-body">
-                    <h6 class="card-subtitle mb-3 text-muted">Lifecycle</h6>
-                    <div class="d-flex flex-column gap-2">
-                        <div class="d-flex align-items-center gap-2">
-                            <i class="bi bi-box-seam text-primary fs-5" style="width:1.4em"></i>
-                            @if (_spool.OpenedAt.HasValue)
-                            {
-                                <span class="flex-grow-1">@L["spool.opened"]: <strong>@_spool.OpenedAt.Value.ToLocalTime().ToString("d")</strong></span>
-                            }
-                            else
-                            {
-                                <button class="btn btn-sm btn-outline-primary" @onclick="MarkOpenedAsync">@L["spool.mark.opened"]</button>
-                            }
-                        </div>
-                        <div class="d-flex align-items-center gap-2">
-                            <i class="bi bi-thermometer-half text-warning fs-5" style="width:1.4em"></i>
-                            <span class="flex-grow-1 small">
-                                @L["spool.dried"]: <strong>@(_spool.DriedAt.HasValue ? _spool.DriedAt.Value.ToLocalTime().ToString("d") : "–")</strong>
-                            </span>
-                            <button class="btn btn-sm btn-outline-warning" @onclick="MarkDriedAsync">@L["spool.mark.dried"]</button>
-                        </div>
-                        @if (_spool.DryerId != null && _spool.DriedAt != null)
-                        {
-                            var (elapsed, total, done) = GetDryingState(_spool);
-                            var pct = total > 0 ? Math.Min(elapsed / total * 100, 100) : 100;
-                            <div class="ps-4 @(done ? "drying-done" : "")">
-                                <small class="text-muted">
-                                    @if (done)
-                                    {
-                                        <span class="text-success fw-semibold"><i class="bi bi-check-circle me-1"></i>@L["spool.drying.done"]</span>
-                                    }
-                                    else
-                                    {
-                                        <span>@elapsed.ToString("F1")h / @total h @L["spool.drying.remaining"]</span>
-                                    }
-                                </small>
-                                <div class="drying-bar">
-                                    <div class="drying-bar-fill @(done ? "done" : "")" style="width:@((int)pct)%"></div>
-                                </div>
-                            </div>
-                        }
-                        <div class="d-flex align-items-center gap-2">
-                            <i class="bi bi-box2 text-secondary fs-5" style="width:1.4em"></i>
-                            <span class="flex-grow-1 small">
-                                @L["spool.repackaged"]: <strong>@(_spool.RepackagedAt.HasValue ? _spool.RepackagedAt.Value.ToLocalTime().ToString("d") : "–")</strong>
-                            </span>
-                            <button class="btn btn-sm btn-outline-secondary" @onclick="MarkRepackagedAsync">@L["spool.mark.repackaged"]</button>
-                        </div>
-                        <div class="d-flex align-items-center gap-2">
-                            <i class="bi bi-arrow-counterclockwise text-info fs-5" style="width:1.4em"></i>
-                            <span class="flex-grow-1 small">
-                                @L["spool.reopened"]: <strong>@(_spool.ReopenedAt.HasValue ? _spool.ReopenedAt.Value.ToLocalTime().ToString("d") : "–")</strong>
-                            </span>
-                            <button class="btn btn-sm btn-outline-info" @onclick="MarkReopenedAsync">@L["spool.mark.reopened"]</button>
-                        </div>
-                        <div class="d-flex align-items-center gap-2">
-                            <i class="bi bi-check-circle text-success fs-5" style="width:1.4em"></i>
-                            @if (_spool.ConsumedAt.HasValue)
-                            {
-                                <span class="flex-grow-1">@L["spool.consumed.at"]: <strong>@_spool.ConsumedAt.Value.ToLocalTime().ToString("d")</strong></span>
-                            }
-                            else
-                            {
-                                <button class="btn btn-sm btn-outline-success" @onclick="MarkConsumedAsync">@L["spool.mark.consumed"]</button>
-                            }
-                        </div>
-                    </div>
-                </div>
+            <div class="where-owner mt-3">
+                <i class="bi bi-person" aria-hidden="true"></i>
+                @if (s.OwnerName != null)
+                {
+                    <span>@L["spool.owner.belongs"] <strong>@s.OwnerName</strong></span>
+                }
+                else
+                {
+                    <span class="text-muted">@L["spool.owner.nobody"]</span>
+                }
+                <a class="ms-auto small" href="/spools/@s.Id/edit">@L["common.edit"]</a>
             </div>
-        </div>
+        </section>
 
-        <div class="col-12">
-            <div class="card">
-                <div class="card-body">
-                    <h6 class="card-subtitle mb-3 text-muted">Details</h6>
-                    <div class="row g-2">
-                        <div class="col-6 col-md-3">
-                            <small class="text-muted d-block">@L["spool.printer"]</small>
-                            @(_spool.PrinterName ?? "–")
-                        </div>
-                        <div class="col-6 col-md-3">
-                            <small class="text-muted d-block">@L["spool.storage"]</small>
-                            @(_spool.StorageLocationName ?? "–")
-                        </div>
-                        <div class="col-6 col-md-3">
-                            <small class="text-muted d-block">@L["spool.dryer"]</small>
-                            @(_spool.DryerName ?? "–")
-                        </div>
-                        <div class="col-6 col-md-3">
-                            <small class="text-muted d-block">@L["spool.owner"]</small>
-                            @(_spool.OwnerName ?? "–")
-                        </div>
-                        <div class="col-6 col-md-3">
-                            <small class="text-muted d-block">@L["spool.weigh.tare"]</small>
-                            @(SpoolWeightCalculator.EffectiveTare(_spool.EmptySpoolWeightGrams, _spool.MaterialSpoolWeightGrams) is { } tare ? $"{tare:0.#} g" : "–")
-                        </div>
-                        <div class="col-6 col-md-3">
-                            <small class="text-muted d-block">@L["spool.purchased"]</small>
-                            @(_spool.PurchasedAt?.ToLocalTime().ToString("d") ?? "–")
-                        </div>
-                        <div class="col-6 col-md-3">
-                            <small class="text-muted d-block">@L["spool.price"]</small>
-                            @(_spool.PurchasePrice?.ToString("C") ?? "–")
-                        </div>
-                        @if (_spool.SpoolmanId > 0)
-                        {
-                            <div class="col-6 col-md-3">
-                                <small class="text-muted d-block" title="@L["spoolman.id.hint"]">@L["spoolman.id"]</small>
-                                <code>@_spool.SpoolmanId</code>
-                            </div>
-                        }
-                        @if (_spool.RfidTagUid != null)
-                        {
-                            <div class="col-12">
-                                <small class="text-muted d-block">@L["spool.rfid"]</small>
-                                <code>@_spool.RfidTagUid</code>
-                            </div>
-                        }
-                        @if (_spool.ReorderUrl != null)
-                        {
-                            <div class="col-12">
-                                <small class="text-muted d-block">@L["spool.reorder"]</small>
-                                <a href="@_spool.ReorderUrl" target="_blank">@_spool.ReorderUrl</a>
-                            </div>
-                        }
-                        @if (_spool.Notes != null)
-                        {
-                            <div class="col-12">
-                                <small class="text-muted d-block">@L["spool.notes"]</small>
-                                @_spool.Notes
-                            </div>
-                        }
-                    </div>
-                </div>
-            </div>
-        </div>
+        <section class="sh-card detail-o4" aria-labelledby="details-title">
+            <h2 class="sh-card-title mb-3" id="details-title">@L["spool.details.title"]</h2>
+            <dl class="sh-kv mb-0">
+                <div><dt>@L["spool.owner"]</dt><dd>@(s.OwnerName ?? "–")</dd></div>
+                <div><dt>@L["spool.purchased"]</dt><dd>@(s.PurchasedAt is { } pd ? SpoolUi.PlainDate(pd) : "–")</dd></div>
+                <div><dt>@L["spool.price"]</dt><dd>@(s.PurchasePrice?.ToString("C") ?? "–")</dd></div>
+                <div><dt>@L["spool.weigh.tare"]</dt><dd>@(SpoolWeightCalculator.EffectiveTare(s.EmptySpoolWeightGrams, s.MaterialSpoolWeightGrams) is { } tare ? $"{tare:0.#} g" : "–")</dd></div>
+                <div><dt>@L["spool.material"]</dt><dd><a href="/materials">@s.MaterialBrand @s.MaterialType</a></dd></div>
+                <div><dt title="@L["spoolman.id.hint"]">@L["spoolman.id"]</dt><dd>@(s.SpoolmanId > 0 ? s.SpoolmanId.ToString() : "–")</dd></div>
+                <div><dt>@L["spool.rfid"]</dt><dd>@if (s.RfidTagUid != null) { <code>@s.RfidTagUid</code> } else { <span>–</span> }</dd></div>
+                <div><dt>@L["common.updated"]</dt><dd>@SpoolUi.LocalDateTime(s.UpdatedAt)</dd></div>
+                @if (!string.IsNullOrWhiteSpace(s.ReorderUrl))
+                {
+                    <div class="detail-kv-wide"><dt>@L["spool.reorder"]</dt><dd><a href="@s.ReorderUrl" target="_blank" rel="noopener noreferrer">@s.ReorderUrl</a></dd></div>
+                }
+                <div class="detail-kv-wide"><dt>@L["spool.notes"]</dt><dd class="detail-notes">@(string.IsNullOrWhiteSpace(s.Notes) ? "–" : s.Notes)</dd></div>
+            </dl>
+        </section>
 
-        <div class="col-12">
-            <div class="card">
-                <div class="card-body">
-                    <h6 class="card-subtitle mb-3 text-muted"><i class="bi bi-broadcast me-1"></i>@L["tag.write"]</h6>
-                    <div class="d-flex gap-2 flex-wrap align-items-center">
-                        @if (_nfcSupported)
-                        {
-                            <button class="btn btn-outline-success" @onclick="FindSpoolAsync">
-                                <i class="bi bi-search me-1"></i>@L["spool.find.title"]
-                            </button>
-                        }
-                        @if (_nfcSupported)
-                        {
-                            <button class="btn btn-outline-primary" @onclick="WriteNfcAsync" disabled="@_writingNfc">
-                                @if (_writingNfc) { <span class="spinner-border spinner-border-sm me-2"></span> }
-                                <i class="bi bi-broadcast me-1"></i>@L["tag.nfc.write"]
-                            </button>
-                        }
-                        <button class="btn btn-outline-secondary" @onclick="@(() => Tags.DownloadSpoolBinAsync(Id))">
-                            <i class="bi bi-download me-1"></i>@L["tag.download.bin"]
-                        </button>
-                        <button class="btn btn-outline-secondary" @onclick="@(() => Tags.DownloadSpoolJsonAsync(Id))">
-                            <i class="bi bi-file-text me-1"></i>@L["tag.download.json"]
-                        </button>
-                        <button class="btn btn-outline-secondary" @onclick="ShowTagJsonAsync">
-                            <i class="bi bi-code me-1"></i>@L["tag.show.json"]
-                        </button>
-                    </div>
-                    @if (_nfcMessage != null)
-                    {
-                        <div class="alert @(_nfcSuccess ? "alert-success" : "alert-danger") py-2 mt-2 mb-0 small">@_nfcMessage</div>
-                    }
-                    @if (_tagJson != null)
-                    {
-                        <div class="position-relative mt-2">
-                            <pre class="small bg-body-secondary text-body border rounded p-2 pe-5 mb-0" style="font-size:0.75rem;word-break:break-all;white-space:pre-wrap;">@_tagJson</pre>
-                            <button class="btn btn-sm btn-outline-secondary position-absolute top-0 end-0 m-1" @onclick="CopyTagJsonAsync" title="@L["common.copy"]">
-                                <i class="bi @(_tagCopied ? "bi-check-lg text-success" : "bi-clipboard")"></i>
-                            </button>
-                        </div>
-                    }
-                    @if (!_nfcSupported)
-                    {
-                        <p class="text-muted small mt-2 mb-0"><i class="bi bi-info-circle me-1"></i>@L["tag.nfc.not.supported"]</p>
-                    }
-                </div>
-            </div>
+        <section class="sh-card detail-danger detail-o6" aria-labelledby="danger-title">
+            <h2 class="sh-card-title" id="danger-title">@L["spool.delete"]</h2>
+            <p class="sh-card-sub mb-3">@L["spool.delete.hint"]</p>
+            <button type="button" class="btn btn-outline-danger" @onclick="() => _confirmDelete = true"><i class="bi bi-trash" aria-hidden="true"></i>@L["spool.delete"]</button>
+        </section>
         </div>
     </div>
-}
 
-@if (_spool != null)
-{
-    <FindSpoolModal @ref="_findModal" Spool="_spool" />
+    @if (_confirmDelete || _confirmConsume)
+    {
+        <div class="modal-backdrop-custom" @onclick="() => { _confirmDelete = false; _confirmConsume = false; }">
+            <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="confirm-title" @onclick:stopPropagation>
+                <h5 id="confirm-title">@(_confirmDelete ? L["spool.delete"] : L["spool.mark.consumed"])</h5>
+                <div class="d-flex align-items-center gap-3 my-3">
+                    <SpoolRing ColorHex="@s.MaterialColorHex" Percent="s.RemainingPercent" Size="48" />
+                    <div>
+                        <div class="fw-semibold">@SpoolUi.FullTitle(s)</div>
+                        <div class="small text-muted">@SpoolUi.Grams(s.RemainingWeightGrams) · #@SpoolUi.ShortId(s)</div>
+                    </div>
+                </div>
+                <p>@(_confirmDelete ? L["spool.delete.confirm.text"] : L["spool.consume.confirm.text"])</p>
+                <div class="d-flex gap-2 justify-content-end flex-wrap">
+                    <button type="button" class="btn btn-outline-secondary" @onclick="() => { _confirmDelete = false; _confirmConsume = false; }">@L["common.cancel"]</button>
+                    @if (_confirmDelete)
+                    {
+                        <button type="button" class="btn btn-danger" @onclick="DeleteAsync" disabled="@_deleting">
+                            @if (_deleting) { <span class="spinner-border spinner-border-sm" aria-hidden="true"></span> }
+                            <i class="bi bi-trash" aria-hidden="true"></i>@L["spool.delete.confirm.button"]
+                        </button>
+                    }
+                    else
+                    {
+                        <button type="button" class="btn btn-danger" @onclick="MarkConsumedAsync" disabled="@_busy"><i class="bi bi-check2-all" aria-hidden="true"></i>@L["spool.mark.consumed"]</button>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+
+    <FindSpoolModal @ref="_findModal" Spool="s" />
 }

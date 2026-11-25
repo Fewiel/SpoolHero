@@ -1,4 +1,11 @@
-<button class="btn btn-sm btn-outline-secondary" @onclick="ToggleAsync" title="@L["nav.theme." + (_isDark ? "light" : "dark")]">
-    <i class="bi @(_isDark ? "bi-sun" : "bi-moon")"></i>
-</button>
-
+<div class="sh-theme-switch" role="group" aria-label="@L["nav.theme"]">
+    <button type="button" aria-pressed="@(_pref == "light" ? "true" : "false")" title="@L["nav.theme.light"]" @onclick='() => SetAsync("light")'>
+        <i class="bi bi-sun" aria-hidden="true"></i><span>@L["nav.theme.light"]</span>
+    </button>
+    <button type="button" aria-pressed="@(_pref == "dark" ? "true" : "false")" title="@L["nav.theme.dark"]" @onclick='() => SetAsync("dark")'>
+        <i class="bi bi-moon-stars" aria-hidden="true"></i><span>@L["nav.theme.dark"]</span>
+    </button>
+    <button type="button" aria-pressed="@(_pref == "auto" ? "true" : "false")" title="@L["nav.theme.auto"]" @onclick='() => SetAsync("auto")'>
+        <i class="bi bi-circle-half" aria-hidden="true"></i><span>@L["nav.theme.auto"]</span>
+    </button>
+</div>

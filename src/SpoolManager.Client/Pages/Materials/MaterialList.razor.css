@@ -1,0 +1,89 @@
+.mat-scope {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .5rem 1rem;
+    margin-bottom: 1rem;
+}
+
+.mat-scope-hint {
+    margin: 0;
+    color: var(--sh-muted);
+    font-size: .9rem;
+    display: flex;
+    gap: .4rem;
+    align-items: baseline;
+}
+
+.mat-toolbar .mat-filter { flex: 1 1 180px; min-width: 0; max-width: 260px; }
+.mat-toolbar .mat-chips { display: flex; flex-wrap: wrap; gap: .5rem; }
+
+.mat-resultbar {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    margin-bottom: .6rem;
+    font-size: .92rem;
+    min-height: 34px;
+}
+
+.mat-busy { opacity: .6; transition: opacity .15s ease; }
+
+.min-w-0 { min-width: 0; }
+
+.mat-ident { display: flex; align-items: center; gap: .75rem; min-width: 0; }
+
+.mat-table td { vertical-align: middle; }
+
+.mat-sort-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: .3rem;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-transform: inherit;
+    letter-spacing: inherit;
+}
+
+.mat-sort-btn:hover { color: var(--sh-text); }
+.mat-sort-btn .mat-sort-idle { opacity: .45; }
+
+.mat-actions {
+    display: inline-flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: .3rem;
+}
+
+.mat-cards {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: .75rem;
+}
+
+.mat-card {
+    display: flex;
+    flex-direction: column;
+    gap: .75rem;
+    padding: 1rem;
+    border-radius: var(--sh-radius-lg);
+    border: 1px solid var(--sh-border);
+    background: var(--sh-surface);
+}
+
+.mat-card-head { display: flex; align-items: center; gap: .85rem; min-width: 0; }
+
+.mat-actions-lg { justify-content: flex-start; gap: .5rem; }
+
+@media (max-width: 767.98px) {
+    .mat-toolbar .mat-filter, .mat-toolbar .mat-sort { flex: 1 1 100%; max-width: none; }
+    .mat-scope .sh-segmented { width: 100%; }
+    .mat-scope .sh-segmented button { flex: 1 1 auto; justify-content: center; padding: 0 .5rem; white-space: nowrap; }
+    .mat-scope .sh-segmented button .bi { display: none; }
+}

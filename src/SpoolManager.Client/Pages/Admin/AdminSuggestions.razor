@@ -4,102 +4,218 @@
 
 @if (Auth.CurrentUser?.IsPlatformAdmin != true)
 {
-    <div class="alert alert-danger mt-3">@L["common.access.denied"]</div>
+    <AdminAccessDenied />
 }
 else
 {
     <div class="page-header">
-        <h1><i class="bi bi-lightbulb me-2"></i>@L["admin.suggestions.title"]</h1>
+        <div>
+            <h1>@L["admin.suggestions.title"]</h1>
+            <p class="page-subtitle">@L["admin.suggestions.subtitle"]</p>
+        </div>
     </div>
 
-    <ul class="nav nav-tabs mb-3">
-        <li class="nav-item">
-            <button class="nav-link @(_filter == "pending" ? "active" : "")" @onclick='() => SetFilter("pending")'>
+    @if (_message != null)
+    {
+        <div class="alert @(_messageOk ? "alert-success" : "alert-danger") d-flex align-items-center gap-2" role="status">
+            <i class="bi @(_messageOk ? "bi-check-circle" : "bi-exclamation-circle")" aria-hidden="true"></i>
+            <span class="flex-grow-1">@_message</span>
+            <button type="button" class="btn-close" aria-label="@L["common.close"]" @onclick="() => _message = null"></button>
+        </div>
+    }
+
+    <div class="sh-toolbar">
+        <div class="sh-segmented" role="group" aria-label="@L["ticket.status"]">
+            <button type="button" aria-pressed="@(_filter == "pending" ? "true" : "false")" @onclick='() => SetFilter("pending")'>
                 @L["suggestion.status.pending"]
-                @if (_pendingCount > 0) { <span class="badge bg-warning ms-1">@_pendingCount</span> }
+                @if (_pendingCount > 0)
+                {
+                    <span class="sh-chip sh-chip-sm sh-chip-warn">@_pendingCount</span>
+                }
             </button>
-        </li>
-        <li class="nav-item">
-            <button class="nav-link @(_filter == "approved" ? "active" : "")" @onclick='() => SetFilter("approved")'>
-                @L["suggestion.status.approved"]
-            </button>
-        </li>
-        <li class="nav-item">
-            <button class="nav-link @(_filter == "rejected" ? "active" : "")" @onclick='() => SetFilter("rejected")'>
-                @L["suggestion.status.rejected"]
-            </button>
-        </li>
-    </ul>
+            <button type="button" aria-pressed="@(_filter == "approved" ? "true" : "false")" @onclick='() => SetFilter("approved")'>@L["suggestion.status.approved"]</button>
+            <button type="button" aria-pressed="@(_filter == "rejected" ? "true" : "false")" @onclick='() => SetFilter("rejected")'>@L["suggestion.status.rejected"]</button>
+        </div>
+    </div>
 
     @if (_loading)
     {
-        <div class="text-center py-5"><div class="spinner-border"></div></div>
+        <div class="table-responsive placeholder-glow p-3" role="status">
+            @for (var i = 0; i < 4; i++)
+            {
+                <span class="placeholder col-12 mb-3 as-placeholder"></span>
+            }
+            <span class="visually-hidden">@L["common.loading"]</span>
+        </div>
+    }
+    else if (_loadFailed)
+    {
+        <div class="sh-empty">
+            <i class="bi bi-cloud-slash" aria-hidden="true"></i>
+            <h2>@L["admin.load.failed.title"]</h2>
+            <p>@L["admin.load.failed.text"]</p>
+            <button type="button" class="btn btn-primary mt-2" @onclick="LoadAsync"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i>@L["common.retry"]</button>
+        </div>
     }
     else if (_suggestions.Count == 0)
     {
-        <div class="text-center py-5 text-muted">
-            <i class="bi bi-lightbulb fs-1"></i>
-            <p class="mt-2">@L["admin.suggestions.empty"]</p>
+        <div class="sh-empty">
+            <i class="bi bi-lightbulb" aria-hidden="true"></i>
+            <h2>@(_filter == "pending" ? L["admin.suggestions.empty.pending"] : L["admin.suggestions.empty"])</h2>
+            <p>@L["admin.suggestions.empty.text"]</p>
+            <a href="/admin/materials" class="btn btn-primary mt-2"><i class="bi bi-database" aria-hidden="true"></i>@L["admin.materials.title"]</a>
         </div>
     }
     else
     {
-        <div class="table-responsive-card">
-            <table class="table table-hover mb-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
                 <thead>
                     <tr>
-                        <th>@L["admin.suggestions.user"]</th>
-                        <th>@L["material.type"]</th>
-                        <th>@L["material.brand"]</th>
-                        <th>@L["material.color.hex"]</th>
-                        <th class="d-none d-md-table-cell">Temp</th>
-                        <th class="d-none d-md-table-cell">@L["admin.suggestions.material"]</th>
-                        <th>@L["common.actions"]</th>
+                        <th scope="col">@L["admin.materials.col.material"]</th>
+                        <th scope="col">@L["admin.suggestions.kind"]</th>
+                        <th scope="col" class="d-none d-md-table-cell">@L["admin.materials.col.print.temp"]</th>
+                        <th scope="col">@L["admin.suggestions.user"]</th>
+                        <th scope="col" class="d-none d-lg-table-cell">@L["common.created"]</th>
+                        <th scope="col" class="text-end">@(_filter == "pending" ? L["common.actions"] : L["ticket.status"])</th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach (var s in _suggestions)
                     {
                         <tr>
-                            <td>@s.Username</td>
-                            <td><strong>@s.Type</strong></td>
-                            <td>@s.Brand</td>
                             <td>
-                                <div class="d-flex align-items-center gap-2">
-                                    <div style="width:1.2em;height:1.2em;background:#@s.ColorHex;border-radius:50%;border:1px solid var(--bs-border-color)"></div>
-                                    @if (s.ColorName != null) { <small>@s.ColorName</small> }
+                                <div class="d-flex align-items-center gap-3 as-material">
+                                    <SpoolRing ColorHex="@s.ColorHex" Percent="100" Size="40" />
+                                    <div class="min-w-0">
+                                        <div class="fw-semibold text-truncate">@s.Brand @s.Type</div>
+                                        <div class="small text-muted text-truncate">@(string.IsNullOrWhiteSpace(s.ColorName) ? "" : s.ColorName + " · ")<span class="font-monospace">#@s.ColorHex</span></div>
+                                    </div>
                                 </div>
                             </td>
-                            <td class="d-none d-md-table-cell">@s.MinTempCelsius–@s.MaxTempCelsius °C</td>
-                            <td class="d-none d-md-table-cell">
-                                @if (s.MaterialName != null) { <small class="text-muted">@s.MaterialName</small> }
-                                else { <span class="badge bg-info">Neu</span> }
-                            </td>
                             <td>
-                                @if (s.Status == "pending")
+                                @if (s.MaterialName != null)
                                 {
-                                    <div class="d-flex gap-1">
-                                        <button class="btn btn-sm btn-success" @onclick="() => Review(s.Id, true)"
-                                                disabled="@_reviewing">
-                                            <i class="bi bi-check-lg"></i>
-                                        </button>
-                                        <button class="btn btn-sm btn-danger" @onclick="() => Review(s.Id, false)"
-                                                disabled="@_reviewing">
-                                            <i class="bi bi-x-lg"></i>
-                                        </button>
-                                    </div>
+                                    <span class="sh-chip sh-chip-sm" title="@s.MaterialName"><i class="bi bi-pencil" aria-hidden="true"></i>@L["admin.suggestions.kind.change"]</span>
+                                    <div class="small text-muted text-truncate as-related">@s.MaterialName</div>
                                 }
                                 else
                                 {
-                                    <span class="badge @(s.Status == "approved" ? "bg-success" : "bg-danger")">
-                                        @(s.Status == "approved" ? L["suggestion.status.approved"] : L["suggestion.status.rejected"])
-                                    </span>
+                                    <span class="sh-chip sh-chip-sm sh-chip-accent"><i class="bi bi-plus-lg" aria-hidden="true"></i>@L["admin.suggestions.kind.new"]</span>
+                                }
+                            </td>
+                            <td class="d-none d-md-table-cell text-nowrap">@s.MinTempCelsius–@s.MaxTempCelsius °C</td>
+                            <td>@s.Username</td>
+                            <td class="d-none d-lg-table-cell text-nowrap">@s.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy")</td>
+                            <td class="text-end">
+                                @if (s.Status == "pending")
+                                {
+                                    <button type="button" class="btn btn-sm btn-primary" @onclick="() => OpenReview(s)">
+                                        <i class="bi bi-eye" aria-hidden="true"></i>@L["admin.suggestions.review"]
+                                    </button>
+                                }
+                                else
+                                {
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => OpenReview(s)" aria-label="@L.Format("admin.suggestions.details.aria", s.Brand + " " + s.Type)">
+                                        <span class="sh-chip sh-chip-sm @(s.Status == "approved" ? "sh-chip-ok" : "sh-chip-danger")">@(s.Status == "approved" ? L["suggestion.status.approved"] : L["suggestion.status.rejected"])</span>
+                                        @L["admin.suggestions.details"]
+                                    </button>
                                 }
                             </td>
                         </tr>
                     }
                 </tbody>
             </table>
+        </div>
+    }
+
+    @if (_reviewTarget != null)
+    {
+        var s = _reviewTarget;
+        <div class="modal-backdrop-custom" @onclick="CloseReview">
+            <div class="modal-box as-modal" role="dialog" aria-modal="true" aria-labelledby="asReviewTitle" @onclick:stopPropagation>
+                <div class="d-flex align-items-start justify-content-between gap-2">
+                    <h2 id="asReviewTitle" class="h5 mb-0">@(s.Status == "pending" ? L["admin.suggestions.review.title"] : L["admin.suggestions.details"])</h2>
+                    <button type="button" class="btn-close" aria-label="@L["common.close"]" @onclick="CloseReview"></button>
+                </div>
+                <div class="d-flex align-items-center gap-3 my-3">
+                    <SpoolRing ColorHex="@s.ColorHex" Percent="100" Size="56" />
+                    <div class="min-w-0">
+                        <div class="fw-semibold fs-5">@s.Brand @s.Type</div>
+                        <div class="text-muted small">@(string.IsNullOrWhiteSpace(s.ColorName) ? "" : s.ColorName + " · ")#@s.ColorHex</div>
+                    </div>
+                </div>
+                <p class="small text-muted">
+                    @L.Format("admin.suggestions.by", s.Username, s.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy"))
+                    @if (s.MaterialName != null)
+                    {
+                        <br />@L.Format("material.suggest.existing", s.MaterialName)
+                    }
+                    else
+                    {
+                        <br />@L["admin.suggestions.new.hint"]
+                    }
+                </p>
+                <dl class="sh-kv as-kv">
+                    <div><dt>@L["admin.materials.col.print.temp"]</dt><dd>@s.MinTempCelsius–@s.MaxTempCelsius °C</dd></div>
+                    <div><dt>@L["material.bed.temp"]</dt><dd>@(s.BedTempCelsius?.ToString() ?? "–")</dd></div>
+                    <div><dt>@L["material.diameter"]</dt><dd>@s.DiameterMm.ToString("0.00") mm</dd></div>
+                    <div><dt>@L["material.density"]</dt><dd>@(s.DensityGCm3?.ToString("0.00") ?? "–")</dd></div>
+                    <div><dt>@L["material.dry.temp"]</dt><dd>@(s.DryTempCelsius?.ToString() ?? "–")</dd></div>
+                    <div><dt>@L["material.dry.time"]</dt><dd>@(s.DryTimeHours?.ToString() ?? "–")</dd></div>
+                    <div><dt>@L["material.price"]</dt><dd>@(s.PricePerKg?.ToString("0.00") ?? "–")</dd></div>
+                    <div><dt>@L["material.reorder"]</dt><dd>
+                        @if (!string.IsNullOrWhiteSpace(s.ReorderUrl))
+                        {
+                            <a href="@s.ReorderUrl" target="_blank" rel="noopener noreferrer">@L["admin.suggestions.open.link"]</a>
+                        }
+                        else { <span>–</span> }
+                    </dd></div>
+                </dl>
+                @if (!string.IsNullOrWhiteSpace(s.Notes))
+                {
+                    <div class="as-notes mt-3"><span class="fw-semibold d-block small text-muted">@L["material.notes"]</span>@s.Notes</div>
+                }
+
+                @if (s.Status == "pending")
+                {
+                    <div class="mt-3">
+                        <label class="form-label" for="asNote">@L["admin.suggestions.notes"] <span class="text-muted fw-normal">@L["common.optional"]</span></label>
+                        <textarea id="asNote" class="form-control" rows="2" @bind="_reviewNote" placeholder="@L["admin.suggestions.notes.placeholder"]"></textarea>
+                    </div>
+                    <p class="small text-muted mt-2 mb-3">@L["admin.suggestions.approve.hint"]</p>
+                    <div class="d-flex gap-2 justify-content-end flex-wrap">
+                        <button type="button" class="btn btn-outline-danger" @onclick="() => Review(false)" disabled="@_reviewing">
+                            <i class="bi bi-x-lg" aria-hidden="true"></i>@L["admin.suggestions.reject"]
+                        </button>
+                        <button type="button" class="btn btn-primary" @onclick="() => Review(true)" disabled="@_reviewing">
+                            @if (_reviewing)
+                            {
+                                <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                            }
+                            else
+                            {
+                                <i class="bi bi-check-lg" aria-hidden="true"></i>
+                            }
+                            @L["admin.suggestions.approve"]
+                        </button>
+                    </div>
+                }
+                else
+                {
+                    <div class="mt-3">
+                        <span class="sh-chip @(s.Status == "approved" ? "sh-chip-ok" : "sh-chip-danger")">@(s.Status == "approved" ? L["suggestion.status.approved"] : L["suggestion.status.rejected"])</span>
+                        @if (s.ReviewedAt.HasValue)
+                        {
+                            <span class="small text-muted ms-2">@s.ReviewedAt.Value.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</span>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(s.AdminNotes))
+                        {
+                            <div class="as-notes mt-2"><span class="fw-semibold d-block small text-muted">@L["admin.suggestions.notes"]</span>@s.AdminNotes</div>
+                        }
+                    </div>
+                }
+            </div>
         </div>
     }
 }

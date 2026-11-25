@@ -4,117 +4,148 @@
 
 @if (Auth.CurrentUser?.IsPlatformAdmin != true)
 {
-    <div class="alert alert-danger mt-3">@L["common.access.denied"]</div>
+    <AdminAccessDenied />
 }
 else
 {
+    RenderFragment<SupportTicketDto> controls = t =>
+        @<div class="at-controls">
+            <select class="form-select form-select-sm at-status" value="@t.Status" aria-label="@L.Format("admin.tickets.status.for", t.Subject)"
+                    @onchange="e => SetStatusAsync(t, e.Value?.ToString() ?? t.Status)" disabled="@(_busyId == t.Id)">
+                <option value="open">@L["ticket.status.open"]</option>
+                <option value="in_progress">@L["ticket.status.in_progress"]</option>
+                <option value="answered">@L["ticket.status.answered"]</option>
+                <option value="closed">@L["ticket.status.closed"]</option>
+            </select>
+            @if (t.AssignedToUserId == Auth.CurrentUser?.Id)
+            {
+                <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => UnassignAsync(t)" disabled="@(_busyId == t.Id)">
+                    <i class="bi bi-person-dash" aria-hidden="true"></i>@L["admin.tickets.unassign"]
+                </button>
+            }
+            else
+            {
+                <button type="button" class="btn btn-sm btn-outline-primary" @onclick="() => AssignMeAsync(t)" disabled="@(_busyId == t.Id)">
+                    <i class="bi bi-person-check" aria-hidden="true"></i>@L["admin.tickets.assign.me"]
+                </button>
+            }
+        </div>;
+
     <div class="page-header">
-        <h1><i class="bi bi-ticket-perforated me-2"></i>@L["admin.tickets.title"]</h1>
+        <div>
+            <h1>@L["admin.tickets.title"]</h1>
+            <p class="page-subtitle">@L["admin.tickets.subtitle"]</p>
+        </div>
     </div>
 
-    <div class="d-flex flex-wrap gap-2 mb-3">
-        <button class="btn btn-sm @(_statusFilter == null ? "btn-primary" : "btn-outline-secondary")"
-                @onclick='() => SetFilter(null)'>
-            @L["spool.filter.all"]
-        </button>
-        <button class="btn btn-sm @(_statusFilter == "open" ? "btn-warning" : "btn-outline-secondary")"
-                @onclick='() => SetFilter("open")'>
-            @L["ticket.status.open"]
-        </button>
-        <button class="btn btn-sm @(_statusFilter == "in_progress" ? "btn-primary" : "btn-outline-secondary")"
-                @onclick='() => SetFilter("in_progress")'>
-            @L["ticket.status.in_progress"]
-        </button>
-        <button class="btn btn-sm @(_statusFilter == "answered" ? "btn-success" : "btn-outline-secondary")"
-                @onclick='() => SetFilter("answered")'>
-            @L["ticket.status.answered"]
-        </button>
-        <button class="btn btn-sm @(_statusFilter == "closed" ? "btn-secondary" : "btn-outline-secondary")"
-                @onclick='() => SetFilter("closed")'>
-            @L["ticket.status.closed"]
-        </button>
-    </div>
-
-    <div class="mb-3">
-        <input class="form-control" placeholder="@L["common.search"]..." value="@_search" @oninput="OnSearch" />
-    </div>
-
-    @if (_loading)
+    @if (_error != null)
     {
-        <div class="text-center py-5"><div class="spinner-border"></div></div>
+        <div class="alert alert-danger d-flex align-items-center gap-2" role="alert">
+            <i class="bi bi-exclamation-circle" aria-hidden="true"></i>
+            <span class="flex-grow-1">@_error</span>
+            <button type="button" class="btn-close" aria-label="@L["common.close"]" @onclick="() => _error = null"></button>
+        </div>
+    }
+
+    <div class="sh-toolbar">
+        <SearchBox Id="ticketSearch" Label="@L["admin.tickets.search"]" Value="@_search" ValueChanged="OnSearch" />
+        <div class="d-flex flex-wrap gap-2" role="group" aria-label="@L["ticket.status"]">
+            @foreach (var (value, key) in Filters)
+            {
+                <button type="button" class="sh-chip" aria-pressed="@(_statusFilter == value ? "true" : "false")" @onclick="() => SetFilter(value)">@L[key]</button>
+            }
+        </div>
+    </div>
+
+    @if (_loading && _tickets.Count == 0)
+    {
+        <div class="table-responsive placeholder-glow p-3" role="status">
+            @for (var i = 0; i < 4; i++)
+            {
+                <span class="placeholder col-12 mb-3 at-placeholder"></span>
+            }
+            <span class="visually-hidden">@L["common.loading"]</span>
+        </div>
+    }
+    else if (_loadFailed)
+    {
+        <div class="sh-empty">
+            <i class="bi bi-cloud-slash" aria-hidden="true"></i>
+            <h2>@L["admin.load.failed.title"]</h2>
+            <p>@L["admin.load.failed.text"]</p>
+            <button type="button" class="btn btn-primary mt-2" @onclick="LoadAsync"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i>@L["common.retry"]</button>
+        </div>
     }
     else if (_tickets.Count == 0)
     {
-        <div class="text-center py-5 text-muted">
-            <i class="bi bi-ticket-perforated fs-1"></i>
-            <p class="mt-2">@L["ticket.none"]</p>
+        <div class="sh-empty">
+            <i class="bi bi-inbox" aria-hidden="true"></i>
+            <h2>@L["ticket.none"]</h2>
+            <p>@(_statusFilter == null && string.IsNullOrWhiteSpace(_search) ? L["admin.tickets.empty.text"] : L["admin.tickets.empty.filtered"])</p>
+            @if (_statusFilter != null || !string.IsNullOrWhiteSpace(_search))
+            {
+                <button type="button" class="btn btn-primary mt-2" @onclick="ResetFiltersAsync">@L["common.filter.reset"]</button>
+            }
         </div>
     }
     else
     {
-        <div class="table-responsive-card">
-            <table class="table table-hover mb-0">
+        <div class="table-responsive d-none d-md-block">
+            <table class="table table-hover align-middle">
                 <thead>
                     <tr>
-                        <th class="d-none d-md-table-cell">@L["common.created"]</th>
-                        <th>@L["auth.username"]</th>
-                        <th>@L["ticket.subject"]</th>
-                        <th>@L["ticket.status"]</th>
-                        <th>@L["ticket.assigned.to"]</th>
-                        <th>@L["common.actions"]</th>
+                        <th scope="col">@L["ticket.subject"]</th>
+                        <th scope="col">@L["ticket.status"]</th>
+                        <th scope="col" class="d-none d-xl-table-cell">@L["ticket.assigned.to"]</th>
+                        <th scope="col" class="d-none d-lg-table-cell">@L["common.created"]</th>
+                        <th scope="col" class="text-end">@L["common.actions"]</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (var t in _tickets)
+                    @foreach (var t in PagedTickets)
                     {
-                        <tr style="cursor:pointer" @onclick='() => Nav.NavigateTo($"/admin/tickets/{t.Id}")'>
-                            <td class="d-none d-md-table-cell">
-                                <small>@t.CreatedAt.ToString("dd.MM.yy HH:mm")</small>
-                            </td>
-                            <td>@t.Username</td>
+                        <tr>
                             <td>
-                                @t.Subject
-                                @if (t.CommentCount > 0)
-                                {
-                                    <span class="badge bg-light text-dark ms-1">@t.CommentCount</span>
-                                }
-                            </td>
-                            <td>
-                                <span class="badge @StatusBadgeClass(t.Status)">@StatusLabel(t.Status)</span>
-                            </td>
-                            <td>
-                                <small>@(t.AssignedToUsername ?? L["ticket.unassigned"])</small>
-                            </td>
-                            <td @onclick:stopPropagation>
-                                <div class="d-flex gap-1 flex-wrap">
-                                    <select class="form-select form-select-sm" style="width:auto"
-                                            value="@t.Status"
-                                            @onchange="e => SetStatusAsync(t, e.Value?.ToString() ?? t.Status)">
-                                        <option value="open">@L["ticket.status.open"]</option>
-                                        <option value="in_progress">@L["ticket.status.in_progress"]</option>
-                                        <option value="answered">@L["ticket.status.answered"]</option>
-                                        <option value="closed">@L["ticket.status.closed"]</option>
-                                    </select>
-                                    @if (t.AssignedToUserId == Auth.CurrentUser?.Id)
+                                <a class="at-subject" href="/admin/tickets/@t.Id">@t.Subject</a>
+                                <div class="small text-muted">
+                                    @t.Username
+                                    @if (t.CommentCount > 0)
                                     {
-                                        <button class="btn btn-sm btn-outline-secondary"
-                                                @onclick="() => UnassignAsync(t)">
-                                            @L["admin.tickets.unassign"]
-                                        </button>
-                                    }
-                                    else
-                                    {
-                                        <button class="btn btn-sm btn-outline-primary"
-                                                @onclick="() => AssignMeAsync(t)">
-                                            @L["admin.tickets.assign.me"]
-                                        </button>
+                                        <span class="ms-2"><i class="bi bi-chat" aria-hidden="true"></i> @t.CommentCount</span>
                                     }
                                 </div>
                             </td>
+                            <td><span class="sh-chip sh-chip-sm @StatusChipClass(t.Status)">@StatusLabel(t.Status)</span></td>
+                            <td class="d-none d-xl-table-cell">@(t.AssignedToUsername ?? L["ticket.unassigned"])</td>
+                            <td class="d-none d-lg-table-cell text-nowrap">@t.CreatedAt.ToLocalTime().ToString("dd.MM.yy HH:mm")</td>
+                            <td class="text-end">@controls(t)</td>
                         </tr>
                     }
                 </tbody>
             </table>
         </div>
+
+        <ul class="at-cards d-md-none">
+            @foreach (var t in PagedTickets)
+            {
+                <li class="sh-card at-card">
+                    <div class="d-flex justify-content-between align-items-start gap-2">
+                        <a class="at-subject" href="/admin/tickets/@t.Id">@t.Subject</a>
+                        <span class="sh-chip sh-chip-sm @StatusChipClass(t.Status)">@StatusLabel(t.Status)</span>
+                    </div>
+                    <div class="small text-muted">
+                        @t.Username · @t.CreatedAt.ToLocalTime().ToString("dd.MM.yy HH:mm")
+                        @if (t.CommentCount > 0)
+                        {
+                            <span class="ms-1">· <i class="bi bi-chat" aria-hidden="true"></i> @t.CommentCount</span>
+                        }
+                    </div>
+                    <div class="small">@L["ticket.assigned.to"]: <strong>@(t.AssignedToUsername ?? L["ticket.unassigned"])</strong></div>
+                    @controls(t)
+                </li>
+            }
+        </ul>
+
+        <Pager Page="_page" PageSize="PageSize" TotalItems="_tickets.Count" PageChanged="p => _page = p" />
     }
 }

@@ -1,0 +1,136 @@
+.tw-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+    gap: 1rem;
+    align-items: start;
+}
+
+.tw-write { position: sticky; top: calc(var(--sh-topbar-h) + 1rem); display: flex; flex-direction: column; gap: 1rem; }
+
+.min-w-0 { min-width: 0; }
+
+.tw-step { display: flex; gap: .85rem; align-items: flex-start; margin-bottom: 1rem; }
+.tw-write .tw-step { margin-bottom: 0; }
+
+.tw-step-no {
+    flex: 0 0 32px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: var(--sh-accent-soft);
+    color: var(--sh-accent-text);
+    font-weight: 700;
+}
+
+.tw-kinds { flex-wrap: wrap; }
+
+.tw-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: .4rem;
+    max-height: 520px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+}
+
+.tw-item {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    min-height: 56px;
+    padding: .5rem .75rem;
+    border-radius: var(--sh-radius);
+    border: 1px solid var(--sh-border);
+    background: var(--sh-surface);
+    color: var(--sh-text);
+    text-align: left;
+}
+
+.tw-item:hover { border-color: var(--sh-border-strong); background: var(--sh-surface-2); }
+.tw-item.active { border-color: var(--sh-accent); background: var(--sh-accent-soft); }
+.tw-item > .bi { font-size: 1.2rem; }
+.tw-check { color: var(--sh-accent-text); }
+
+.tw-text { display: flex; flex-direction: column; min-width: 0; flex: 1 1 auto; line-height: 1.25; }
+
+.tw-icon {
+    width: 40px;
+    height: 40px;
+    flex: 0 0 40px;
+    border-radius: var(--sh-radius-sm);
+    display: grid;
+    place-items: center;
+    background: var(--sh-surface-2);
+    color: var(--sh-muted);
+    font-size: 1.2rem;
+}
+
+.tw-icon-lg { width: 56px; height: 56px; flex-basis: 56px; font-size: 1.5rem; background: var(--sh-accent-soft); color: var(--sh-accent-text); }
+
+.tw-placeholder {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    padding: 1.25rem;
+    border: 1px dashed var(--sh-border-strong);
+    border-radius: var(--sh-radius);
+    color: var(--sh-muted);
+}
+
+.tw-placeholder .bi { font-size: 1.5rem; }
+
+.tw-target { display: flex; align-items: center; gap: .9rem; padding: .9rem; border-radius: var(--sh-radius); background: var(--sh-surface-2); }
+
+.tw-status:empty, .tw-status-idle { display: none; }
+
+.tw-status {
+    display: flex;
+    align-items: center;
+    gap: .85rem;
+    padding: .9rem;
+    border-radius: var(--sh-radius);
+}
+
+.tw-status-icon {
+    width: 44px;
+    height: 44px;
+    flex: 0 0 44px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-size: 1.3rem;
+}
+
+.tw-status-writing { background: var(--sh-accent-soft); color: var(--sh-accent-text); }
+.tw-status-writing .tw-status-icon { background: var(--sh-accent); color: var(--sh-on-accent); animation: tw-pulse 1.4s ease-in-out infinite; }
+.tw-status-done { background: var(--sh-ok-soft); color: var(--sh-ok-text); }
+.tw-status-done .tw-status-icon { background: var(--sh-ok); color: var(--sh-surface); }
+.tw-status-error { background: var(--sh-danger-soft); color: var(--sh-danger-text); }
+.tw-status-error .tw-status-icon { background: var(--sh-danger); color: var(--sh-surface); }
+
+@keyframes tw-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(var(--sh-accent-rgb), .45); }
+    50% { box-shadow: 0 0 0 10px rgba(var(--sh-accent-rgb), 0); }
+}
+
+.tw-downloads { display: flex; flex-direction: column; gap: .5rem; padding-top: 1rem; border-top: 1px solid var(--sh-border); }
+
+@media (max-width: 991.98px) {
+    .tw-layout { grid-template-columns: minmax(0, 1fr); }
+    .tw-write { position: static; }
+    .tw-list { max-height: none; }
+}
+
+@media (max-width: 575.98px) {
+    .tw-kinds { width: 100%; display: grid; grid-template-columns: 1fr 1fr; }
+    .tw-kinds button { justify-content: center; }
+}
+
+.tw-focus:focus { outline: none; }
+.tw-focus:focus-visible { outline: 3px solid rgba(var(--sh-accent-rgb), .7); }

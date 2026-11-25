@@ -8,7 +8,6 @@ public partial class ChangePassword
 {
     [Inject] private AuthService Auth { get; set; } = default!;
     [Inject] private LocalizationService L { get; set; } = default!;
-    [Inject] private NavigationManager Nav { get; set; } = default!;
     [Inject] private System.Net.Http.HttpClient Http { get; set; } = default!;
 
     private ChangePasswordModel _model = new();
@@ -16,6 +15,10 @@ public partial class ChangePassword
     private string? _message;
     private bool _success;
     private bool _loading;
+
+    private bool NewTooShort => _model.NewPassword.Length is > 0 and < 8;
+    private bool Mismatch => _confirmPassword.Length > 0 && _confirmPassword != _model.NewPassword;
+    private bool CanSubmit => !_loading && _model.CurrentPassword.Length > 0 && _model.NewPassword.Length >= 8 && !Mismatch && _confirmPassword.Length > 0;
 
     private class ChangePasswordModel
     {
@@ -57,8 +60,7 @@ public partial class ChangePassword
             }
             else
             {
-                var error = await response.Content.ReadFromJsonAsync<ErrorResult>();
-                _message = error?.Message ?? L["auth.password.error"];
+                _message = await ResponseMessages.ReadAsync(response, L["auth.password.error"]);
                 _success = false;
             }
         }
@@ -74,5 +76,4 @@ public partial class ChangePassword
     }
 
     private record PasswordChangeResult(string? AccessToken, string? Message);
-    private record ErrorResult(string? Message);
 }
