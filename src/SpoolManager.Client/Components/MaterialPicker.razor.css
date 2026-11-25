@@ -1,0 +1,69 @@
+.mp { position: relative; }
+
+.mp-trigger {
+    display: flex;
+    align-items: center;
+    gap: .65rem;
+    width: 100%;
+    min-height: 48px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.mp-trigger.mp-open { border-color: var(--sh-accent); box-shadow: 0 0 0 .2rem rgba(var(--sh-accent-rgb), .2); }
+.mp-trigger-text { display: flex; flex-wrap: wrap; column-gap: .45rem; min-width: 0; overflow: hidden; }
+.mp-trigger-text > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mp-swatch { width: 1.35rem; height: 1.35rem; }
+.mp-swatch-lg { width: 1.6rem; height: 1.6rem; }
+
+.mp-panel {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(100% + 4px);
+    z-index: 1050;
+    display: flex;
+    flex-direction: column;
+    max-height: 380px;
+    overflow: hidden;
+    background: var(--sh-surface);
+    border: 1px solid var(--sh-border);
+    border-radius: var(--sh-radius);
+    box-shadow: var(--sh-shadow-lg);
+}
+
+.mp-search { position: relative; padding: .6rem; border-bottom: 1px solid var(--sh-border); }
+.mp-search .bi { position: absolute; left: 1.4rem; top: 50%; transform: translateY(-50%); color: var(--sh-muted); pointer-events: none; }
+.mp-search .form-control { padding-left: 2.3rem; min-height: 44px; }
+
+.mp-list { overflow-y: auto; flex: 1 1 auto; padding: .35rem; }
+
+.mp-group {
+    padding: .4rem .6rem .2rem;
+    font-size: .75rem;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--sh-muted);
+}
+
+.mp-item {
+    display: flex;
+    align-items: center;
+    gap: .7rem;
+    width: 100%;
+    min-height: 48px;
+    padding: .4rem .6rem;
+    border: 0;
+    border-radius: var(--sh-radius-sm);
+    background: transparent;
+    color: var(--sh-text);
+    text-align: left;
+}
+
+.mp-item:hover, .mp-item:focus-visible { background: var(--sh-surface-2); }
+.mp-item.mp-selected { background: var(--sh-accent-soft); }
+.mp-item-text { display: flex; flex-direction: column; min-width: 0; flex: 1 1 auto; }
+.mp-item-text > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mp-star { color: var(--sh-warn); }
+.mp-check { color: var(--sh-accent-text); font-size: 1.1rem; }
