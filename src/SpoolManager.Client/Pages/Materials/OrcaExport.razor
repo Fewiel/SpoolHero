@@ -3,123 +3,94 @@
 <PageTitle>@L["material.export.orca"] – @L["app.name"]</PageTitle>
 
 <div class="page-header">
-    <h1><i class="bi bi-box-seam me-2"></i>@L["material.export.orca"]</h1>
-    <a href="/materials" class="btn btn-outline-secondary">
-        <i class="bi bi-arrow-left me-1"></i>@L["common.cancel"]
-    </a>
-</div>
-
-<p class="text-muted">@L["material.export.orca.hint"]</p>
-
-<div class="card mb-4">
-    <div class="card-body">
-        <h6 class="card-title">@L["material.export.orca.from.spools"]</h6>
-
-        @if (_loadingSpools)
-        {
-            <div class="text-center py-2"><div class="spinner-border spinner-border-sm"></div></div>
-        }
-        else if (_spools.Count == 0)
-        {
-            <p class="text-muted small mb-0">@L["material.export.orca.from.spools.empty"]</p>
-        }
-        else
-        {
-            <div class="d-flex flex-wrap gap-2">
-                @foreach (var spool in _spools)
-                {
-                    var alreadyAdded = _selectedMaterials.Any(m => m.Id == spool.FilamentMaterialId);
-                    <button type="button"
-                            class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1"
-                            style="@(alreadyAdded ? "opacity:.5" : "")"
-                            @onclick="() => AddFromSpoolAsync(spool)"
-                            disabled="@alreadyAdded">
-                        <span style="width:.8em;height:.8em;background:#@spool.MaterialColorHex;border-radius:50%;border:1px solid var(--bs-border-color);flex-shrink:0"></span>
-                        @spool.MaterialBrand @spool.MaterialType
-                        @if (spool.MaterialColorName != null) { <span>- @spool.MaterialColorName</span> }
-                        <span class="text-muted ms-1">(@((int)spool.RemainingPercent)%)</span>
-                    </button>
-                }
-            </div>
-        }
+    <div>
+        <h1>@L["material.export.orca"]</h1>
+        <p class="page-subtitle">@L["material.orca.subtitle"]</p>
+    </div>
+    <div class="page-actions">
+        <a href="/materials" class="btn btn-outline-secondary"><i class="bi bi-arrow-left" aria-hidden="true"></i>@L["material.form.back"]</a>
     </div>
 </div>
 
-<div class="card mb-4">
-        <div class="card-body">
-            <h6 class="card-title">@L["material.export.orca.select"]</h6>
+<div class="orca-grid">
+    <div class="orca-main">
+        <section class="sh-card" aria-labelledby="orca-spools">
+            <h2 class="sh-card-title" id="orca-spools">@L["material.export.orca.from.spools"]</h2>
+            <p class="sh-card-sub mb-3">@L["material.orca.spools.hint"]</p>
+            <SpoolMaterialQuickPick SelectedIds="SelectedIds" OnAdd="AddByIdAsync" OnRemove="Remove" />
+        </section>
 
-            <div class="mb-3">
-                <MaterialPicker Value="_pickerId" OnSelected="OnPicked" />
-            </div>
+        <section class="sh-card" aria-labelledby="orca-other">
+            <h2 class="sh-card-title" id="orca-other">@L["material.export.orca.select"]</h2>
+            <p class="sh-card-sub mb-3">@L["material.orca.other.hint"]</p>
+            <MaterialPicker Value="_pickerId" OnSelected="OnPicked" />
+        </section>
+    </div>
 
+    <aside class="sh-card orca-side" aria-labelledby="orca-selected">
+        <div class="d-flex align-items-center justify-content-between gap-2 mb-3">
+            <h2 class="sh-card-title mb-0" id="orca-selected">@L["material.orca.selected"]</h2>
             @if (_selectedMaterials.Count > 0)
             {
-                <div class="d-flex flex-wrap gap-2 mb-3">
-                    @foreach (var m in _selectedMaterials)
+                <button type="button" class="btn btn-link btn-sm" @onclick="Clear">@L["common.clear"]</button>
+            }
+        </div>
+
+        <SelectedMaterials Items="_selectedMaterials" OnRemove="Remove" EmptyText="@L["material.orca.none.selected"]"
+                           WarnWhen="NeedsTemps" WarnText="@L["material.export.orca.warning.short"]" />
+
+        @if (Warnings.Count > 0)
+        {
+            <div class="alert alert-warning mt-3 mb-0" role="alert">
+                <div class="d-flex gap-2"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i><span>@L["material.orca.warning"]</span></div>
+                <ul class="mb-0 mt-2 small orca-warn-list">
+                    @foreach (var w in Warnings)
                     {
-                        <span class="badge bg-body-secondary text-body border d-flex align-items-center gap-1 py-2 px-2">
-                            <span style="width:.8em;height:.8em;background:#@m.ColorHex;border-radius:50%;border:1px solid var(--bs-border-color)"></span>
-                            @m.Brand @m.Type
-                            @if (m.ColorName != null) { <span>- @m.ColorName</span> }
-                            @if (m.MinTempCelsius == 0 || m.MaxTempCelsius == 0)
+                        <li>
+                            <span>@w.Brand @w.Type @(w.ColorName != null ? $"– {w.ColorName}" : "")</span>
+                            @if (w.IsGlobal)
                             {
-                                <i class="bi bi-exclamation-triangle text-warning ms-1" title="@L["material.export.orca.warning.short"]"></i>
+                                <a href="/materials/@w.Id/suggest">@L["material.action.suggest"]</a>
                             }
-                            <button type="button" class="btn-close btn-close-sm ms-1" style="font-size:.6rem"
-                                    @onclick="() => Remove(m.Id)"></button>
-                        </span>
+                            else
+                            {
+                                <a href="/materials/@w.Id/edit">@L["material.orca.fix"]</a>
+                            }
+                        </li>
                     }
-                </div>
+                </ul>
+            </div>
+        }
 
-                <button class="btn btn-sm btn-outline-danger mb-3" @onclick="() => _selectedMaterials.Clear()">
-                    <i class="bi bi-x-lg me-1"></i>@L["common.clear"]
-                </button>
-            }
-
-            @{ var warnings = _selectedMaterials.Where(m => m.MinTempCelsius == 0 || m.MaxTempCelsius == 0).ToList(); }
-            @if (warnings.Count > 0)
-            {
-                <div class="alert alert-warning py-2">
-                    <i class="bi bi-exclamation-triangle me-1"></i>@L["material.export.orca.warning"]
-                    <ul class="mb-0 mt-1 small">
-                        @foreach (var w in warnings)
-                        {
-                            <li>
-                                @w.Brand @w.Type @(w.ColorName != null ? $"- {w.ColorName}" : "")
-                                @if (w.OfdVariantId != null)
-                                {
-                                    <a href="/materials/@w.Id/suggest" class="ms-1">@L["material.suggest"]</a>
-                                }
-                            </li>
-                        }
-                    </ul>
-                </div>
-            }
+        <div class="orca-actions">
+            <button type="button" class="btn btn-primary" @onclick="ExportSelectedAsync" disabled="@(_exporting || _selectedMaterials.Count == 0)">
+                @if (_exporting) { <span class="spinner-border spinner-border-sm" aria-hidden="true"></span> }
+                else { <i class="bi bi-download" aria-hidden="true"></i> }
+                @L.Format("material.orca.download", _selectedMaterials.Count)
+            </button>
+            <p class="small text-muted mb-0">@L["material.orca.format"]</p>
         </div>
-    </div>
 
-    <div class="d-flex gap-2">
-        <button class="btn btn-primary" @onclick="ExportSelectedAsync"
-                disabled="@(_exporting || _selectedMaterials.Count == 0)">
-            @if (_exporting) { <span class="spinner-border spinner-border-sm me-2"></span> }
-            <i class="bi bi-download me-1"></i>@L["material.export.orca.button"] (@_selectedMaterials.Count)
+        @if (_orcaError != null)
+        {
+            <div class="alert alert-danger mt-3 mb-0 py-2" role="alert">@_orcaError</div>
+        }
+        @if (_orcaSuccess)
+        {
+            <div class="alert alert-success mt-3 mb-0 py-2" role="status">
+                <i class="bi bi-check-circle" aria-hidden="true"></i> @L["material.export.orca.done"]
+            </div>
+        }
+
+        <details class="orca-help">
+            <summary>@L["material.orca.howto"]</summary>
+            <p class="small text-muted mb-0 mt-2">@L["material.export.orca.hint"]</p>
+        </details>
+
+        <hr />
+        <button type="button" class="btn btn-outline-secondary w-100" @onclick="ExportAllAsync" disabled="@_exporting">
+            <i class="bi bi-collection" aria-hidden="true"></i>@L["material.export.orca.all"]
         </button>
-
-        <button class="btn btn-outline-primary" @onclick="ExportAllAsync" disabled="@_exporting">
-            @if (_exporting) { <span class="spinner-border spinner-border-sm me-2"></span> }
-            <i class="bi bi-download me-1"></i>@L["material.export.orca.all"]
-        </button>
-    </div>
-
-    @if (_orcaError != null)
-    {
-        <div class="alert alert-danger mt-3 py-2">@_orcaError</div>
-    }
-
-    @if (_orcaSuccess)
-    {
-        <div class="alert alert-success mt-3 py-2">
-            <i class="bi bi-check-circle me-1"></i>@L["material.export.orca.done"]
-        </div>
-    }
+        <p class="small text-muted mt-2 mb-0">@L["material.orca.all.hint"]</p>
+    </aside>
+</div>
