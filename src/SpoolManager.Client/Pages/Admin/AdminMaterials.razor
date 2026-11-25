@@ -150,7 +150,7 @@ else
                                     <span class="sh-chip sh-chip-sm sh-chip-warn">@L["material.export.orca.warning.short"]</span>
                                 }
                             </td>
-                            <td class="d-none d-lg-table-cell text-nowrap">@m.DiameterMm.ToString("0.00") mm</td>
+                            <td class="d-none d-lg-table-cell text-nowrap">@m.DiameterMm.ToString("0.00")</td>
                             <td class="d-none d-lg-table-cell text-nowrap">@(m.PricePerKg.HasValue ? m.PricePerKg.Value.ToString("0.00") + " €/kg" : "–")</td>
                             <td class="d-none d-md-table-cell">@m.ReorderClickCount</td>
                             <td class="text-end">

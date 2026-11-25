@@ -257,7 +257,7 @@ else
                         <form class="as-test-row" @onsubmit="TestSmtpAsync" @onsubmit:preventDefault>
                             <label for="smtpTestEmail" class="visually-hidden">@L["admin.settings.smtp.test.email"]</label>
                             <input id="smtpTestEmail" class="form-control" type="email" @bind="_testEmail" placeholder="@L["admin.settings.smtp.test.email"]" />
-                            <button type="submit" class="btn btn-outline-secondary" disabled="@(_smtpTesting || string.IsNullOrWhiteSpace(_testEmail))" aria-busy="@(_smtpTesting ? "true" : "false")">
+                            <button type="submit" class="btn btn-outline-secondary" disabled="@_smtpTesting" aria-busy="@(_smtpTesting ? "true" : "false")">
                                 @if (_smtpTesting)
                                 {
                                     <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>

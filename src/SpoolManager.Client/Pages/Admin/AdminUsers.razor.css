@@ -35,3 +35,5 @@
 
 .au-card .au-actions { justify-content: flex-start; }
 .au-card .au-actions .btn { min-height: 44px; flex: 1 1 auto; }
+
+.table .au-actions { flex-wrap: nowrap; white-space: nowrap; }

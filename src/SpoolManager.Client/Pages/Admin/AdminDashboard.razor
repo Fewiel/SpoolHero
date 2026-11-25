@@ -114,14 +114,14 @@ else
         <section class="sh-card mb-4" aria-labelledby="ad-top">
             <h2 id="ad-top" class="sh-card-title">@L["admin.stats.top.clicked"]</h2>
             <p class="sh-card-sub mb-3">@L["admin.dashboard.top.hint"]</p>
-            @if (_stats.TopClickedMaterials.Count == 0)
+            @if (TopClicked.Count == 0)
             {
                 <p class="text-muted mb-0">@L["admin.dashboard.top.empty"]</p>
             }
             else
             {
                 <ol class="ad-top">
-                    @foreach (var m in _stats.TopClickedMaterials)
+                    @foreach (var m in TopClicked)
                     {
                         <li class="ad-top-row">
                             <SpoolRing ColorHex="@m.ColorHex" Percent="100" Size="40" />

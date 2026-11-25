@@ -29,6 +29,9 @@ public partial class AdminDashboard
     private int ActiveProjectShare =>
         _stats == null || _stats.TotalProjects == 0 ? 0 : (int)Math.Round(100.0 * _stats.ProjectsWithSpools / _stats.TotalProjects);
 
+    private List<MaterialClickDto> TopClicked =>
+        _stats?.TopClickedMaterials.Where(m => m.ClickCount > 0).ToList() ?? [];
+
     private int BarWidth(int clicks)
     {
         var max = _stats?.TopClickedMaterials.Max(m => m.ClickCount) ?? 0;
