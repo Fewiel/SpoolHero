@@ -1378,7 +1378,7 @@
   "landing.features.subtitle": "SpoolHero combines all essential features for professional filament management in one application.",
   "landing.feature.rfid.title": "RFID tracking (OpenSpool)",
   "landing.feature.rfid.desc": "Write filament data to NFC chips using the OpenSpool standard. Scan tags with your phone – the spool is recognized automatically.",
-  "landing.feature.materials.title": "Material Database",
+  "landing.feature.materials.title": "Material database",
   "landing.feature.materials.desc": "Manage materials with temperatures, colors, density, and reorder links. Global materials are available to all projects.",
   "landing.feature.projects.title": "Team projects",
   "landing.feature.projects.desc": "Create projects and invite team members. Granular roles (Admin, Manager, Member) and invitation codes make collaboration easy.",
