@@ -1,0 +1,85 @@
+.tk-page {
+    max-width: 960px;
+}
+
+.tk-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: .6rem;
+}
+
+.tk-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.1rem;
+    min-height: 64px;
+    background: var(--sh-surface);
+    border: 1px solid var(--sh-border);
+    border-radius: var(--sh-radius);
+    color: var(--sh-text);
+    text-decoration: none;
+}
+
+.tk-row:hover {
+    border-color: var(--sh-border-strong);
+    box-shadow: var(--sh-shadow);
+    color: var(--sh-text);
+}
+
+.tk-row.is-answered {
+    border-color: var(--sh-ok);
+}
+
+.tk-status-col {
+    flex: 0 0 140px;
+}
+
+.tk-main {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: .2rem;
+}
+
+.tk-subject {
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.tk-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .35rem;
+    color: var(--sh-muted);
+    font-size: .85rem;
+}
+
+.tk-hint {
+    color: var(--sh-ok-text);
+    font-size: .85rem;
+    font-weight: 600;
+}
+
+.tk-chevron { color: var(--sh-muted); }
+
+.tk-none {
+    padding: 1rem;
+    border-radius: var(--sh-radius);
+    background: var(--sh-surface-2);
+    color: var(--sh-muted);
+}
+
+@media (max-width: 575.98px) {
+    .tk-row {
+        flex-wrap: wrap;
+        gap: .5rem;
+    }
+
+    .tk-status-col { flex-basis: 100%; }
+    .tk-main { flex-basis: calc(100% - 2rem); }
+}

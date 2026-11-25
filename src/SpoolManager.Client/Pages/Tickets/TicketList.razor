@@ -2,106 +2,140 @@
 
 <PageTitle>@L["ticket.title"] – @L["app.name"]</PageTitle>
 
-<div class="row justify-content-center">
-<div class="col-12 col-lg-9 col-xl-8">
+<div class="tk-page">
+    <div class="page-header">
+        <div>
+            <h1>@L["ticket.your.tickets"]</h1>
+            <p class="page-subtitle">@L["ticket.list.subtitle"]</p>
+        </div>
+        @if (!_showForm && _tickets.Count > 0)
+        {
+            <div class="page-actions">
+                <button type="button" class="btn btn-primary" @onclick="OpenForm">
+                    <i class="bi bi-plus-lg" aria-hidden="true"></i>@L["ticket.new"]
+                </button>
+            </div>
+        }
+    </div>
 
-<div class="page-header">
-    <h1><i class="bi bi-headset me-2"></i>@L["ticket.your.tickets"]</h1>
-    @if (!_showForm)
+    @if (_created)
     {
-        <button class="btn btn-primary" @onclick="() => _showForm = true">
-            <i class="bi bi-plus-lg me-1"></i>@L["ticket.new"]
-        </button>
+        <div class="alert alert-success d-flex align-items-start gap-2" role="status">
+            <span class="flex-grow-1">@L["ticket.created.text"]</span>
+            <button type="button" class="btn-close" aria-label="@L["common.close"]" @onclick="() => _created = false"></button>
+        </div>
     }
-</div>
 
-@if (_showForm)
-{
-    <div class="card mb-4">
-        <div class="card-body">
+    @if (_showForm)
+    {
+        <section class="sh-card mb-4" aria-labelledby="tk-new-title">
+            <h2 class="sh-card-title" id="tk-new-title">@L["ticket.new"]</h2>
+            <p class="sh-card-sub mb-3">@L["ticket.new.hint"]</p>
             <EditForm Model="_form" OnValidSubmit="CreateAsync">
                 <DataAnnotationsValidator />
                 <div class="mb-3">
-                    <label class="form-label">@L["ticket.subject"]</label>
-                    <InputText class="form-control" @bind-Value="_form.Subject" placeholder="@L["ticket.subject"]" />
+                    <label class="form-label" for="tk-subject">@L["ticket.subject"]</label>
+                    <InputText id="tk-subject" class="form-control" @bind-Value="_form.Subject" placeholder="@L["ticket.subject.placeholder"]" maxlength="200" />
                     <ValidationMessage For="() => _form.Subject" class="text-danger small" />
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">@L["ticket.description"]</label>
-                    <InputTextArea class="form-control" rows="4" @bind-Value="_form.Description"
-                                   placeholder="@L["ticket.comment.placeholder"]" />
+                    <label class="form-label" for="tk-desc">@L["ticket.description"]</label>
+                    <InputTextArea id="tk-desc" class="form-control" rows="5" @bind-Value="_form.Description"
+                                   placeholder="@L["ticket.comment.placeholder"]" maxlength="5000" />
                     <ValidationMessage For="() => _form.Description" class="text-danger small" />
                 </div>
                 @if (_createError != null)
                 {
-                    <div class="alert alert-danger py-2">@_createError</div>
+                    <div class="alert alert-danger py-2" role="alert">@_createError</div>
                 }
-                <div class="d-flex gap-2 justify-content-end">
-                    <button type="button" class="btn btn-secondary" @onclick="() => _showForm = false">
-                        @L["common.cancel"]
-                    </button>
+                <div class="d-flex gap-2 justify-content-end flex-wrap">
+                    <button type="button" class="btn btn-outline-secondary" @onclick="() => _showForm = false">@L["common.cancel"]</button>
                     <button type="submit" class="btn btn-primary" disabled="@_creating">
-                        @if (_creating) { <span class="spinner-border spinner-border-sm me-1"></span> }
-                        @L["ticket.send"]
+                        @if (_creating) { <span class="spinner-border spinner-border-sm" aria-hidden="true"></span> }
+                        else { <i class="bi bi-send" aria-hidden="true"></i> }
+                        @L["ticket.submit"]
                     </button>
                 </div>
             </EditForm>
+        </section>
+    }
+
+    @if (_loading)
+    {
+        <div class="text-center py-5" role="status">
+            <div class="spinner-border text-primary" aria-hidden="true"></div>
+            <span class="visually-hidden">@L["common.loading"]</span>
         </div>
-    </div>
-}
+    }
+    else if (_loadError)
+    {
+        <div class="alert alert-danger" role="alert">@L["ticket.load.error"]</div>
+    }
+    else if (_tickets.Count == 0)
+    {
+        @if (!_showForm)
+        {
+            <div class="sh-empty">
+                <i class="bi bi-life-preserver" aria-hidden="true"></i>
+                <h2>@L["ticket.empty.title"]</h2>
+                <p>@L["ticket.empty.text"]</p>
+                <button type="button" class="btn btn-primary" @onclick="OpenForm">
+                    <i class="bi bi-plus-lg" aria-hidden="true"></i>@L["ticket.new"]
+                </button>
+            </div>
+        }
+    }
+    else
+    {
+        <div class="sh-toolbar">
+            <div class="sh-segmented" role="group" aria-label="@L["ticket.filter.label"]">
+                <button type="button" aria-pressed="@(_filter == "active" ? "true" : "false")" @onclick='() => _filter = "active"'>@L["ticket.filter.active"] (@_tickets.Count(t => t.Status != "closed"))</button>
+                <button type="button" aria-pressed="@(_filter == "closed" ? "true" : "false")" @onclick='() => _filter = "closed"'>@L["ticket.status.closed"] (@_tickets.Count(t => t.Status == "closed"))</button>
+                <button type="button" aria-pressed="@(_filter == "all" ? "true" : "false")" @onclick='() => _filter = "all"'>@L["ticket.filter.all"]</button>
+            </div>
+        </div>
 
-@if (_loading)
-{
-    <div class="text-center py-5"><div class="spinner-border"></div></div>
-}
-else if (_tickets.Count == 0)
-{
-    <div class="text-center py-5 text-muted">
-        <i class="bi bi-headset fs-1"></i>
-        <p class="mt-2">@L["ticket.none"]</p>
-    </div>
-}
-else
-{
-    <div class="table-responsive-card">
-        <table class="table table-hover mb-0">
-            <thead>
-                <tr>
-                    <th>@L["ticket.subject"]</th>
-                    <th>@L["ticket.status"]</th>
-                    <th class="d-none d-md-table-cell">@L["ticket.assigned.to"]</th>
-                    <th class="d-none d-md-table-cell">@L["common.created"]</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var t in _tickets)
+        @if (Filtered.Count == 0)
+        {
+            <p class="tk-none">@L["ticket.none"]</p>
+        }
+        else
+        {
+            <ul class="tk-list">
+                @foreach (var t in Filtered)
                 {
-                    <tr style="cursor:pointer" @onclick='() => Nav.NavigateTo($"/tickets/{t.Id}")'>
-                        <td>
-                            @t.Subject
-                            @if (t.CommentCount > 0)
-                            {
-                                <span class="badge bg-light text-dark ms-1">
-                                    <i class="bi bi-chat me-1"></i>@t.CommentCount
+                    <li>
+                        <a class="tk-row @(t.Status == "answered" ? "is-answered" : "")" href="/tickets/@t.Id">
+                            <span class="tk-status-col">
+                                <span class="sh-chip sh-chip-sm @TicketStatus.ChipClass(t.Status)">
+                                    <i class="bi @TicketStatus.Icon(t.Status)" aria-hidden="true"></i>@TicketStatus.Label(L, t.Status)
                                 </span>
-                            }
-                        </td>
-                        <td>
-                            <span class="badge @StatusBadgeClass(t.Status)">@StatusLabel(t.Status)</span>
-                        </td>
-                        <td class="d-none d-md-table-cell">
-                            <small>@(t.AssignedToUsername ?? L["ticket.unassigned"])</small>
-                        </td>
-                        <td class="d-none d-md-table-cell">
-                            <small>@t.CreatedAt.ToString("dd.MM.yyyy")</small>
-                        </td>
-                    </tr>
+                            </span>
+                            <span class="tk-main">
+                                <span class="tk-subject">@t.Subject</span>
+                                <span class="tk-meta">
+                                    @L.Format("ticket.meta.created", TicketStatus.FormatDate(t.CreatedAt))
+                                    @if (t.CommentCount > 0)
+                                    {
+                                        <span aria-hidden="true">·</span>
+                                        <span><i class="bi bi-chat" aria-hidden="true"></i> @(t.CommentCount == 1 ? L["ticket.replies.one"] : L.Format("ticket.replies.count", t.CommentCount))</span>
+                                    }
+                                    @if (t.AssignedToUsername != null)
+                                    {
+                                        <span aria-hidden="true">·</span>
+                                        <span>@L["ticket.assigned.to"]: @t.AssignedToUsername</span>
+                                    }
+                                </span>
+                                @if (t.Status == "answered")
+                                {
+                                    <span class="tk-hint">@L["ticket.answered.hint"]</span>
+                                }
+                            </span>
+                            <i class="bi bi-chevron-right tk-chevron" aria-hidden="true"></i>
+                        </a>
+                    </li>
                 }
-            </tbody>
-        </table>
-    </div>
-}
-
+            </ul>
+        }
+    }
 </div>
-</div>
-
