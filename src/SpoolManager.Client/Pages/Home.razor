@@ -150,7 +150,7 @@ else
                                     <h2 class="dash-attention-title">
                                         @if (item.Spool != null && item.Count == 1)
                                         {
-                                            @($"{item.Spool.MaterialBrand} {SpoolUi.Title(item.Spool)}")
+                                            @SpoolUi.FullTitle(item.Spool)
                                         }
                                         else
                                         {

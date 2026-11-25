@@ -428,7 +428,7 @@ else
                 <div class="d-flex align-items-center gap-3 my-3">
                     <SpoolRing ColorHex="@s.MaterialColorHex" Percent="s.RemainingPercent" Size="48" />
                     <div>
-                        <div class="fw-semibold">@s.MaterialBrand @SpoolUi.Title(s)</div>
+                        <div class="fw-semibold">@SpoolUi.FullTitle(s)</div>
                         <div class="small text-muted">@SpoolUi.Grams(s.RemainingWeightGrams) · #@SpoolUi.ShortId(s)</div>
                     </div>
                 </div>

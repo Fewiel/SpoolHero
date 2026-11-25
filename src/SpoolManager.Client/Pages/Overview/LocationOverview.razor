@@ -18,7 +18,7 @@
 
 @{
     RenderFragment<SpoolDto> ringLink = s =>
-        @<a href="/spools/@s.Id" class="ov-spool @(SpoolUi.IsLow(s) ? "ov-low" : "")" title="@($"{s.MaterialBrand} {SpoolUi.Title(s)} · {SpoolUi.Grams(s.RemainingWeightGrams)}")">
+        @<a href="/spools/@s.Id" class="ov-spool @(SpoolUi.IsLow(s) ? "ov-low" : "")" title="@($"{SpoolUi.FullTitle(s)} · {SpoolUi.Grams(s.RemainingWeightGrams)}")">
             <SpoolRing ColorHex="@s.MaterialColorHex" Percent="s.RemainingPercent" Size="60"
                        AriaLabel="@L.Format("spool.ring.label", SpoolUi.Title(s), SpoolUi.Percent(s.RemainingPercent))">
                 <span>@((int)Math.Round(s.RemainingPercent))<small>%</small></span>

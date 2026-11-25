@@ -22,6 +22,10 @@ public static class SpoolUi
     public static string Title(SpoolDto s) =>
         string.IsNullOrWhiteSpace(s.MaterialColorName) ? $"{s.MaterialBrand} {s.MaterialType}".Trim() : $"{s.MaterialType} {s.MaterialColorName}";
 
+    /// <summary>Full name incl. brand without repeating it, e.g. "Prusament PLA Galaxy Black" or "Prusament PLA".</summary>
+    public static string FullTitle(SpoolDto s) =>
+        string.IsNullOrWhiteSpace(s.MaterialColorName) ? Title(s) : $"{s.MaterialBrand} {Title(s)}".Trim();
+
     /// <summary>Colour name or hex value.</summary>
     public static string ColorLabel(SpoolDto s) =>
         string.IsNullOrWhiteSpace(s.MaterialColorName) ? "#" + s.MaterialColorHex : s.MaterialColorName!;

@@ -303,7 +303,7 @@ else
             <div class="d-flex align-items-center gap-3 my-3">
                 <SpoolRing ColorHex="@_deleteTarget.MaterialColorHex" Percent="_deleteTarget.RemainingPercent" Size="48" />
                 <div>
-                    <div class="fw-semibold">@_deleteTarget.MaterialBrand @SpoolUi.Title(_deleteTarget)</div>
+                    <div class="fw-semibold">@SpoolUi.FullTitle(_deleteTarget)</div>
                     <div class="small text-muted">@SpoolUi.Grams(_deleteTarget.RemainingWeightGrams) · #@SpoolUi.ShortId(_deleteTarget)</div>
                 </div>
             </div>
@@ -330,7 +330,7 @@ else
             <div class="d-flex align-items-start justify-content-between gap-2">
                 <div>
                     <h5 id="json-title" class="mb-1">@L["tag.show.json"]</h5>
-                    <p class="small text-muted mb-0">@_jsonTarget.MaterialBrand @SpoolUi.Title(_jsonTarget) · #@SpoolUi.ShortId(_jsonTarget)</p>
+                    <p class="small text-muted mb-0">@SpoolUi.FullTitle(_jsonTarget) · #@SpoolUi.ShortId(_jsonTarget)</p>
                 </div>
                 <button type="button" class="btn-close" aria-label="@L["common.close"]" @onclick="CloseJson"></button>
             </div>
