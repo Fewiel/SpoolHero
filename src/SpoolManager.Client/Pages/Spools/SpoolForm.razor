@@ -4,198 +4,261 @@
 <PageTitle>@(Id.HasValue ? L["spool.edit"] : L["spool.add"]) – @L["app.name"]</PageTitle>
 
 <div class="page-header">
-    <h1><i class="bi bi-archive me-2"></i>@(Id.HasValue ? L["spool.edit"] : L["spool.add"])</h1>
+    <div>
+        <h1>@(Id.HasValue ? L["spool.edit"] : L["spool.add"])</h1>
+        <p class="page-subtitle">@(Id.HasValue ? L["spool.form.edit.subtitle"] : L["spool.form.new.subtitle"])</p>
+    </div>
+    <div class="page-actions">
+        <a class="btn btn-outline-secondary" href="@CancelUrl"><i class="bi bi-arrow-left" aria-hidden="true"></i>@L["common.back"]</a>
+    </div>
 </div>
 
-@if (_loading) { <div class="text-center py-5"><div class="spinner-border"></div></div> }
+@if (_loading)
+{
+    <div class="text-center py-5"><div class="spinner-border" role="status"><span class="visually-hidden">@L["common.loading"]</span></div></div>
+}
+else if (_notFound)
+{
+    <div class="sh-empty">
+        <i class="bi bi-question-circle" aria-hidden="true"></i>
+        <h2>@L["spool.notfound.title"]</h2>
+        <p>@L["spool.notfound.text"]</p>
+        <a class="btn btn-primary mt-2" href="/spools"><i class="bi bi-arrow-left" aria-hidden="true"></i>@L["spool.back.to.list"]</a>
+    </div>
+}
 else
 {
-    <div class="row justify-content-center">
-        <div class="col-12 col-lg-8">
+    <div class="spool-form">
+        @if (!Id.HasValue)
+        {
+            <section class="sh-card form-import" aria-labelledby="import-title">
+                <div class="form-import-icon" aria-hidden="true"><i class="bi bi-broadcast"></i></div>
+                <div class="flex-grow-1 min-w-0">
+                    <h2 class="sh-card-title" id="import-title">@L["spool.nfc.import.title"]</h2>
+                    <p class="sh-card-sub">@(_nfcAvailable ? L["spool.nfc.import.hint"] : L["spool.import.file.hint"])</p>
+                    @if (_nfcImportError != null)
+                    {
+                        <div class="alert alert-warning py-2 mt-2 mb-0" role="alert">@_nfcImportError</div>
+                    }
+                    @if (_nfcImportSuccess)
+                    {
+                        <div class="alert alert-success py-2 mt-2 mb-0" role="status"><i class="bi bi-check-circle" aria-hidden="true"></i> @L["spool.nfc.import.done"]</div>
+                    }
+                </div>
+                <div class="form-import-actions">
+                    @if (_nfcAvailable && _nfcReading)
+                    {
+                        <span class="d-inline-flex align-items-center gap-2 text-muted small" role="status">
+                            <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>@L["spool.nfc.scanning"]
+                        </span>
+                        <button type="button" class="btn btn-outline-secondary" @onclick="StopNfcScanAsync">@L["common.cancel"]</button>
+                    }
+                    else if (_nfcAvailable)
+                    {
+                        <button type="button" class="btn btn-outline-secondary" @onclick="StartNfcScanAsync"><i class="bi bi-phone" aria-hidden="true"></i>@L["spool.nfc.import.scan"]</button>
+                    }
+                    <label class="btn btn-outline-secondary mb-0">
+                        <i class="bi bi-file-earmark-arrow-up" aria-hidden="true"></i>@L["spool.import.file"]
+                        <InputFile class="visually-hidden" accept=".bin,.json" OnChange="ImportFileAsync" />
+                    </label>
+                </div>
+            </section>
+        }
 
-            @if (!Id.HasValue)
+        @if (_error != null)
+        {
+            <div class="alert alert-danger" role="alert"><i class="bi bi-exclamation-circle" aria-hidden="true"></i> @_error</div>
+        }
+
+        <section class="sh-card" aria-labelledby="sec-material">
+            <h2 class="sh-card-title" id="sec-material"><span class="form-step" aria-hidden="true">1</span>@L["spool.form.section.material"]</h2>
+            <p class="sh-card-sub mb-3">@L["spool.form.section.material.hint"]</p>
+            <label class="form-label" id="material-label">@L["spool.material"] <span class="text-danger" aria-hidden="true">*</span></label>
+            <MaterialPicker Value="_form.FilamentMaterialId == Guid.Empty ? null : _form.FilamentMaterialId"
+                            OnSelected="OnMaterialPicked" AriaLabelledBy="material-label" Invalid="@(_submitted && MaterialInvalid)" />
+            @if (_submitted && MaterialInvalid)
             {
-                <div class="card mb-3 border-info">
-                    <div class="card-body py-2">
-                        <div class="d-flex align-items-center gap-3 flex-wrap">
-                            <div class="flex-grow-1">
-                                <strong><i class="bi bi-broadcast me-1 text-info"></i>@L["spool.nfc.import.title"]</strong>
-                                <div class="text-muted small">@(_nfcAvailable ? L["spool.nfc.import.hint"] : L["spool.import.file.hint"])</div>
-                            </div>
-                            <label class="btn btn-outline-secondary btn-sm mb-0" title="@L["spool.import.file.hint"]">
-                                <i class="bi bi-file-earmark-arrow-up me-1"></i>@L["spool.import.file"]
-                                <InputFile class="d-none" accept=".bin,.json" OnChange="ImportFileAsync" />
-                            </label>
-                            @if (_nfcAvailable && _nfcReading)
-                            {
-                                <div class="d-flex align-items-center gap-2">
-                                    <div class="spinner-border spinner-border-sm text-info"></div>
-                                    <span class="text-muted small">@L["spool.nfc.scanning"]</span>
-                                    <button class="btn btn-sm btn-outline-secondary" @onclick="StopNfcScanAsync">@L["common.cancel"]</button>
-                                </div>
-                            }
-                            else if (_nfcAvailable)
-                            {
-                                <button class="btn btn-outline-info btn-sm" @onclick="StartNfcScanAsync">
-                                    <i class="bi bi-phone me-1"></i>@L["spool.nfc.import.scan"]
-                                </button>
-                            }
-                        </div>
-                        @if (_nfcImportError != null)
-                        {
-                            <div class="alert alert-warning py-1 mt-2 mb-0 small">@_nfcImportError</div>
-                        }
-                        @if (_nfcImportSuccess)
-                        {
-                            <div class="alert alert-success py-1 mt-2 mb-0 small">
-                                <i class="bi bi-check-circle me-1"></i>@L["spool.nfc.import.done"]
-                            </div>
-                        }
-                    </div>
+                <div class="invalid-feedback d-block">@L["spool.material.required"]</div>
+            }
+            @if (_selectedMaterial != null)
+            {
+                <div class="d-flex flex-wrap gap-2 mt-3">
+                    @if (_selectedMaterial.WeightGrams is > 0)
+                    {
+                        <span class="sh-chip sh-chip-sm">@L.Format("spool.chip.nominal", $"{_selectedMaterial.WeightGrams} g")</span>
+                    }
+                    @if (_selectedMaterial.SpoolWeightGrams is > 0)
+                    {
+                        <span class="sh-chip sh-chip-sm">@L["spool.weigh.tare"]: @_selectedMaterial.SpoolWeightGrams g</span>
+                    }
+                    <span class="sh-chip sh-chip-sm">@_selectedMaterial.DiameterMm.ToString("0.##") mm</span>
+                    @if (_selectedMaterial.MinTempCelsius > 0 || _selectedMaterial.MaxTempCelsius > 0)
+                    {
+                        <span class="sh-chip sh-chip-sm">@L.Format("spool.chip.nozzle", $"{_selectedMaterial.MinTempCelsius}–{_selectedMaterial.MaxTempCelsius}")</span>
+                    }
                 </div>
             }
+        </section>
 
-            <div class="card">
-                <div class="card-body">
-                    @if (_error != null) { <div class="alert alert-danger">@_error</div> }
+        <section class="sh-card" aria-labelledby="sec-amount">
+            <h2 class="sh-card-title" id="sec-amount"><span class="form-step" aria-hidden="true">2</span>@L["spool.form.section.amount"]</h2>
+            <p class="sh-card-sub mb-3">@L["spool.weigh.hint"]</p>
 
-                    <div class="mb-3">
-                        <label class="form-label">@L["spool.material"] *</label>
-                        <MaterialPicker Value="_form.FilamentMaterialId == Guid.Empty ? null : _form.FilamentMaterialId"
-                                        OnSelected="OnMaterialPicked" />
+            <div class="form-weigh">
+                <div>
+                    <label class="form-label" for="f-gross">@L["spool.weigh.gross"]</label>
+                    <div class="input-group">
+                        <input id="f-gross" class="form-control" type="number" inputmode="decimal" step="0.1" min="0"
+                               @bind:get="_grossWeight" @bind:set="SetGrossWeight" @bind:event="oninput" />
+                        <span class="input-group-text">g</span>
                     </div>
-
-                    <div class="card bg-body-tertiary border-0 mb-3">
-                        <div class="card-body py-2">
-                            <div class="small fw-semibold mb-2"><i class="bi bi-speedometer me-1"></i>@L["spool.weigh.title"]</div>
-                            <div class="row g-2 align-items-end">
-                                <div class="col-6 col-md-4">
-                                    <label class="form-label small mb-1">@L["spool.weigh.gross"]</label>
-                                    <div class="input-group input-group-sm">
-                                        <input class="form-control" type="number" step="0.1" min="0"
-                                               @bind:get="_grossWeight" @bind:set="SetGrossWeight" @bind:event="oninput" />
-                                        <span class="input-group-text">g</span>
-                                    </div>
-                                </div>
-                                <div class="col-6 col-md-4">
-                                    <label class="form-label small mb-1">@L["spool.weigh.tare"]</label>
-                                    <div class="input-group input-group-sm">
-                                        <input class="form-control" type="number" step="0.1" min="0"
-                                               placeholder="@(_selectedMaterial?.SpoolWeightGrams?.ToString() ?? "")"
-                                               @bind:get="_form.EmptySpoolWeightGrams" @bind:set="SetTare" @bind:event="oninput" />
-                                        <span class="input-group-text">g</span>
-                                    </div>
-                                </div>
-                                <div class="col-12 col-md-4">
-                                    <div class="form-text mt-0">@L["spool.weigh.hint"]</div>
-                                </div>
-                            </div>
-                            @if (_grossWeight.HasValue && EffectiveTare == null)
-                            {
-                                <div class="text-warning small mt-1"><i class="bi bi-exclamation-triangle me-1"></i>@L["spool.weigh.tare.missing"]</div>
-                            }
-                        </div>
+                </div>
+                <span class="form-weigh-op" aria-hidden="true">−</span>
+                <div>
+                    <label class="form-label" for="f-tare">@L["spool.weigh.tare"]</label>
+                    <div class="input-group">
+                        <input id="f-tare" class="form-control" type="number" inputmode="decimal" step="0.1" min="0"
+                               placeholder="@(_selectedMaterial?.SpoolWeightGrams?.ToString() ?? "")"
+                               @bind:get="_form.EmptySpoolWeightGrams" @bind:set="SetTare" @bind:event="oninput" />
+                        <span class="input-group-text">g</span>
                     </div>
-
-                    <div class="row g-3 mb-3">
-                        <div class="col-6">
-                            <label class="form-label">@L["spool.remaining.grams"] *</label>
-                            <input class="form-control" type="number" step="0.1" min="0"
-                                @bind:get="_form.RemainingWeightGrams"
-                                @bind:set="SetWeight"
-                                @bind:event="oninput" />
-                        </div>
-                        <div class="col-6">
-                            <label class="form-label">@L["spool.remaining.percent"] *</label>
-                            <input class="form-control" type="number" step="0.1" min="0" max="100"
-                                @bind:get="_form.RemainingPercent"
-                                @bind:set="SetPercent"
-                                @bind:event="oninput" />
-                        </div>
-                    </div>
-
-                    <h6 class="mb-2 mt-3">@L["spool.location"]</h6>
-                    <div class="row g-3 mb-3">
-                        <div class="col-12 col-md-4">
-                            <label class="form-label">@L["spool.printer"] @L["common.optional"]</label>
-                            <select class="form-select" value="@(_form.PrinterId?.ToString() ?? "")"
-                                    @onchange='e => OnLocationChange("printer", e.Value?.ToString())'>
-                                <option value="">@L["spool.no.printer"]</option>
-                                @foreach (var p in _printers)
-                                {
-                                    <option value="@p.Id">@p.Name</option>
-                                }
-                            </select>
-                        </div>
-                        <div class="col-12 col-md-4">
-                            <label class="form-label">@L["spool.storage"] @L["common.optional"]</label>
-                            <select class="form-select" value="@(_form.StorageLocationId?.ToString() ?? "")"
-                                    @onchange='e => OnLocationChange("storage", e.Value?.ToString())'>
-                                <option value="">@L["spool.no.storage"]</option>
-                                @foreach (var s in _storages)
-                                {
-                                    <option value="@s.Id">@s.Name</option>
-                                }
-                            </select>
-                        </div>
-                        <div class="col-12 col-md-4">
-                            <label class="form-label">@L["spool.dryer"] @L["common.optional"]</label>
-                            <select class="form-select" value="@(_form.DryerId?.ToString() ?? "")"
-                                    @onchange='e => OnLocationChange("dryer", e.Value?.ToString())'>
-                                <option value="">@L["spool.no.dryer"]</option>
-                                @foreach (var d in _dryerList)
-                                {
-                                    <option value="@d.Id">@d.Name</option>
-                                }
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="row g-3 mb-3">
-                        <div class="col-12 col-md-6">
-                            <label class="form-label">@L["spool.purchased"] @L["common.optional"]</label>
-                            <input class="form-control" type="date" @bind="_form.PurchasedAt" />
-                        </div>
-                        <div class="col-12 col-md-6">
-                            <label class="form-label">@L["spool.price"] @L["common.optional"]</label>
-                            <input class="form-control" type="number" step="0.01" min="0" @bind="_form.PurchasePrice" />
-                        </div>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">@L["spool.rfid"] @L["common.optional"]</label>
-                        <input class="form-control font-monospace" @bind="_form.RfidTagUid" />
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">@L["spool.reorder"] @L["common.optional"]</label>
-                        <input class="form-control" type="url" @bind="_form.ReorderUrl" />
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">@L["spool.owner"] @L["common.optional"]</label>
-                        <input class="form-control" list="spool-owner-list" maxlength="100" @bind="_form.OwnerName"
-                               placeholder="@L["spool.owner.placeholder"]" />
-                        <datalist id="spool-owner-list">
-                            @foreach (var o in _owners)
-                            {
-                                <option value="@o"></option>
-                            }
-                        </datalist>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">@L["spool.notes"] @L["common.optional"]</label>
-                        <textarea class="form-control" rows="3" @bind="_form.Notes"></textarea>
-                    </div>
-
-                    <div class="d-flex gap-2">
-                        <button class="btn btn-primary" @onclick="SaveAsync" disabled="@_saving">
-                            @if (_saving) { <span class="spinner-border spinner-border-sm me-2"></span> }
-                            @L["common.save"]
-                        </button>
-                        <a href="/spools" class="btn btn-secondary">@L["common.cancel"]</a>
+                </div>
+                <span class="form-weigh-op" aria-hidden="true">=</span>
+                <div>
+                    <label class="form-label" for="f-grams">@L["spool.remaining.grams"] <span class="text-danger" aria-hidden="true">*</span></label>
+                    <div class="input-group has-validation">
+                        <input id="f-grams" class="form-control form-weigh-result @Invalid(GramsInvalid)" type="number" inputmode="decimal" step="0.1" min="0"
+                               @bind:get="_form.RemainingWeightGrams" @bind:set="SetWeight" @bind:event="oninput" />
+                        <span class="input-group-text">g</span>
+                        <div class="invalid-feedback">@L["spool.validation.grams"]</div>
                     </div>
                 </div>
             </div>
+            @if (_grossWeight.HasValue && EffectiveTare == null)
+            {
+                <div class="alert alert-warning py-2 mt-3 mb-0" role="alert"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i> @L["spool.weigh.tare.missing"]</div>
+            }
+            <div class="row g-3 mt-1">
+                <div class="col-12 col-sm-6">
+                    <label class="form-label" for="f-pct">@L["spool.remaining.percent"] <span class="text-danger" aria-hidden="true">*</span></label>
+                    <div class="input-group has-validation">
+                        <input id="f-pct" class="form-control @Invalid(PercentInvalid)" type="number" inputmode="decimal" step="0.1" min="0" max="100"
+                               @bind:get="_form.RemainingPercent" @bind:set="SetPercent" @bind:event="oninput" />
+                        <span class="input-group-text">%</span>
+                        <div class="invalid-feedback">@L["spool.validation.percent"]</div>
+                    </div>
+                </div>
+                <div class="col-12 col-sm-6 d-flex align-items-end">
+                    <div class="d-flex align-items-center gap-3">
+                        <SpoolRing ColorHex="@_selectedMaterial?.ColorHex" Percent="_form.RemainingPercent" Size="56">
+                            <span>@((int)Math.Round(Math.Clamp(_form.RemainingPercent, 0, 100)))<small>%</small></span>
+                        </SpoolRing>
+                        <span class="small text-muted">@L["spool.form.preview"]</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="sh-card" aria-labelledby="sec-location">
+            <h2 class="sh-card-title" id="sec-location"><span class="form-step" aria-hidden="true">3</span>@L["spool.where.title"]</h2>
+            <p class="sh-card-sub mb-3">@L["spool.form.section.location.hint"]</p>
+            @{ var current = CurrentLocationKey; }
+            <div role="radiogroup" aria-labelledby="sec-location" class="form-where">
+                <input type="radio" class="btn-check" name="f-location" id="f-loc-none" checked="@(current == "none")" @onchange='() => SetLocation("none")' />
+                <label class="form-where-option" for="f-loc-none">
+                    <i class="bi bi-question-circle" aria-hidden="true"></i><span class="form-where-name">@L["spool.form.location.none"]</span>
+                </label>
+                @foreach (var p in _printers)
+                {
+                    var key = "p:" + p.Id;
+                    <input type="radio" class="btn-check" name="f-location" id="f-loc-@key" checked="@(current == key)" @onchange="() => SetLocation(key)" />
+                    <label class="form-where-option" for="f-loc-@key">
+                        <i class="bi bi-printer" aria-hidden="true"></i><span class="form-where-kind">@L["spool.printer"]</span><span class="form-where-name">@p.Name</span>
+                    </label>
+                }
+                @foreach (var st in _storages)
+                {
+                    var key = "s:" + st.Id;
+                    <input type="radio" class="btn-check" name="f-location" id="f-loc-@key" checked="@(current == key)" @onchange="() => SetLocation(key)" />
+                    <label class="form-where-option" for="f-loc-@key">
+                        <i class="bi bi-box-seam" aria-hidden="true"></i><span class="form-where-kind">@L["spool.storage"]</span><span class="form-where-name">@st.Name</span>
+                    </label>
+                }
+                @foreach (var d in _dryerList)
+                {
+                    var key = "d:" + d.Id;
+                    <input type="radio" class="btn-check" name="f-location" id="f-loc-@key" checked="@(current == key)" @onchange="() => SetLocation(key)" />
+                    <label class="form-where-option" for="f-loc-@key">
+                        <i class="bi bi-thermometer-half" aria-hidden="true"></i><span class="form-where-kind">@L["spool.dryer"]</span><span class="form-where-name">@d.Name</span>
+                    </label>
+                }
+            </div>
+            @if (_printers.Count + _storages.Count + _dryerList.Count == 0)
+            {
+                <p class="small text-muted mt-2 mb-0">@L["spool.form.location.empty"] <a href="/overview">@L["dashboard.active.locations"]</a></p>
+            }
+        </section>
+
+        <section class="sh-card" aria-labelledby="sec-owner">
+            <h2 class="sh-card-title" id="sec-owner"><span class="form-step" aria-hidden="true">4</span>@L["spool.form.section.purchase"]</h2>
+            <p class="sh-card-sub mb-3">@L["spool.form.section.purchase.hint"]</p>
+            <div class="row g-3">
+                <div class="col-12 col-md-6">
+                    <label class="form-label" for="f-owner">@L["spool.owner"] <span class="text-muted fw-normal">@L["common.optional"]</span></label>
+                    <input id="f-owner" class="form-control" list="spool-owner-list" maxlength="100" @bind="_form.OwnerName"
+                           placeholder="@L["spool.owner.placeholder"]" />
+                    <datalist id="spool-owner-list">
+                        @foreach (var o in _owners)
+                        {
+                            <option value="@o"></option>
+                        }
+                    </datalist>
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label" for="f-purchased">@L["spool.purchased"]</label>
+                    <input id="f-purchased" class="form-control" type="date" @bind="_form.PurchasedAt" />
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label" for="f-price">@L["spool.price"]</label>
+                    <input id="f-price" class="form-control @Invalid(PriceInvalid)" type="number" inputmode="decimal" step="0.01" min="0" @bind="_form.PurchasePrice" />
+                    <div class="invalid-feedback">@L["spool.validation.price"]</div>
+                </div>
+                <div class="col-12">
+                    <label class="form-label" for="f-reorder">@L["spool.reorder"] <span class="text-muted fw-normal">@L["common.optional"]</span></label>
+                    <input id="f-reorder" class="form-control @Invalid(ReorderInvalid)" type="url" inputmode="url" placeholder="https://…" @bind="_form.ReorderUrl" />
+                    <div class="invalid-feedback">@L["spool.validation.url"]</div>
+                    <div class="form-text">@L["spool.form.reorder.hint"]</div>
+                </div>
+            </div>
+        </section>
+
+        <section class="sh-card" aria-labelledby="sec-notes">
+            <h2 class="sh-card-title" id="sec-notes"><span class="form-step" aria-hidden="true">5</span>@L["spool.form.section.notes"]</h2>
+            <p class="sh-card-sub mb-3">@L["spool.form.section.notes.hint"]</p>
+            <div class="row g-3">
+                <div class="col-12 col-md-6">
+                    <label class="form-label" for="f-rfid">@L["spool.rfid"] <span class="text-muted fw-normal">@L["common.optional"]</span></label>
+                    <input id="f-rfid" class="form-control font-monospace" @bind="_form.RfidTagUid" autocomplete="off" />
+                    <div class="form-text">@L["spool.form.rfid.hint"]</div>
+                </div>
+                <div class="col-12">
+                    <label class="form-label" for="f-notes">@L["spool.notes"] <span class="text-muted fw-normal">@L["common.optional"]</span></label>
+                    <textarea id="f-notes" class="form-control" rows="3" @bind="_form.Notes"></textarea>
+                </div>
+            </div>
+        </section>
+
+        <div class="form-footer">
+            @if (_error != null)
+            {
+                <span class="text-danger small me-auto">@_error</span>
+            }
+            <a href="@CancelUrl" class="btn btn-outline-secondary">@L["common.cancel"]</a>
+            <button type="button" class="btn btn-primary" @onclick="SaveAsync" disabled="@_saving">
+                @if (_saving) { <span class="spinner-border spinner-border-sm" aria-hidden="true"></span> }
+                else { <i class="bi bi-check-lg" aria-hidden="true"></i> }
+                @(Id.HasValue ? L["spool.form.save.changes"] : L["spool.form.create"])
+            </button>
         </div>
     </div>
 }
-

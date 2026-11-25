@@ -1,6 +1,5 @@
-@if (!string.IsNullOrEmpty(ColorHex))
+@if (!string.IsNullOrEmpty(ColorCss))
 {
-    <span class="color-swatch d-inline-block rounded border me-1"
-          style="background-color: #@ColorHex; width: 1.2em; height: 1.2em; vertical-align: middle;"
-          title="@("#" + ColorHex)"></span>
+    <span class="sh-color-swatch @Class" style="background:@ColorCss" title="@(Label ?? "#" + Hex)"
+          role="@(Label != null ? "img" : null)" aria-label="@Label" aria-hidden="@(Label == null ? "true" : null)"></span>
 }

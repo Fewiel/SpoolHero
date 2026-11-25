@@ -1,5 +1,6 @@
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
 using SpoolManager.Client.Services;
 using SpoolManager.Shared.DTOs.Materials;
@@ -18,6 +19,12 @@ public partial class MaterialPicker : IDisposable
     [Parameter] public EventCallback<Guid?> ValueChanged { get; set; }
     [Parameter] public EventCallback<FilamentMaterialDto?> OnSelected { get; set; }
 
+    /// <summary>Id of the visible label element (for screen readers).</summary>
+    [Parameter] public string? AriaLabelledBy { get; set; }
+
+    /// <summary>Shows the picker in the invalid (red) state.</summary>
+    [Parameter] public bool Invalid { get; set; }
+
     private bool _open;
     private bool _searching;
     private string _query = string.Empty;
@@ -35,6 +42,29 @@ public partial class MaterialPicker : IDisposable
             _selectedMaterial = await MaterialSvc.GetByIdAsync(Value.Value);
         else if (!Value.HasValue)
             _selectedMaterial = null;
+    }
+
+    private async Task Toggle()
+    {
+        if (_open)
+        {
+            await CloseAsync();
+            return;
+        }
+        await Open();
+    }
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape" && _open)
+            await CloseAsync();
+    }
+
+    private async Task CloseAsync()
+    {
+        _open = false;
+        _debounce?.Stop();
+        try { await JS.InvokeVoidAsync("materialPickerOutside.unregister"); } catch (JSException) { }
     }
 
     private async Task Open()
