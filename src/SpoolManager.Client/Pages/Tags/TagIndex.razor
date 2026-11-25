@@ -1,33 +1,62 @@
 @page "/tags"
-@inject LocalizationService L
 
 <PageTitle>@L["tag.title"] – @L["app.name"]</PageTitle>
 
 <div class="page-header">
-    <h1><i class="bi bi-upc me-2"></i>@L["tag.title"]</h1>
+    <div>
+        <h1>@L["tag.title"]</h1>
+        <p class="page-subtitle">@L["tag.index.subtitle"]</p>
+    </div>
+    @if (_nfcSupported.HasValue)
+    {
+        <span class="sh-chip @(_nfcSupported.Value ? "sh-chip-ok" : "sh-chip-warn")" role="status">
+            <i class="bi @(_nfcSupported.Value ? "bi-check-circle" : "bi-phone")" aria-hidden="true"></i>
+            @(_nfcSupported.Value ? L["tag.index.nfc.yes"] : L["tag.index.nfc.no"])
+        </span>
+    }
 </div>
 
-<div class="row g-4">
-    <div class="col-12 col-md-6">
-        <a href="/tags/write" class="text-decoration-none">
-            <div class="card h-100 tag-actions">
-                <div class="card-body text-center py-5">
-                    <i class="bi bi-broadcast fs-1 text-primary mb-3 d-block"></i>
-                    <h5>@L["tag.write"]</h5>
-                    <p class="text-muted">@L["tag.nfc.write"] / @L["tag.download.bin"]</p>
-                </div>
-            </div>
-        </a>
-    </div>
-    <div class="col-12 col-md-6">
-        <a href="/tags/read" class="text-decoration-none">
-            <div class="card h-100 tag-actions">
-                <div class="card-body text-center py-5">
-                    <i class="bi bi-broadcast fs-1 text-success mb-3 d-block"></i>
-                    <h5>@L["tag.read"]</h5>
-                    <p class="text-muted">@L["tag.nfc.scan"] / @L["tag.upload.bin"]</p>
-                </div>
-            </div>
-        </a>
-    </div>
+<div class="ti-grid">
+    <a class="ti-tile ti-primary" href="/tags/read">
+        <span class="ti-icon"><i class="bi bi-broadcast" aria-hidden="true"></i></span>
+        <span class="ti-body">
+            <span class="ti-title">@L["tag.read.title"]</span>
+            <span class="ti-text">@L["tag.index.read.text"]</span>
+        </span>
+        <i class="bi bi-chevron-right ti-chevron" aria-hidden="true"></i>
+    </a>
+    <a class="ti-tile" href="/tags/write">
+        <span class="ti-icon"><i class="bi bi-pencil-square" aria-hidden="true"></i></span>
+        <span class="ti-body">
+            <span class="ti-title">@L["tag.write"]</span>
+            <span class="ti-text">@L["tag.index.write.text"]</span>
+        </span>
+        <i class="bi bi-chevron-right ti-chevron" aria-hidden="true"></i>
+    </a>
+    <a class="ti-tile" href="/inventory">
+        <span class="ti-icon"><i class="bi bi-arrow-left-right" aria-hidden="true"></i></span>
+        <span class="ti-body">
+            <span class="ti-title">@L["inventory.title"]</span>
+            <span class="ti-text">@L["tag.index.inventory.text"]</span>
+        </span>
+        <i class="bi bi-chevron-right ti-chevron" aria-hidden="true"></i>
+    </a>
 </div>
+
+<section class="sh-card mt-4" aria-labelledby="ti-how">
+    <h2 class="sh-card-title" id="ti-how">@L["tag.index.how.title"]</h2>
+    <div class="ti-how">
+        <div>
+            <h3 class="ti-how-title"><i class="bi bi-record-circle" aria-hidden="true"></i>@L["tag.index.how.spool.title"]</h3>
+            <p>@L["tag.index.how.spool.text"]</p>
+        </div>
+        <div>
+            <h3 class="ti-how-title"><i class="bi bi-geo-alt" aria-hidden="true"></i>@L["tag.index.how.location.title"]</h3>
+            <p>@L["tag.index.how.location.text"]</p>
+        </div>
+        <div>
+            <h3 class="ti-how-title"><i class="bi bi-phone" aria-hidden="true"></i>@L["tag.index.how.device.title"]</h3>
+            <p>@L["tag.index.how.device.text"]</p>
+        </div>
+    </div>
+</section>

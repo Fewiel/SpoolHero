@@ -1,105 +1,266 @@
 @page "/tags/read"
 
-<PageTitle>@L["tag.read"] – @L["app.name"]</PageTitle>
+<PageTitle>@L["tag.read.title"] – @L["app.name"]</PageTitle>
 
 <div class="page-header">
-    <h1><i class="bi bi-broadcast me-2"></i>@L["tag.read"]</h1>
+    <div>
+        <h1>@L["tag.read.title"]</h1>
+        <p class="page-subtitle">@L["tag.read.subtitle"]</p>
+    </div>
+    <div class="page-actions">
+        <a class="btn btn-outline-secondary" href="/inventory"><i class="bi bi-arrow-left-right" aria-hidden="true"></i>@L["tag.read.to.inventory"]</a>
+        <a class="btn btn-outline-secondary" href="/tags/write"><i class="bi bi-pencil-square" aria-hidden="true"></i>@L["tag.write"]</a>
+    </div>
 </div>
 
-<div class="row g-4">
-    <div class="col-12 col-lg-6">
-        <div class="card h-100">
-            <div class="card-body d-flex flex-column gap-3">
-                <h5 class="card-title">@L["tag.scan.title"]</h5>
-
-                @if (_nfcSupported)
-                {
-                    @if (!_scanning)
-                    {
-                        <button class="btn btn-primary btn-lg w-100" @onclick="ScanNfcAsync">
-                            <i class="bi bi-broadcast me-2"></i>@L["tag.nfc.scan"]
-                        </button>
-                    }
-                    else
-                    {
-                        <button class="btn btn-warning btn-lg w-100" @onclick="StopScanAsync">
-                            <span class="spinner-border spinner-border-sm me-2"></span>
-                            @L["tag.nfc.scanning"]
-                        </button>
-                    }
-                }
-                else
-                {
-                    <div class="alert alert-info py-2">
-                        <i class="bi bi-info-circle me-2"></i>@L["tag.nfc.not.supported"]
-                    </div>
-                }
-
-                @if (_error != null)
-                {
-                    <div class="alert alert-danger py-2">@_error</div>
-                }
-            </div>
+<div class="scan-layout">
+    @* ── Scan panel ─────────────────────────────────────────────── *@
+    <section class="sh-card scan-hero scan-@HeroState @(_current != null || _pendingMove != null ? "scan-compact" : "")" aria-labelledby="scan-state-title">
+        <div class="scan-visual" aria-hidden="true">
+            <span class="scan-wave scan-wave-3"></span>
+            <span class="scan-wave scan-wave-2"></span>
+            <span class="scan-core">
+                <i class="bi @HeroIcon"></i>
+            </span>
         </div>
-    </div>
 
-    @if (_result != null)
-    {
-        <div class="col-12 col-lg-6">
-            <div class="card h-100">
-                <div class="card-body">
-                    @if (_result.EntityType == "spool")
+        <h2 id="scan-state-title" class="scan-title" aria-live="polite">@HeroTitle</h2>
+        <p class="scan-text">@HeroText</p>
+
+        @if (_nfcSupported == true)
+        {
+            @if (!_scanning)
+            {
+                <button type="button" class="btn btn-primary btn-lg scan-main-btn" @onclick="ScanNfcAsync">
+                    <i class="bi bi-broadcast" aria-hidden="true"></i>@(_current == null ? L["tag.read.start"] : L["tag.read.start.again"])
+                </button>
+            }
+            else
+            {
+                <button type="button" class="btn btn-outline-secondary scan-main-btn" @onclick="StopScanAsync">
+                    <i class="bi bi-stop-circle" aria-hidden="true"></i>@L["tag.read.stop"]
+                </button>
+            }
+        }
+
+        @if (_error != null)
+        {
+            <div class="alert alert-warning text-start mt-3 mb-0 w-100" role="alert">
+                <i class="bi bi-exclamation-triangle" aria-hidden="true"></i> @_error
+            </div>
+        }
+    </section>
+
+    @* ── Result ─────────────────────────────────────────────────── *@
+    <div class="scan-side">
+        @if (_busy)
+        {
+            <div class="sh-card text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">@L["common.loading"]</span></div></div>
+        }
+        else if (_pendingMove != null)
+        {
+            <section class="sh-card scan-result scan-move" aria-labelledby="scan-move-title">
+                <span class="sh-chip sh-chip-accent align-self-start"><i class="bi bi-arrow-left-right" aria-hidden="true"></i>@L["tag.read.move.chip"]</span>
+                <h2 class="sh-card-title" id="scan-move-title">@L["tag.read.move.title"]</h2>
+                <div class="scan-move-flow">
+                    <div class="scan-move-item">
+                        @if (_spool != null)
+                        {
+                            <SpoolRing ColorHex="@_spool.MaterialColorHex" Percent="@_spool.RemainingPercent" Size="48" />
+                        }
+                        <span class="fw-semibold">@_pendingMove.Value.Spool.EntityName</span>
+                    </div>
+                    <i class="bi bi-arrow-right scan-move-arrow" aria-hidden="true"></i>
+                    <div class="scan-move-item">
+                        <span class="scan-loc-icon"><i class="bi @EntityIcon(_pendingMove.Value.Location.EntityType)" aria-hidden="true"></i></span>
+                        <span class="fw-semibold">@_pendingMove.Value.Location.EntityName</span>
+                    </div>
+                </div>
+                <div class="scan-actions">
+                    <button type="button" class="btn btn-primary" @onclick="ConfirmMoveAsync" disabled="@_moving">
+                        @if (_moving) { <span class="spinner-border spinner-border-sm" aria-hidden="true"></span> }
+                        else { <i class="bi bi-check-lg" aria-hidden="true"></i> }
+                        @L["tag.read.move.confirm"]
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" @onclick="CancelMove">@L["common.cancel"]</button>
+                </div>
+            </section>
+        }
+        else if (_current == null)
+        {
+            <section class="sh-card scan-howto" aria-labelledby="scan-howto-title">
+                <h2 class="sh-card-title" id="scan-howto-title">@L["tag.read.howto.title"]</h2>
+                <ul class="scan-howto-list">
+                    <li><i class="bi bi-record-circle" aria-hidden="true"></i><span>@L["tag.read.howto.spool"]</span></li>
+                    <li><i class="bi bi-geo-alt" aria-hidden="true"></i><span>@L["tag.read.howto.location"]</span></li>
+                    <li><i class="bi bi-arrow-left-right" aria-hidden="true"></i><span>@L["tag.read.howto.move"]</span></li>
+                </ul>
+            </section>
+        }
+        else if (_current.EntityType == "spool")
+        {
+            <section class="sh-card scan-result" aria-labelledby="scan-result-title">
+                @if (_moveMessage != null)
+                {
+                    <div class="alert alert-success py-2 mb-0" role="status"><i class="bi bi-check-circle" aria-hidden="true"></i> @_moveMessage</div>
+                }
+                <div class="scan-result-head">
+                    @if (_spool != null)
                     {
-                        <div class="d-flex align-items-center gap-2 mb-3">
-                            <i class="bi bi-layers fs-3 text-primary"></i>
-                            <h5 class="card-title mb-0">@L["tag.entity.spool"]</h5>
+                        <SpoolRing ColorHex="@_spool.MaterialColorHex" Percent="@_spool.RemainingPercent" Size="76"
+                                   AriaLabel="@L.Format("tag.read.remaining.aria", Math.Round(_spool.RemainingPercent))">
+                            @(Math.Round(_spool.RemainingPercent))<small>%</small>
+                        </SpoolRing>
+                        <div class="min-w-0">
+                            <span class="small text-muted d-block text-truncate">@_spool.MaterialBrand @_spool.MaterialType · #@_spool.MaterialColorHex</span>
+                            <h2 class="scan-result-title" id="scan-result-title">@(_spool.MaterialColorName ?? _current.EntityName)</h2>
+                            <span class="d-block">
+                                <strong>@Math.Round(_spool.RemainingWeightGrams) g</strong>
+                                <span class="text-muted"> · @SpoolPlace(_spool)</span>
+                            </span>
                         </div>
-                        <p class="mb-1"><strong>@_result.EntityName</strong></p>
-                        <small class="text-muted">@L["tag.entity.spool"] · ID: @_result.EntityId</small>
-                        <div class="mt-3">
-                            <a href="/spools/@_result.EntityId" class="btn btn-primary btn-sm">
-                                <i class="bi bi-eye me-1"></i>@L["tag.view.details"]
-                            </a>
-                        </div>
-                    }
-                    else if (_result.EntityType == "printer")
-                    {
-                        <div class="d-flex align-items-center gap-2 mb-3">
-                            <i class="bi bi-printer fs-3 text-info"></i>
-                            <h5 class="card-title mb-0">@L["tag.entity.printer"]</h5>
-                        </div>
-                        <p class="mb-1"><strong>@_result.EntityName</strong></p>
-                        <small class="text-muted">@L["tag.entity.printer"] · ID: @_result.EntityId</small>
-                    }
-                    else if (_result.EntityType == "storage")
-                    {
-                        <div class="d-flex align-items-center gap-2 mb-3">
-                            <i class="bi bi-archive fs-3 text-success"></i>
-                            <h5 class="card-title mb-0">@L["tag.entity.storage"]</h5>
-                        </div>
-                        <p class="mb-1"><strong>@_result.EntityName</strong></p>
-                        <small class="text-muted">@L["tag.entity.storage"] · ID: @_result.EntityId</small>
-                    }
-                    else if (_result.EntityType == "dryer")
-                    {
-                        <div class="d-flex align-items-center gap-2 mb-3">
-                            <i class="bi bi-thermometer-half fs-3 text-warning"></i>
-                            <h5 class="card-title mb-0">@L["tag.entity.dryer"]</h5>
-                        </div>
-                        <p class="mb-1"><strong>@_result.EntityName</strong></p>
-                        <small class="text-muted">@L["tag.entity.dryer"] · ID: @_result.EntityId</small>
                     }
                     else
                     {
-                        <div class="d-flex align-items-center gap-2 mb-3">
-                            <i class="bi bi-question-circle fs-3 text-secondary"></i>
-                            <h5 class="card-title mb-0">@L["tag.entity.unknown"]</h5>
-                        </div>
-                        <p class="text-muted mb-0">@L["tag.entity.unknown.hint"]</p>
+                        <h2 class="scan-result-title" id="scan-result-title">@_current.EntityName</h2>
                     }
                 </div>
-            </div>
-        </div>
-    }
-</div>
+                @if (_spool?.ConsumedAt != null)
+                {
+                    <span class="sh-chip sh-chip-sm align-self-start"><i class="bi bi-archive" aria-hidden="true"></i>@L["tag.read.consumed"]</span>
+                }
 
+                <div class="scan-actions">
+                    <a class="btn btn-primary" href="/spools/@_current.EntityId"><i class="bi bi-info-circle" aria-hidden="true"></i>@L["tag.view.details"]</a>
+                </div>
+
+                <div class="scan-moveto">
+                    <label class="form-label" for="scan-moveto">@L["tag.read.moveto.label"]</label>
+                    <div class="d-flex gap-2">
+                        <select id="scan-moveto" class="form-select" @bind="_moveTarget">
+                            <option value="">@L["tag.read.moveto.choose"]</option>
+                            @if (_printers.Count > 0)
+                            {
+                                <optgroup label="@L["nav.printers"]">
+                                    @foreach (var p in _printers) { <option value="printer:@p.Id">@p.Name</option> }
+                                </optgroup>
+                            }
+                            @if (_storage.Count > 0)
+                            {
+                                <optgroup label="@L["nav.storage"]">
+                                    @foreach (var s in _storage) { <option value="storage:@s.Id">@s.Name</option> }
+                                </optgroup>
+                            }
+                            @if (_dryers.Count > 0)
+                            {
+                                <optgroup label="@L["nav.dryers"]">
+                                    @foreach (var d in _dryers) { <option value="dryer:@d.Id">@d.Name</option> }
+                                </optgroup>
+                            }
+                        </select>
+                        <button type="button" class="btn btn-outline-primary flex-shrink-0" disabled="@string.IsNullOrEmpty(_moveTarget)" @onclick="PrepareMoveFromSelect">@L["tag.read.moveto.button"]</button>
+                    </div>
+                    @if (_scanning)
+                    {
+                        <p class="form-text mb-0"><i class="bi bi-broadcast" aria-hidden="true"></i> @L["tag.read.moveto.scan"]</p>
+                    }
+                </div>
+            </section>
+        }
+        else if (_current.EntityType is "printer" or "storage" or "dryer")
+        {
+            <section class="sh-card scan-result" aria-labelledby="scan-result-title">
+                @if (_moveMessage != null)
+                {
+                    <div class="alert alert-success py-2 mb-0" role="status"><i class="bi bi-check-circle" aria-hidden="true"></i> @_moveMessage</div>
+                }
+                <div class="scan-result-head">
+                    <span class="scan-loc-icon scan-loc-icon-lg"><i class="bi @EntityIcon(_current.EntityType)" aria-hidden="true"></i></span>
+                    <div class="min-w-0">
+                        <span class="small text-muted d-block">@L[$"tag.entity.{_current.EntityType}"]</span>
+                        <h2 class="scan-result-title" id="scan-result-title">@_current.EntityName</h2>
+                        <span class="text-muted">@L.Format("tag.read.location.count", _locationSpools.Count)</span>
+                    </div>
+                </div>
+
+                @if (_locationSpools.Count > 0)
+                {
+                    <ul class="scan-spool-list" role="list">
+                        @foreach (var s in _locationSpools.Take(6))
+                        {
+                            <li>
+                                <a href="/spools/@s.Id" class="scan-spool-row">
+                                    <SpoolRing ColorHex="@s.MaterialColorHex" Percent="@s.RemainingPercent" Size="36" />
+                                    <span class="min-w-0 flex-grow-1">
+                                        <span class="d-block fw-semibold text-truncate">@(s.MaterialColorName ?? "#" + s.MaterialColorHex)</span>
+                                        <span class="d-block small text-muted text-truncate">@s.MaterialBrand @s.MaterialType · @Math.Round(s.RemainingWeightGrams) g</span>
+                                    </span>
+                                    <i class="bi bi-chevron-right text-muted" aria-hidden="true"></i>
+                                </a>
+                            </li>
+                        }
+                    </ul>
+                    @if (_locationSpools.Count > 6)
+                    {
+                        <span class="small text-muted">@L.Format("tag.read.location.more", _locationSpools.Count - 6)</span>
+                    }
+                }
+
+                <div class="alert alert-info py-2 mb-0">
+                    <i class="bi bi-lightbulb" aria-hidden="true"></i> @L["tag.read.location.hint"]
+                </div>
+                <div class="scan-actions">
+                    <a class="btn btn-outline-secondary" href="@LocationListUrl(_current.EntityType)"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>@L.Format("tag.read.location.open", L[$"tag.entity.{_current.EntityType}"])</a>
+                </div>
+            </section>
+        }
+        else
+        {
+            <section class="sh-card scan-result" aria-labelledby="scan-result-title">
+                <div class="scan-result-head">
+                    <span class="scan-loc-icon scan-loc-icon-lg scan-unknown"><i class="bi bi-question-lg" aria-hidden="true"></i></span>
+                    <div class="min-w-0">
+                        <h2 class="scan-result-title" id="scan-result-title">@L["tag.entity.unknown"]</h2>
+                        <span class="text-muted">@L["tag.read.unknown.text"]</span>
+                    </div>
+                </div>
+
+                @if (_foreign != null)
+                {
+                    <div class="scan-foreign">
+                        <SpoolRing ColorHex="@_foreign.ColorHex" Percent="100" Size="40" />
+                        <div class="min-w-0">
+                            <span class="small text-muted d-block">@L["tag.read.foreign"]</span>
+                            <span class="fw-semibold">@_foreign.Brand @_foreign.Type</span>
+                            @if (_foreign.MinTemp > 0)
+                            {
+                                <span class="text-muted small"> · @_foreign.MinTemp–@_foreign.MaxTemp °C</span>
+                            }
+                        </div>
+                    </div>
+                }
+                @if (!string.IsNullOrEmpty(_lastSerial))
+                {
+                    <dl class="sh-kv">
+                        <div><dt>@L["tag.read.serial"]</dt><dd class="font-monospace">@_lastSerial</dd></div>
+                    </dl>
+                }
+
+                <div class="scan-actions">
+                    <a class="btn btn-primary" href="/spools/new"><i class="bi bi-plus-lg" aria-hidden="true"></i>@L["spool.add"]</a>
+                    <a class="btn btn-outline-secondary" href="/tags/write"><i class="bi bi-pencil-square" aria-hidden="true"></i>@L["tag.write"]</a>
+                </div>
+            </section>
+        }
+
+        @* ── File import (always available, the only way without Web NFC) ── *@
+        <section class="sh-card scan-file" aria-labelledby="scan-file-title">
+            <h2 class="sh-card-title" id="scan-file-title">@L["tag.read.file.title"]</h2>
+            <p class="sh-card-sub">@L["tag.read.file.text"]</p>
+            <label class="btn btn-outline-secondary mt-3 scan-file-btn">
+                <i class="bi bi-file-earmark-arrow-up" aria-hidden="true"></i>@L["tag.read.file.button"]
+                <InputFile class="visually-hidden" accept=".bin,.json,application/json,application/octet-stream" OnChange="OnFileSelectedAsync" />
+            </label>
+        </section>
+    </div>
+</div>
