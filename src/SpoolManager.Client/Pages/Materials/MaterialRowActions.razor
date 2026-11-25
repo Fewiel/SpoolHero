@@ -1,0 +1,32 @@
+@* Action buttons for one material row/card of the material list. *@
+<button type="button" class="btn @BtnSize mat-icon-btn @(IsFavorite ? "mat-fav-on" : "btn-outline-secondary")"
+        aria-pressed="@(IsFavorite ? "true" : "false")" aria-label="@L["material.action.favorite"]" title="@L["material.action.favorite"]"
+        @onclick="OnToggleFavorite">
+    <i class="bi @(IsFavorite ? "bi-star-fill" : "bi-star")" aria-hidden="true"></i>
+</button>
+@if (!string.IsNullOrWhiteSpace(Material.ReorderUrl))
+{
+    <a href="@Material.ReorderUrl" target="_blank" rel="noopener noreferrer"
+       class="btn @BtnSize btn-outline-secondary mat-icon-btn" aria-label="@L["material.action.reorder"]" title="@L["material.action.reorder"]"
+       @onclick="OnReorder">
+        <i class="bi bi-cart" aria-hidden="true"></i>
+    </a>
+}
+@if (Material.IsGlobal)
+{
+    <a href="/materials/@Material.Id/suggest" class="btn @BtnSize btn-outline-secondary mat-icon-btn" aria-label="@L["material.action.suggest"]" title="@L["material.action.suggest"]">
+        <i class="bi bi-lightbulb" aria-hidden="true"></i>
+    </a>
+}
+<a href="/materials/@Material.Id/clone" class="btn @BtnSize btn-outline-secondary mat-icon-btn" aria-label="@L["material.action.clone"]" title="@L["material.action.clone"]">
+    <i class="bi bi-copy" aria-hidden="true"></i>
+</a>
+@if (!Material.IsGlobal)
+{
+    <a href="/materials/@Material.Id/edit" class="btn @BtnSize btn-outline-secondary mat-icon-btn" aria-label="@L["material.action.edit"]" title="@L["material.action.edit"]">
+        <i class="bi bi-pencil" aria-hidden="true"></i>
+    </a>
+    <button type="button" class="btn @BtnSize btn-outline-danger mat-icon-btn" aria-label="@L["material.action.delete"]" title="@L["material.action.delete"]" @onclick="OnDelete">
+        <i class="bi bi-trash" aria-hidden="true"></i>
+    </button>
+}

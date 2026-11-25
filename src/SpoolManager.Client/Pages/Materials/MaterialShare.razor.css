@@ -1,0 +1,45 @@
+.share-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 1rem;
+    align-items: start;
+}
+
+.share-step { display: flex; gap: .85rem; align-items: flex-start; margin-bottom: 1rem; }
+
+.share-step-no {
+    flex: 0 0 32px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: var(--sh-accent-soft);
+    color: var(--sh-accent-text);
+    font-weight: 700;
+}
+
+.share-subhead {
+    font-family: var(--sh-font);
+    font-size: .8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--sh-muted);
+    margin: 1.25rem 0 .6rem;
+}
+
+.share-code { font-size: .8rem; word-break: break-all; }
+
+.share-file { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; }
+
+.share-import { max-width: 760px; }
+
+@media (max-width: 991.98px) {
+    .share-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 575.98px) {
+    .share-tabs { width: 100%; }
+    .share-tabs button { flex: 1 1 0; justify-content: center; }
+}

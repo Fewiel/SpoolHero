@@ -1,0 +1,35 @@
+@* Materials that are on the project's active spools, as one-tap buttons. *@
+@if (_loading)
+{
+    <div class="py-2"><span class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">@L["common.loading"]</span></span></div>
+}
+else if (_groups.Count == 0)
+{
+    <div class="qp-empty">
+        <span>@L["material.export.orca.from.spools.empty"]</span>
+        <a class="btn btn-outline-secondary btn-sm" href="/spools/new"><i class="bi bi-plus-lg" aria-hidden="true"></i>@L["spool.add"]</a>
+    </div>
+}
+else
+{
+    <div class="qp-head">
+        <span class="small text-muted">@L.Format("material.quickpick.count", _groups.Count)</span>
+        <button type="button" class="btn btn-outline-primary btn-sm" disabled="@_groups.All(g => IsSelected(g.MaterialId))" @onclick="AddAllAsync">
+            <i class="bi bi-plus-lg" aria-hidden="true"></i>@L["material.quickpick.all"]
+        </button>
+    </div>
+    <div class="qp-grid">
+        @foreach (var g in _groups)
+        {
+            var selected = IsSelected(g.MaterialId);
+            <button type="button" class="qp-item" aria-pressed="@(selected ? "true" : "false")" @onclick="() => Toggle(g.MaterialId)">
+                <SpoolRing ColorHex="@g.ColorHex" Percent="@g.Percent" Size="40" />
+                <span class="qp-text">
+                    <span class="fw-semibold text-truncate">@g.Brand @g.Type</span>
+                    <span class="small text-muted text-truncate">@(g.ColorName ?? "#" + g.ColorHex) · @L.Format("material.quickpick.spools", g.Count)</span>
+                </span>
+                <i class="bi @(selected ? "bi-check-circle-fill qp-check" : "bi-plus-circle text-muted")" aria-hidden="true"></i>
+            </button>
+        }
+    </div>
+}

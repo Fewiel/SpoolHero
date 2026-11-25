@@ -23,6 +23,8 @@ public class FilamentMaterialDto
     public int ReorderClickCount { get; set; }
     public string? OfdFilamentId { get; set; }
     public string? OfdVariantId { get; set; }
+    /// <summary>True for materials of the global database (no project), read-only for projects.</summary>
+    public bool IsGlobal { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 }
@@ -40,6 +42,11 @@ public class MaterialSummaryDto
     public string? ReorderUrl { get; set; }
     public string? OfdVariantId { get; set; }
     public bool HasActiveSpool { get; set; }
+    /// <summary>True for materials of the global database (OFD / admin), which projects cannot edit or delete.</summary>
+    public bool IsGlobal { get; set; }
+    public int? BedTempCelsius { get; set; }
+    public int? WeightGrams { get; set; }
+    public decimal? PricePerKg { get; set; }
 }
 
 public class PaginatedResult<T>

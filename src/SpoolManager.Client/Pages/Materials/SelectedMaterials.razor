@@ -1,0 +1,31 @@
+@* List of materials picked for an export, each removable. *@
+@if (Items.Count == 0)
+{
+    <div class="selm-empty">
+        <i class="bi bi-inbox" aria-hidden="true"></i>
+        <span>@EmptyText</span>
+    </div>
+}
+else
+{
+    <ul class="selm-list" role="list" aria-label="@L["material.selected.label"]">
+        @foreach (var m in Items)
+        {
+            var warn = WarnWhen?.Invoke(m) == true;
+            <li class="selm-item" @key="m.Id">
+                <SpoolRing ColorHex="@m.ColorHex" Percent="100" Size="32" />
+                <div class="selm-text">
+                    <span class="fw-semibold text-truncate">@m.Brand @m.Type</span>
+                    <span class="small text-muted text-truncate">@(m.ColorName ?? "#" + m.ColorHex)</span>
+                </div>
+                @if (warn && WarnText != null)
+                {
+                    <span class="sh-chip sh-chip-sm sh-chip-warn" title="@WarnText"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i><span class="d-none d-sm-inline">@WarnText</span></span>
+                }
+                <button type="button" class="selm-remove" aria-label="@L.Format("material.selected.remove", $"{m.Brand} {m.Type}")" @onclick="() => OnRemove.InvokeAsync(m.Id)">
+                    <i class="bi bi-x-lg" aria-hidden="true"></i>
+                </button>
+            </li>
+        }
+    </ul>
+}

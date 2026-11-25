@@ -1,0 +1,23 @@
+.orca-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 380px;
+    gap: 1rem;
+    align-items: start;
+}
+
+.orca-main { display: flex; flex-direction: column; gap: 1rem; min-width: 0; }
+
+.orca-side { position: sticky; top: calc(var(--sh-topbar-h) + 1rem); }
+
+.orca-actions { display: flex; flex-direction: column; gap: .5rem; margin-top: 1rem; }
+
+.orca-warn-list { padding-left: 1.1rem; }
+.orca-warn-list li { display: flex; flex-wrap: wrap; gap: .25rem .6rem; }
+
+.orca-help { margin-top: 1rem; }
+.orca-help summary { cursor: pointer; font-weight: 600; font-size: .9rem; min-height: 32px; }
+
+@media (max-width: 991.98px) {
+    .orca-grid { grid-template-columns: minmax(0, 1fr); }
+    .orca-side { position: static; }
+}

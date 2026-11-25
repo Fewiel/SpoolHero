@@ -1,0 +1,13 @@
+.mat-icon-btn { padding-left: 0; padding-right: 0; width: 34px; }
+.mat-icon-btn:not(.btn-sm) { width: 44px; min-height: 44px; }
+
+.mat-fav-on {
+    --bs-btn-bg: var(--sh-warn-soft);
+    --bs-btn-border-color: transparent;
+    --bs-btn-color: var(--sh-warn-text);
+    --bs-btn-hover-bg: var(--sh-warn-soft);
+    --bs-btn-hover-border-color: var(--sh-warn);
+    --bs-btn-hover-color: var(--sh-warn-text);
+    --bs-btn-active-bg: var(--sh-warn-soft);
+    --bs-btn-active-color: var(--sh-warn-text);
+}

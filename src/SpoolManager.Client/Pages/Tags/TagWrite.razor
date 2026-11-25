@@ -1,62 +1,175 @@
 @page "/tags/write"
-@inject LocalizationService L
 
 <PageTitle>@L["tag.write"] – @L["app.name"]</PageTitle>
 
 <div class="page-header">
-    <h1><i class="bi bi-broadcast me-2"></i>@L["tag.write"]</h1>
+    <div>
+        <h1>@L["tag.write"]</h1>
+        <p class="page-subtitle">@L["tag.write.subtitle"]</p>
+    </div>
+    <div class="page-actions">
+        <a class="btn btn-outline-secondary" href="/tags/read"><i class="bi bi-broadcast" aria-hidden="true"></i>@L["tag.read.title"]</a>
+    </div>
 </div>
 
-<div class="alert alert-info">
-    <i class="bi bi-info-circle me-2"></i>@L["tag.write.hint"]
-</div>
+<div class="tw-layout">
+    <section class="sh-card tw-pick" aria-labelledby="tw-step1">
+        <div class="tw-step"><span class="tw-step-no" aria-hidden="true">1</span>
+            <div>
+                <h2 class="sh-card-title" id="tw-step1">@L["tag.write.step.pick"]</h2>
+                <p class="sh-card-sub">@L["tag.write.step.pick.hint"]</p>
+            </div>
+        </div>
 
-<div class="row g-4">
-    <div class="col-12 col-md-6">
-        <a href="/spools" class="text-decoration-none">
-            <div class="card h-100 tag-actions">
-                <div class="card-body text-center py-4">
-                    <i class="bi bi-archive fs-1 text-primary mb-3 d-block"></i>
-                    <h5>@L["nav.spools"]</h5>
-                    <p class="text-muted mb-0">@L["spool.nfc.write.quick"]</p>
+        <div class="sh-segmented tw-kinds" role="group" aria-label="@L["tag.write.kind"]">
+            @foreach (var kind in Kinds)
+            {
+                var k = kind;
+                <button type="button" aria-pressed="@(_kind == k ? "true" : "false")" @onclick="() => SetKindAsync(k)">
+                    <i class="bi @TagRead.EntityIcon(k)" aria-hidden="true"></i>@L[$"tag.entity.{k}"]
+                </button>
+            }
+        </div>
+
+        @if (_kind == "spool")
+        {
+            <div class="mt-3">
+                <label class="visually-hidden" for="tw-search">@L["tag.write.search"]</label>
+                <input id="tw-search" type="search" class="form-control" placeholder="@L["tag.write.search"]" @bind="_search" @bind:event="oninput" autocomplete="off" />
+            </div>
+        }
+
+        @if (_loading)
+        {
+            <div class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">@L["common.loading"]</span></div></div>
+        }
+        else if (Items.Count == 0)
+        {
+            <div class="sh-empty mt-3">
+                <i class="bi @TagRead.EntityIcon(_kind)" aria-hidden="true"></i>
+                <h3>@L[$"tag.write.empty.{_kind}"]</h3>
+                <a class="btn btn-primary mt-2" href="@AddUrl"><i class="bi bi-plus-lg" aria-hidden="true"></i>@L["tag.write.empty.add"]</a>
+            </div>
+        }
+        else
+        {
+            <ul class="tw-list mt-3" aria-label="@L[$"tag.entity.{_kind}"]">
+                @foreach (var item in Items)
+                {
+                    var it = item;
+                    var selected = _selected?.Id == it.Id;
+                    <li>
+                        <button type="button" class="tw-item @(selected ? "active" : "")" aria-pressed="@(selected ? "true" : "false")" @onclick="() => Select(it)">
+                            @if (it.ColorHex != null)
+                            {
+                                <SpoolRing ColorHex="@it.ColorHex" Percent="@it.Percent" Size="40" />
+                            }
+                            else
+                            {
+                                <span class="tw-icon"><i class="bi @TagRead.EntityIcon(_kind)" aria-hidden="true"></i></span>
+                            }
+                            <span class="tw-text">
+                                <span class="fw-semibold text-truncate">@it.Title</span>
+                                @if (it.Sub != null) { <span class="small text-muted text-truncate">@it.Sub</span> }
+                            </span>
+                            @if (it.HasTag)
+                            {
+                                <span class="sh-chip sh-chip-sm" title="@L["tag.write.has.uid"]"><i class="bi bi-tag" aria-hidden="true"></i><span class="d-none d-sm-inline">@L["tag.write.has.uid.short"]</span></span>
+                            }
+                            <i class="bi @(selected ? "bi-check-circle-fill tw-check" : "bi-circle text-muted")" aria-hidden="true"></i>
+                        </button>
+                    </li>
+                }
+            </ul>
+            @if (_kind == "spool" && FilteredSpoolCount > Items.Count)
+            {
+                <p class="small text-muted mt-2 mb-0">@L.Format("tag.write.more", FilteredSpoolCount - Items.Count)</p>
+            }
+        }
+    </section>
+
+    <section class="sh-card tw-write" aria-labelledby="tw-step2">
+        <div class="tw-step"><span class="tw-step-no" aria-hidden="true">2</span>
+            <div>
+                <h2 class="sh-card-title tw-focus" id="tw-step2" tabindex="-1" @ref="_writeHeading">@L["tag.write.step.write"]</h2>
+                <p class="sh-card-sub">@(_nfcSupported == false ? L["tag.write.step.write.nonfc"] : L["tag.write.step.write.hint"])</p>
+            </div>
+        </div>
+
+        @if (_selected == null)
+        {
+            <div class="tw-placeholder">
+                <i class="bi bi-hand-index" aria-hidden="true"></i>
+                <span>@L["tag.write.select.first"]</span>
+            </div>
+        }
+        else
+        {
+            <div class="tw-target">
+                @if (_selected.ColorHex != null)
+                {
+                    <SpoolRing ColorHex="@_selected.ColorHex" Percent="@_selected.Percent" Size="56" />
+                }
+                else
+                {
+                    <span class="tw-icon tw-icon-lg"><i class="bi @TagRead.EntityIcon(_kind)" aria-hidden="true"></i></span>
+                }
+                <div class="min-w-0">
+                    <span class="small text-muted d-block">@L[$"tag.entity.{_kind}"]</span>
+                    <span class="fw-semibold d-block text-truncate">@_selected.Title</span>
+                    @if (_selected.Sub != null) { <span class="small text-muted d-block text-truncate">@_selected.Sub</span> }
                 </div>
             </div>
-        </a>
-    </div>
 
-    <div class="col-12 col-md-6">
-        <a href="/printers" class="text-decoration-none">
-            <div class="card h-100 tag-actions">
-                <div class="card-body text-center py-4">
-                    <i class="bi bi-printer fs-1 text-info mb-3 d-block"></i>
-                    <h5>@L["nav.printers"]</h5>
-                    <p class="text-muted mb-0">@L["tag.write.printer"]</p>
+            <div class="tw-status tw-status-@_writeState" aria-live="polite">
+                @switch (_writeState)
+                {
+                    case "writing":
+                        <span class="tw-status-icon"><i class="bi bi-broadcast" aria-hidden="true"></i></span>
+                        <div><strong>@L["tag.write.state.writing"]</strong><div class="small">@L["tag.write.state.writing.text"]</div></div>
+                        break;
+                    case "done":
+                        <span class="tw-status-icon"><i class="bi bi-check-lg" aria-hidden="true"></i></span>
+                        <div><strong>@L["tag.write.success"]</strong><div class="small">@L["tag.write.state.done.text"]</div></div>
+                        break;
+                    case "error":
+                        <span class="tw-status-icon"><i class="bi bi-exclamation-lg" aria-hidden="true"></i></span>
+                        <div><strong>@L["tag.write.state.error"]</strong><div class="small">@_writeError</div></div>
+                        break;
+                }
+            </div>
+
+            @if (_nfcSupported == true)
+            {
+                @if (_writeState == "writing")
+                {
+                    <button type="button" class="btn btn-outline-secondary btn-lg w-100" @onclick="CancelWriteAsync">
+                        <i class="bi bi-x-lg" aria-hidden="true"></i>@L["common.cancel"]
+                    </button>
+                }
+                else
+                {
+                    <button type="button" class="btn btn-primary btn-lg w-100" @onclick="WriteAsync" disabled="@_preparing">
+                        @if (_preparing) { <span class="spinner-border spinner-border-sm" aria-hidden="true"></span> }
+                        else { <i class="bi bi-broadcast" aria-hidden="true"></i> }
+                        @(_writeState == "done" ? L["tag.write.again"] : L["tag.nfc.write"])
+                    </button>
+                }
+            }
+            else if (_nfcSupported == false)
+            {
+                <div class="alert alert-info mb-0">
+                    <i class="bi bi-info-circle" aria-hidden="true"></i> @L["tag.write.nonfc.info"]
+                </div>
+            }
+
+            <div class="tw-downloads">
+                <span class="small text-muted">@L["tag.write.download.label"]</span>
+                <div class="d-flex flex-wrap gap-2">
+                    <button type="button" class="btn btn-outline-secondary" @onclick="DownloadBinAsync"><i class="bi bi-file-earmark-binary" aria-hidden="true"></i>@L["tag.download.bin"]</button>
+                    <button type="button" class="btn btn-outline-secondary" @onclick="DownloadJsonAsync"><i class="bi bi-filetype-json" aria-hidden="true"></i>@L["tag.download.json"]</button>
                 </div>
             </div>
-        </a>
-    </div>
-
-    <div class="col-12 col-md-6">
-        <a href="/storage" class="text-decoration-none">
-            <div class="card h-100 tag-actions">
-                <div class="card-body text-center py-4">
-                    <i class="bi bi-box fs-1 text-success mb-3 d-block"></i>
-                    <h5>@L["nav.storage"]</h5>
-                    <p class="text-muted mb-0">@L["tag.write.storage"]</p>
-                </div>
-            </div>
-        </a>
-    </div>
-
-    <div class="col-12 col-md-6">
-        <a href="/dryers" class="text-decoration-none">
-            <div class="card h-100 tag-actions">
-                <div class="card-body text-center py-4">
-                    <i class="bi bi-thermometer-half fs-1 text-warning mb-3 d-block"></i>
-                    <h5>@L["nav.dryers"]</h5>
-                    <p class="text-muted mb-0">@L["tag.write.dryer"]</p>
-                </div>
-            </div>
-        </a>
-    </div>
+        }
+    </section>
 </div>

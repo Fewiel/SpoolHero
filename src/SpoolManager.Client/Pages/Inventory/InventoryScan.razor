@@ -3,128 +3,200 @@
 <PageTitle>@L["inventory.title"] – @L["app.name"]</PageTitle>
 
 <div class="page-header">
-    <h1><i class="bi bi-arrow-left-right me-2"></i>@L["inventory.title"]</h1>
+    <div>
+        <h1>@L["inventory.title"]</h1>
+        <p class="page-subtitle">@L["inventory.subtitle"]</p>
+    </div>
+    @if (_nfcSupported == true)
+    {
+        <div class="page-actions">
+            @if (_scannerRunning)
+            {
+                <button type="button" class="btn btn-outline-secondary" @onclick="PauseScannerAsync" disabled="@(_state == ScanState.Done)">
+                    <i class="bi bi-pause-fill" aria-hidden="true"></i>@L["inventory.reader.pause"]
+                </button>
+            }
+            else
+            {
+                <button type="button" class="btn btn-primary" @onclick="ResumeScannerAsync" disabled="@(_state == ScanState.Done)">
+                    <i class="bi bi-play-fill" aria-hidden="true"></i>@L["inventory.reader.resume"]
+                </button>
+            }
+            <button type="button" class="btn btn-outline-secondary" @onclick="RestartAsync" disabled="@(_state == ScanState.ScanningFirst && _firstEntity == null)">
+                <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>@L["inventory.scan.reset"]
+            </button>
+        </div>
+    }
 </div>
 
 @if (!_nfcSupported.HasValue)
 {
-    <div class="text-center py-5"><div class="spinner-border"></div></div>
-}
-else if (!_nfcSupported.Value)
-{
-    <div class="alert alert-warning">
-        <i class="bi bi-exclamation-triangle me-2"></i>@L["tag.nfc.not.supported"]
-    </div>
+    <div class="text-center py-5"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">@L["common.loading"]</span></div></div>
 }
 else
 {
-    <div class="row justify-content-center">
-        <div class="col-12 col-md-8 col-lg-6">
+    @if (_nfcSupported == false)
+    {
+        <div class="sh-card inv-nonfc mb-3" role="status">
+            <span class="inv-nonfc-icon"><i class="bi bi-phone" aria-hidden="true"></i></span>
+            <div class="flex-grow-1">
+                <h2 class="sh-card-title">@L["inventory.nonfc.title"]</h2>
+                <p class="sh-card-sub mb-0">@L["inventory.nonfc.text"]</p>
+            </div>
+            <a class="btn btn-outline-secondary" href="/spools"><i class="bi bi-record-circle" aria-hidden="true"></i>@L["inventory.nonfc.spools"]</a>
+        </div>
+    }
 
-            @if (_state != ScanState.Done)
+    <div class="inv-steps" aria-live="polite">
+        @* Step 1 *@
+        <section class="inv-step @StepClass(1)" aria-labelledby="inv-step1">
+            <div class="inv-step-head">
+                <span class="inv-step-no" aria-hidden="true">@(_firstEntity != null ? "✓" : "1")</span>
+                <div>
+                    <span class="inv-step-kicker">@L["inventory.progress.first"]</span>
+                    <h2 class="inv-step-title" id="inv-step1">@L["inventory.step1.title"]</h2>
+                </div>
+            </div>
+            @if (_firstEntity == null)
             {
-                <div class="card mb-3">
-                    <div class="card-body py-2 d-flex align-items-center justify-content-between gap-2 flex-wrap">
-                        <span class="badge bg-primary-subtle text-primary-emphasis">
-                            @GetProgressLabel()
-                        </span>
-                        <div class="btn-group btn-group-sm">
-                            @if (_scannerRunning)
+                <div class="inv-step-body">
+                    <span class="inv-pulse @(_scannerRunning && _state == ScanState.ScanningFirst ? "inv-pulse-on" : "")" aria-hidden="true"><i class="bi bi-broadcast"></i></span>
+                    <p class="mb-0">@(_scannerRunning ? L["inventory.step1.text"] : _nfcSupported == true ? L["inventory.scan.paused"] : L["inventory.step1.file"])</p>
+                </div>
+            }
+            else
+            {
+                <div class="inv-entity">
+                    @if (_firstSpool != null)
+                    {
+                        <SpoolRing ColorHex="@_firstSpool.MaterialColorHex" Percent="@_firstSpool.RemainingPercent" Size="52" />
+                    }
+                    else
+                    {
+                        <span class="inv-entity-icon"><i class="bi @GetIcon(_firstEntity.EntityType)" aria-hidden="true"></i></span>
+                    }
+                    <div class="min-w-0">
+                        <span class="small text-muted d-block">@L[$"inventory.type.{_firstEntity.EntityType}"]</span>
+                        <span class="fw-semibold d-block text-truncate">@_firstEntity.EntityName</span>
+                        @if (_firstSpool != null)
+                        {
+                            <span class="small text-muted d-block text-truncate">@(_firstSpool.MaterialColorName ?? "#" + _firstSpool.MaterialColorHex) · @Math.Round(_firstSpool.RemainingWeightGrams) g</span>
+                        }
+                    </div>
+                </div>
+            }
+        </section>
+
+        <i class="bi bi-arrow-right inv-arrow" aria-hidden="true"></i>
+
+        @* Step 2 *@
+        <section class="inv-step @StepClass(2)" aria-labelledby="inv-step2">
+            <div class="inv-step-head">
+                <span class="inv-step-no" aria-hidden="true">@(_state == ScanState.Done ? "✓" : "2")</span>
+                <div>
+                    <span class="inv-step-kicker">@L["inventory.progress.second"]</span>
+                    <h2 class="inv-step-title" id="inv-step2">@(_firstEntity != null && _firstEntity.EntityType != "spool" ? L["inventory.step2.title.spool"] : L["inventory.step2.title"])</h2>
+                </div>
+            </div>
+            @if (_state == ScanState.Done && _secondEntity != null)
+            {
+                <div class="inv-entity">
+                    <span class="inv-entity-icon"><i class="bi @GetIcon(_secondEntity.EntityType)" aria-hidden="true"></i></span>
+                    <div class="min-w-0">
+                        <span class="small text-muted d-block">@L[$"inventory.type.{_secondEntity.EntityType}"]</span>
+                        <span class="fw-semibold d-block text-truncate">@_secondEntity.EntityName</span>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="inv-step-body">
+                    <span class="inv-pulse @(_scannerRunning && _state == ScanState.ScanningSecond ? "inv-pulse-on" : "")" aria-hidden="true"><i class="bi bi-geo-alt"></i></span>
+                    <p class="mb-0">@(_state == ScanState.ScanningSecond ? L["inventory.step2.text"] : L["inventory.step2.waiting"])</p>
+                </div>
+            }
+        </section>
+    </div>
+
+    @if (_hintMessage != null)
+    {
+        <div class="alert @(_hintIsWarning ? "alert-warning" : "alert-info") d-flex gap-2 mt-3 mb-0" role="status">
+            <i class="bi @(_hintIsWarning ? "bi-exclamation-triangle" : "bi-info-circle")" aria-hidden="true"></i><span>@_hintMessage</span>
+        </div>
+    }
+
+    @if (_errorMessage != null)
+    {
+        <div class="alert alert-warning d-flex gap-2 mt-3 mb-0" role="alert">
+            <i class="bi bi-exclamation-triangle" aria-hidden="true"></i><span>@_errorMessage</span>
+        </div>
+    }
+
+    @if (_state == ScanState.Done && _result != null)
+    {
+        <div class="inv-result @(_result.Success ? "inv-result-ok" : "inv-result-fail") mt-3" role="status">
+            <i class="bi @(_result.Success ? "bi-check-circle-fill" : "bi-x-circle-fill")" aria-hidden="true"></i>
+            <div>
+                <strong class="d-block">@(_result.Success ? L["inventory.result.ok"] : L["inventory.result.fail"])</strong>
+                <span>@_result.Description</span>
+            </div>
+        </div>
+    }
+
+    <div class="inv-bottom mt-4">
+        <section class="sh-card" aria-labelledby="inv-history">
+            <div class="d-flex align-items-center justify-content-between gap-2">
+                <h2 class="sh-card-title mb-0" id="inv-history">@L["inventory.history.title"]</h2>
+                @if (_history.Count > 0)
+                {
+                    <span class="sh-chip sh-chip-sm">@L.Format("inventory.history.count", _history.Count(h => h.Success))</span>
+                }
+            </div>
+            @if (_history.Count == 0)
+            {
+                <p class="sh-card-sub mt-2 mb-0">@L["inventory.history.empty"]</p>
+            }
+            else
+            {
+                <ol class="inv-history" reversed>
+                    @foreach (var h in Enumerable.Reverse(_history))
+                    {
+                        <li class="@(h.Success ? "" : "inv-history-fail")">
+                            @if (h.ColorHex != null)
                             {
-                                <button class="btn btn-outline-secondary" @onclick="PauseScannerAsync">
-                                    <i class="bi bi-pause-fill me-1"></i>@L["inventory.reader.pause"]
-                                </button>
+                                <SpoolRing ColorHex="@h.ColorHex" Percent="@h.Percent" Size="32" />
                             }
                             else
                             {
-                                <button class="btn btn-outline-secondary" @onclick="ResumeScannerAsync">
-                                    <i class="bi bi-play-fill me-1"></i>@L["inventory.reader.resume"]
-                                </button>
+                                <span class="inv-mini-icon"><i class="bi bi-record-circle" aria-hidden="true"></i></span>
                             }
-                            <button class="btn btn-outline-secondary" @onclick="RestartAsync">
-                                <i class="bi bi-arrow-counterclockwise me-1"></i>@L["inventory.scan.reset"]
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                            <span class="min-w-0 flex-grow-1">
+                                <span class="d-block fw-semibold text-truncate">@h.SpoolName <i class="bi bi-arrow-right text-muted" aria-hidden="true"></i> @h.LocationName</span>
+                                <span class="d-block small text-muted text-truncate">@h.At.ToString("t") · @(h.Success ? L["inventory.result.ok"] : h.Description)</span>
+                            </span>
+                            <i class="bi @(h.Success ? "bi-check-circle text-success" : "bi-x-circle text-danger")" aria-hidden="true"></i>
+                        </li>
+                    }
+                </ol>
             }
+        </section>
 
-            @if (_hintMessage != null)
-            {
-                <div class="alert @(_hintIsWarning ? "alert-warning" : "alert-info") mb-3">
-                    <i class="bi @(_hintIsWarning ? "bi-exclamation-triangle" : "bi-info-circle") me-2"></i>@_hintMessage
-                </div>
-            }
-
-            @if (_state == ScanState.ScanningFirst)
-            {
-                <div class="card border-primary text-center">
-                    <div class="card-body py-5">
-                        <i class="bi bi-broadcast display-1 text-primary mb-3"></i>
-                        <h4>@L["inventory.scan.first"]</h4>
-                        <p class="text-muted">@L["tag.nfc.scanning"]</p>
-                    </div>
-                </div>
-            }
-
-            @if (_state == ScanState.ScanningSecond && _firstEntity != null)
-            {
-                <div class="card border-success mb-3">
-                    <div class="card-body">
-                        <div class="d-flex align-items-center gap-3">
-                            <i class="@GetIcon(_firstEntity.EntityType) fs-2 text-success"></i>
-                            <div>
-                                <div class="small text-muted">@L["inventory.scanned.first"]</div>
-                                <strong>@_firstEntity.EntityName</strong>
-                                <span class="badge bg-secondary ms-2">@L[$"inventory.type.{_firstEntity.EntityType}"]</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card border-primary text-center">
-                    <div class="card-body py-4">
-                        <div class="spinner-border text-primary mb-3" style="width:3rem;height:3rem;"></div>
-                        <h5>@L["inventory.scan.second"]</h5>
-                        <p class="text-muted small">@L["inventory.hint.different"]</p>
-                    </div>
-                </div>
-            }
-
-            @if (_state == ScanState.Done)
-            {
-                @if (_result != null)
-                {
-                    <div class="card @(_result.Success ? "border-success" : "border-danger") text-center mb-3">
-                        <div class="card-body py-5">
-                            <i class="bi @(_result.Success ? "bi-check-circle-fill text-success" : "bi-x-circle-fill text-danger") display-3 mb-3"></i>
-                            <h4>@(_result.Success ? L["common.success"] : L["common.error"])</h4>
-                            <p>@_result.Description</p>
-                        </div>
-                    </div>
-                }
-            }
-
-            @if (_errorMessage != null)
-            {
-                <div class="alert alert-warning mt-3">
-                    <i class="bi bi-exclamation-triangle me-1"></i>@_errorMessage
-                </div>
-            }
-
-            <div class="card mt-4">
-                <div class="card-body small text-muted">
-                    <strong>@L["inventory.help.title"]</strong>
-                    <ul class="mb-0 mt-1">
-                        <li>@L["inventory.help.spool.to.printer"]</li>
-                        <li>@L["inventory.help.spool.to.storage"]</li>
-                        <li>@L["inventory.help.printer.to.spool"]</li>
-                        <li>@L["inventory.help.storage.to.spool"]</li>
-                    </ul>
-                </div>
+        <aside class="sh-card" aria-labelledby="inv-help">
+            <h2 class="sh-card-title" id="inv-help">@L["inventory.help.title"]</h2>
+            <ul class="inv-help">
+                <li><i class="bi bi-printer" aria-hidden="true"></i>@L["inventory.help.spool.to.printer"]</li>
+                <li><i class="bi bi-box-seam" aria-hidden="true"></i>@L["inventory.help.spool.to.storage"]</li>
+                <li><i class="bi bi-thermometer-sun" aria-hidden="true"></i>@L["inventory.help.spool.to.dryer"]</li>
+                <li><i class="bi bi-arrow-repeat" aria-hidden="true"></i>@L["inventory.help.reverse"]</li>
+            </ul>
+            <div class="inv-file">
+                <span class="small text-muted">@L["inventory.file.hint"]</span>
+                <label class="btn btn-outline-secondary btn-sm mb-0 inv-file-btn">
+                    <i class="bi bi-file-earmark-arrow-up" aria-hidden="true"></i>@L["tag.read.file.button"]
+                    <InputFile class="visually-hidden" accept=".bin,.json,application/json,application/octet-stream" OnChange="OnFileSelectedAsync" disabled="@(_state == ScanState.Done)" />
+                </label>
             </div>
-
-        </div>
+            <a class="small d-inline-block mt-3" href="/tags/write">@L["inventory.help.write"]</a>
+        </aside>
     </div>
 }
-

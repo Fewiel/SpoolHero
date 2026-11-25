@@ -1,0 +1,46 @@
+.selm-empty {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    padding: 1rem;
+    border: 1px dashed var(--sh-border-strong);
+    border-radius: var(--sh-radius);
+    color: var(--sh-muted);
+    font-size: .92rem;
+}
+
+.selm-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border: 1px solid var(--sh-border);
+    border-radius: var(--sh-radius);
+    overflow: hidden;
+}
+
+.selm-item {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    padding: .5rem .5rem .5rem .75rem;
+    border-bottom: 1px solid var(--sh-border);
+    min-width: 0;
+}
+
+.selm-item:last-child { border-bottom: 0; }
+
+.selm-text { display: flex; flex-direction: column; min-width: 0; flex: 1 1 auto; line-height: 1.25; }
+
+.selm-remove {
+    flex: 0 0 44px;
+    width: 44px;
+    height: 44px;
+    display: grid;
+    place-items: center;
+    border: 0;
+    border-radius: var(--sh-radius-sm);
+    background: transparent;
+    color: var(--sh-muted);
+}
+
+.selm-remove:hover { background: var(--sh-danger-soft); color: var(--sh-danger-text); }

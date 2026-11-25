@@ -9,7 +9,7 @@ public interface IMaterialRepository
     Task<List<FilamentMaterial>> GetAllAsync(Guid projectId, string? search = null);
     Task<List<FilamentMaterial>> SearchAsync(Guid projectId, string query, int limit = 250);
     Task<int> CountAsync(Guid projectId);
-    Task<(List<(FilamentMaterial Material, bool HasActiveSpool)> Items, int TotalCount)> GetPagedAsync(Guid projectId, int page, int pageSize, string? type = null, string? brand = null, string? color = null, string? sortBy = null, bool sortAsc = true);
+    Task<(List<(FilamentMaterial Material, bool HasActiveSpool)> Items, int TotalCount)> GetPagedAsync(Guid projectId, int page, int pageSize, string? type = null, string? brand = null, string? color = null, string? sortBy = null, bool sortAsc = true, string? scope = null, bool onSpoolOnly = false, IReadOnlyCollection<Guid>? onlyIds = null);
     Task<List<string>> GetDistinctTypesAsync(Guid projectId);
     Task<List<string>> GetDistinctBrandsAsync(Guid projectId);
     Task<List<string>> GetDistinctColorsAsync(Guid projectId);
@@ -63,7 +63,7 @@ public class MaterialRepository : IMaterialRepository
     public async Task<int> CountAsync(Guid projectId) =>
         await _db.FilamentMaterials.CountAsync(m => m.ProjectId == projectId || m.ProjectId == null);
 
-    public async Task<(List<(FilamentMaterial Material, bool HasActiveSpool)> Items, int TotalCount)> GetPagedAsync(Guid projectId, int page, int pageSize, string? type = null, string? brand = null, string? color = null, string? sortBy = null, bool sortAsc = true)
+    public async Task<(List<(FilamentMaterial Material, bool HasActiveSpool)> Items, int TotalCount)> GetPagedAsync(Guid projectId, int page, int pageSize, string? type = null, string? brand = null, string? color = null, string? sortBy = null, bool sortAsc = true, string? scope = null, bool onSpoolOnly = false, IReadOnlyCollection<Guid>? onlyIds = null)
     {
         var activeSpoolMaterialIds = _db.Spools
             .Where(s => s.ProjectId == projectId && s.ConsumedAt == null)
@@ -76,7 +76,21 @@ public class MaterialRepository : IMaterialRepository
         if (!string.IsNullOrWhiteSpace(brand))
             baseQuery = baseQuery.Where(m => m.Brand.Contains(brand));
         if (!string.IsNullOrWhiteSpace(color))
-            baseQuery = baseQuery.Where(m => m.ColorName != null && m.ColorName.Contains(color));
+        {
+            var hex = color.Trim().TrimStart('#');
+            baseQuery = baseQuery.Where(m => (m.ColorName != null && m.ColorName.Contains(color)) || m.ColorHex == hex);
+        }
+        if (scope == "project")
+            baseQuery = baseQuery.Where(m => m.ProjectId == projectId);
+        else if (scope == "global")
+            baseQuery = baseQuery.Where(m => m.ProjectId == null);
+        if (onSpoolOnly)
+            baseQuery = baseQuery.Where(m => activeSpoolMaterialIds.Contains(m.Id));
+        if (onlyIds != null)
+        {
+            var idList = onlyIds.ToList();
+            baseQuery = baseQuery.Where(m => idList.Contains(m.Id));
+        }
 
         var withFlag = baseQuery.Select(m => new { Material = m, HasActiveSpool = activeSpoolMaterialIds.Contains(m.Id) });
 

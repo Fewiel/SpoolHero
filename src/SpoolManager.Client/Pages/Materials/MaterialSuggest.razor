@@ -1,123 +1,222 @@
 @page "/materials/suggest"
 @page "/materials/{MaterialId:guid}/suggest"
 
-<PageTitle>@L["material.suggest.title"] – @L["app.name"]</PageTitle>
+<PageTitle>@Title – @L["app.name"]</PageTitle>
 
 <div class="page-header">
-    <h1><i class="bi bi-lightbulb me-2"></i>@L["material.suggest.title"]</h1>
-    <a href="/materials" class="btn btn-outline-secondary">
-        <i class="bi bi-arrow-left me-1"></i>@L["common.cancel"]
-    </a>
+    <div>
+        <h1>@Title</h1>
+        <p class="page-subtitle">@(MaterialId.HasValue ? L["material.suggest.subtitle.fix"] : L["material.suggest.subtitle.new"])</p>
+    </div>
+    <div class="page-actions">
+        <a href="/materials" class="btn btn-outline-secondary"><i class="bi bi-arrow-left" aria-hidden="true"></i>@L["material.form.back"]</a>
+    </div>
 </div>
 
-@if (_existingMaterial != null)
-{
-    <div class="alert alert-info">
-        @L["material.suggest.existing"].Replace("{0}", $"{_existingMaterial.Brand} {_existingMaterial.Type}")
-    </div>
-}
-
-@if (_success)
-{
-    <div class="alert alert-success">
-        <i class="bi bi-check-circle me-1"></i>@L["material.suggest.success"]
-    </div>
-}
-else
-{
-    <div class="card">
-        <div class="card-body">
-            <div class="row g-3">
-                <div class="col-6 col-md-4">
-                    <label class="form-label">@L["material.type"]</label>
-                    <input class="form-control" @bind="_type" list="typeList" />
-                    <datalist id="typeList">
-                        <option value="PLA" />
-                        <option value="PETG" />
-                        <option value="ABS" />
-                        <option value="ASA" />
-                        <option value="TPU" />
-                        <option value="Nylon" />
-                        <option value="PC" />
-                        <option value="PVA" />
-                        <option value="HIPS" />
-                    </datalist>
-                </div>
-                <div class="col-6 col-md-4">
-                    <label class="form-label">@L["material.brand"]</label>
-                    <input class="form-control" @bind="_brand" />
-                </div>
-                <div class="col-6 col-md-4">
-                    <label class="form-label">@L["material.color.name"]</label>
-                    <input class="form-control" @bind="_colorName" />
-                </div>
-                <div class="col-6 col-md-3">
-                    <label class="form-label">@L["material.color.hex"]</label>
-                    <div class="input-group">
-                        <span class="input-group-text">#</span>
-                        <input class="form-control" @bind="_colorHex" maxlength="6" />
-                        <input type="color" class="form-control form-control-color" value="@("#" + _colorHex)"
-                               @onchange='e => _colorHex = (e.Value?.ToString() ?? "#FFFFFF").TrimStart("#".ToCharArray())' />
-                    </div>
-                </div>
-                <div class="col-6 col-md-3">
-                    <label class="form-label">@L["material.temp.min"]</label>
-                    <div class="input-group">
-                        <input type="number" class="form-control" @bind="_minTemp" />
-                        <span class="input-group-text">°C</span>
-                    </div>
-                </div>
-                <div class="col-6 col-md-3">
-                    <label class="form-label">@L["material.temp.max"]</label>
-                    <div class="input-group">
-                        <input type="number" class="form-control" @bind="_maxTemp" />
-                        <span class="input-group-text">°C</span>
-                    </div>
-                </div>
-                <div class="col-6 col-md-3">
-                    <label class="form-label">@L["material.temp.bed"]</label>
-                    <div class="input-group">
-                        <input type="number" class="form-control" @bind="_bedTemp" />
-                        <span class="input-group-text">°C</span>
-                    </div>
-                </div>
-                <div class="col-6 col-md-3">
-                    <label class="form-label">@L["material.density"]</label>
-                    <input type="number" step="0.01" class="form-control" @bind="_density" />
-                </div>
-                <div class="col-6 col-md-3">
-                    <label class="form-label">@L["material.diameter"]</label>
-                    <div class="input-group">
-                        <input type="number" step="0.01" class="form-control" @bind="_diameter" />
-                        <span class="input-group-text">mm</span>
-                    </div>
-                </div>
-                <div class="col-6 col-md-3">
-                    <label class="form-label">@L["material.dry.temp"]</label>
-                    <div class="input-group">
-                        <input type="number" class="form-control" @bind="_dryTemp" />
-                        <span class="input-group-text">°C</span>
-                    </div>
-                </div>
-                <div class="col-6 col-md-3">
-                    <label class="form-label">@L["material.dry.hours"]</label>
-                    <div class="input-group">
-                        <input type="number" class="form-control" @bind="_dryHours" />
-                        <span class="input-group-text">h</span>
-                    </div>
-                </div>
-                <div class="col-12">
-                    <label class="form-label">@L["material.notes"]</label>
-                    <textarea class="form-control" rows="2" @bind="_notes"></textarea>
+<div class="sug-grid">
+    <div class="sug-main">
+        @if (_loading)
+        {
+            <div class="text-center py-5"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">@L["common.loading"]</span></div></div>
+        }
+        else if (_success)
+        {
+            <div class="sh-empty sug-success" role="status">
+                <i class="bi bi-check-circle" aria-hidden="true"></i>
+                <h2>@L["material.suggest.success.title"]</h2>
+                <p>@L["material.suggest.success"]</p>
+                <div class="d-flex flex-wrap gap-2 justify-content-center mt-2">
+                    <a class="btn btn-primary" href="/materials"><i class="bi bi-arrow-left" aria-hidden="true"></i>@L["material.form.back"]</a>
+                    <button type="button" class="btn btn-outline-secondary" @onclick="ResetForNew"><i class="bi bi-plus-lg" aria-hidden="true"></i>@L["material.suggest.another"]</button>
                 </div>
             </div>
+        }
+        else
+        {
+            @if (_existingMaterial != null)
+            {
+                <div class="sh-card sug-original">
+                    <SpoolRing ColorHex="@_existingMaterial.ColorHex" Percent="100" Size="48" />
+                    <div class="min-w-0">
+                        <div class="small text-muted">@L["material.suggest.original"]</div>
+                        <div class="fw-semibold">@_existingMaterial.Brand @_existingMaterial.Type</div>
+                        <div class="small text-muted">@(_existingMaterial.ColorName ?? "#" + _existingMaterial.ColorHex) · @(_existingMaterial.MinTempCelsius)–@(_existingMaterial.MaxTempCelsius) °C</div>
+                    </div>
+                    @if (_existingMaterial.OfdVariantId != null)
+                    {
+                        <span class="sh-chip sh-chip-sm ms-auto"><i class="bi bi-globe2" aria-hidden="true"></i>OFD</span>
+                    }
+                </div>
+            }
 
-            <div class="mt-3">
-                <button class="btn btn-primary" @onclick="SubmitAsync" disabled="@(_submitting || string.IsNullOrWhiteSpace(_type) || string.IsNullOrWhiteSpace(_brand))">
-                    @if (_submitting) { <span class="spinner-border spinner-border-sm me-2"></span> }
-                    <i class="bi bi-send me-1"></i>@L["material.suggest"]
-                </button>
-            </div>
+            <form class="sug-form" novalidate @onsubmit="SubmitAsync" @onsubmit:preventDefault>
+                <section class="sh-card" aria-labelledby="sug-identity">
+                    <h2 class="sh-card-title" id="sug-identity">@L["material.form.section.identity"]</h2>
+                    <div class="row g-3 mt-1">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label" for="sug-brand">@L["material.brand"] <span class="text-danger" aria-hidden="true">*</span></label>
+                            <input id="sug-brand" class="form-control @(_submitted && string.IsNullOrWhiteSpace(_brand) ? "is-invalid" : "")" @bind="_brand" @bind:event="oninput" aria-required="true" />
+                            @if (_submitted && string.IsNullOrWhiteSpace(_brand)) { <div class="invalid-feedback">@L["material.form.error.brand"]</div> }
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label" for="sug-type">@L["material.type"] <span class="text-danger" aria-hidden="true">*</span></label>
+                            <input id="sug-type" class="form-control @(_submitted && string.IsNullOrWhiteSpace(_type) ? "is-invalid" : "")" @bind="_type" @bind:event="oninput" list="sug-type-list" aria-required="true" />
+                            <datalist id="sug-type-list">
+                                <option value="PLA" /><option value="PETG" /><option value="ABS" /><option value="ASA" /><option value="TPU" />
+                                <option value="Nylon" /><option value="PC" /><option value="PVA" /><option value="HIPS" />
+                            </datalist>
+                            @if (_submitted && string.IsNullOrWhiteSpace(_type)) { <div class="invalid-feedback">@L["material.form.error.type"]</div> }
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label" for="sug-hex">@L["material.form.color"]</label>
+                            <div class="sug-color">
+                                <SpoolRing ColorHex="@_colorHex" Percent="100" Size="44" />
+                                <div class="input-group">
+                                    <input type="color" class="form-control form-control-color" aria-label="@L["material.form.color.picker"]"
+                                           value="@("#" + (MaterialForm.IsValidHex(_colorHex) ? _colorHex : "FFFFFF"))" @oninput="OnColorPick" />
+                                    <span class="input-group-text">#</span>
+                                    <input id="sug-hex" class="form-control font-monospace text-uppercase @(_submitted && !MaterialForm.IsValidHex(_colorHex) ? "is-invalid" : "")"
+                                           value="@_colorHex" @oninput="OnHexInput" maxlength="7" spellcheck="false" />
+                                </div>
+                            </div>
+                            @if (_submitted && !MaterialForm.IsValidHex(_colorHex)) { <div class="text-danger small mt-1">@L["material.form.error.hex"]</div> }
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label" for="sug-colorname">@L["material.color.name"]</label>
+                            <input id="sug-colorname" class="form-control" @bind="_colorName" />
+                        </div>
+                        <div class="col-12">
+                            <fieldset>
+                                <legend class="form-label mb-2">@L["material.diameter"]</legend>
+                                <div class="sh-segmented" role="group">
+                                    <button type="button" aria-pressed="@(_diameter == 1.75m ? "true" : "false")" @onclick="() => _diameter = 1.75m">1.75 mm</button>
+                                    <button type="button" aria-pressed="@(_diameter == 2.85m ? "true" : "false")" @onclick="() => _diameter = 2.85m">2.85 mm</button>
+                                </div>
+                            </fieldset>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="sh-card" aria-labelledby="sug-printing">
+                    <h2 class="sh-card-title" id="sug-printing">@L["material.form.section.printing"]</h2>
+                    <div class="row g-3 mt-1">
+                        <div class="col-6 col-md-3">
+                            <label class="form-label" for="sug-min">@L["material.form.nozzle.min"]</label>
+                            <div class="input-group">
+                                <input id="sug-min" type="number" min="0" inputmode="numeric" class="form-control @(TempInvalid ? "is-invalid" : "")" @bind="_minTemp" />
+                                <span class="input-group-text">°C</span>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label" for="sug-max">@L["material.form.nozzle.max"]</label>
+                            <div class="input-group">
+                                <input id="sug-max" type="number" min="0" inputmode="numeric" class="form-control @(TempInvalid ? "is-invalid" : "")" @bind="_maxTemp" />
+                                <span class="input-group-text">°C</span>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label" for="sug-bed">@L["material.form.bed"]</label>
+                            <div class="input-group">
+                                <input id="sug-bed" type="number" min="0" inputmode="numeric" class="form-control" @bind="_bedTemp" />
+                                <span class="input-group-text">°C</span>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label" for="sug-density">@L["material.form.density"]</label>
+                            <div class="input-group">
+                                <input id="sug-density" type="number" step="0.01" min="0" inputmode="decimal" class="form-control" @bind="_density" />
+                                <span class="input-group-text">g/cm³</span>
+                            </div>
+                        </div>
+                        @if (TempInvalid)
+                        {
+                            <div class="col-12"><div class="text-danger small" role="alert">@L["material.form.error.temp"]</div></div>
+                        }
+                        <div class="col-12"><h3 class="sug-subhead">@L["material.form.section.drying"]</h3></div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label" for="sug-drytemp">@L["material.form.dry.temp"]</label>
+                            <div class="input-group">
+                                <input id="sug-drytemp" type="number" min="0" inputmode="numeric" class="form-control" @bind="_dryTemp" />
+                                <span class="input-group-text">°C</span>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label" for="sug-dryhours">@L["material.form.dry.time"]</label>
+                            <div class="input-group">
+                                <input id="sug-dryhours" type="number" min="0" inputmode="numeric" class="form-control" @bind="_dryHours" />
+                                <span class="input-group-text">h</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="sh-card" aria-labelledby="sug-notes">
+                    <h2 class="sh-card-title" id="sug-notes">@L["material.suggest.section.notes"]</h2>
+                    <div class="row g-3 mt-1">
+                        <div class="col-12">
+                            <label class="form-label" for="sug-reorder">@L["material.reorder"] <span class="text-muted fw-normal">@L["common.optional"]</span></label>
+                            <input id="sug-reorder" type="url" inputmode="url" class="form-control" @bind="_reorderUrl" placeholder="https://…" />
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label" for="sug-notes-input">@L["material.suggest.notes.label"]</label>
+                            <textarea id="sug-notes-input" class="form-control" rows="3" @bind="_notes" placeholder="@L["material.suggest.notes.placeholder"]"></textarea>
+                        </div>
+                    </div>
+                </section>
+
+                @if (_error != null)
+                {
+                    <div class="alert alert-danger py-2 mb-0" role="alert">@_error</div>
+                }
+
+                <div class="d-flex flex-wrap gap-2">
+                    <button type="submit" class="btn btn-primary" disabled="@_submitting">
+                        @if (_submitting) { <span class="spinner-border spinner-border-sm" aria-hidden="true"></span> }
+                        else { <i class="bi bi-send" aria-hidden="true"></i> }
+                        @L["material.suggest.send"]
+                    </button>
+                    <a href="/materials" class="btn btn-outline-secondary">@L["common.cancel"]</a>
+                </div>
+            </form>
+        }
+    </div>
+
+    <aside class="sug-side" aria-labelledby="sug-how">
+        <div class="sh-card">
+            <h2 class="sh-card-title" id="sug-how">@L["material.suggest.how.title"]</h2>
+            <ol class="sug-steps">
+                <li>@L["material.suggest.how.1"]</li>
+                <li>@L["material.suggest.how.2"]</li>
+                <li>@L["material.suggest.how.3"]</li>
+            </ol>
         </div>
-    </div>
-}
+
+        <div class="sh-card">
+            <h2 class="sh-card-title">@L["material.suggest.my"]</h2>
+            @if (_mine == null)
+            {
+                <div class="py-2"><span class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">@L["common.loading"]</span></span></div>
+            }
+            else if (_mine.Count == 0)
+            {
+                <p class="small text-muted mb-0 mt-2">@L["material.suggest.my.none"]</p>
+            }
+            else
+            {
+                <ul class="sug-mine" role="list">
+                    @foreach (var s in _mine.Take(8))
+                    {
+                        <li>
+                            <span class="sh-color-swatch" style="background:#@s.ColorHex" aria-hidden="true"></span>
+                            <span class="min-w-0 flex-grow-1">
+                                <span class="d-block text-truncate fw-semibold small">@s.Brand @s.Type</span>
+                                <span class="d-block text-muted sug-date">@s.CreatedAt.ToLocalTime().ToString("d")</span>
+                            </span>
+                            <span class="sh-chip sh-chip-sm @StatusClass(s.Status)">@StatusLabel(s.Status)</span>
+                        </li>
+                    }
+                </ul>
+            }
+        </div>
+    </aside>
+</div>
