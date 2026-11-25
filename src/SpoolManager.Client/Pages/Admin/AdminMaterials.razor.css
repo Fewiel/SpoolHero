@@ -1,0 +1,24 @@
+.am-type {
+    flex: 0 1 200px;
+    width: auto;
+}
+
+.am-placeholder { height: 2.5rem; border-radius: 8px; }
+
+.am-material { min-width: 240px; }
+.min-w-0 { min-width: 0; }
+
+.am-actions {
+    display: inline-flex;
+    gap: .35rem;
+}
+
+.am-icon-btn {
+    width: 40px;
+    min-height: 40px;
+    padding: 0;
+}
+
+@media (max-width: 575.98px) {
+    .am-type { flex: 1 1 100%; }
+}

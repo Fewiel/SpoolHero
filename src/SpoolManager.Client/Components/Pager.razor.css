@@ -1,0 +1,21 @@
+.sh-pager {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    margin-top: 1rem;
+}
+
+.sh-pager-info {
+    color: var(--sh-muted);
+    font-size: .9rem;
+}
+
+.sh-pager .page-link {
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}

@@ -1,0 +1,53 @@
+@if (_error != null)
+{
+    <div class="alert alert-danger d-flex gap-2 align-items-start" role="alert">
+        <i class="bi bi-exclamation-circle mt-1" aria-hidden="true"></i>
+        <div>
+            <div>@_error</div>
+            @if (_result == LoginResult.EmailNotVerified)
+            {
+                <a class="alert-link" href="/verify-email">@L["auth.login.resend.link"]</a>
+            }
+            else if (_result == LoginResult.InvalidCredentials)
+            {
+                <a class="alert-link" href="/forgot-password">@L["auth.forgot.password"]</a>
+            }
+        </div>
+    </div>
+}
+
+<form @onsubmit="HandleLogin" @onsubmit:preventDefault novalidate>
+    <div class="mb-3">
+        <label class="form-label" for="@(IdPrefix)Email">@L["auth.email"]</label>
+        <input id="@(IdPrefix)Email" class="form-control @(_emailInvalid ? "is-invalid" : "")" type="email" @bind="_model.Email"
+               required autocomplete="email" inputmode="email" aria-describedby="@(_emailInvalid ? IdPrefix + "EmailError" : null)" />
+        @if (_emailInvalid)
+        {
+            <div id="@(IdPrefix)EmailError" class="invalid-feedback">@L["auth.email.invalid"]</div>
+        }
+    </div>
+    <div class="mb-2">
+        <label class="form-label" for="@(IdPrefix)Password">@L["auth.password"]</label>
+        <PasswordField Id="@(IdPrefix + "Password")" @bind-Value="_model.Password" Autocomplete="current-password"
+                       Invalid="_passwordInvalid" DescribedBy="@(_passwordInvalid ? IdPrefix + "PasswordError" : null)">
+            @if (_passwordInvalid)
+            {
+                <div id="@(IdPrefix)PasswordError" class="invalid-feedback">@L["auth.password.required"]</div>
+            }
+        </PasswordField>
+    </div>
+    <div class="text-end mb-3">
+        <a href="/forgot-password" class="small fw-semibold">@L["auth.forgot.password"]</a>
+    </div>
+    <button type="submit" class="btn btn-primary btn-lg w-100" disabled="@_loading" aria-busy="@(_loading ? "true" : "false")">
+        @if (_loading)
+        {
+            <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+        }
+        @L["auth.login.submit"]
+    </button>
+</form>
+
+<p class="sh-auth-alt mb-0">
+    @L["auth.no.account"] <a href="/register" class="fw-semibold">@L["auth.register.cta"]</a>
+</p>

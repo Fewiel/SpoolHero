@@ -10,58 +10,85 @@ public partial class AdminAuditLog : IDisposable
     [Inject] private AuthService Auth { get; set; } = default!;
     [Inject] private LocalizationService L { get; set; } = default!;
 
+    private const int PageSize = 50;
+
     private bool _loading = true;
+    private bool _loadFailed;
     private List<AuditLogDto> _logs = [];
     private int _total;
     private int _offset;
-    private const int PageSize = 50;
     private string _actionFilter = string.Empty;
     private string _userFilter = string.Empty;
     private System.Timers.Timer? _debounce;
 
-    protected override async Task OnInitializedAsync() => await LoadAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        if (Auth.CurrentUser?.IsPlatformAdmin != true)
+            return;
+        await LoadAsync();
+    }
 
     private async Task LoadAsync()
     {
         _loading = true;
+        _loadFailed = false;
         StateHasChanged();
-        var resp = await AuditSvc.GetAuditLogAsync(PageSize, _offset,
-            string.IsNullOrWhiteSpace(_actionFilter) ? null : _actionFilter,
-            string.IsNullOrWhiteSpace(_userFilter) ? null : _userFilter);
-        _logs = resp?.Logs ?? [];
-        _total = resp?.Total ?? 0;
+        try
+        {
+            var resp = await AuditSvc.GetAuditLogAsync(PageSize, _offset,
+                string.IsNullOrWhiteSpace(_actionFilter) ? null : _actionFilter,
+                string.IsNullOrWhiteSpace(_userFilter) ? null : _userFilter.Trim());
+            _logs = resp?.Logs ?? [];
+            _total = resp?.Total ?? 0;
+        }
+        catch
+        {
+            _loadFailed = true;
+            _logs = [];
+            _total = 0;
+        }
         _loading = false;
     }
 
-    private void OnUserFilter(ChangeEventArgs e)
+    private void OnUserFilter(string value)
     {
-        _userFilter = e.Value?.ToString() ?? string.Empty;
+        _userFilter = value;
         _offset = 0;
         _debounce?.Stop();
-        _debounce = new System.Timers.Timer(400);
-        _debounce.Elapsed += async (_, _) => { _debounce?.Stop(); await InvokeAsync(LoadAsync); };
+        _debounce?.Dispose();
+        _debounce = new System.Timers.Timer(400) { AutoReset = false };
+        _debounce.Elapsed += async (_, _) => await InvokeAsync(async () => { await LoadAsync(); StateHasChanged(); });
         _debounce.Start();
     }
 
-    private async Task PrevPage()
+    private async Task OnActionChanged(ChangeEventArgs e)
     {
-        _offset = Math.Max(0, _offset - PageSize);
+        _actionFilter = e.Value?.ToString() ?? string.Empty;
+        _offset = 0;
         await LoadAsync();
     }
 
-    private async Task NextPage()
+    private async Task ResetFiltersAsync()
     {
-        _offset += PageSize;
+        _actionFilter = string.Empty;
+        _userFilter = string.Empty;
+        _offset = 0;
         await LoadAsync();
     }
 
-    private static string GetActionBadgeClass(string action) => action switch
+    private async Task GoToPageAsync(int page)
     {
-        var a when a.Contains("fail") || a.Contains("delete") => "bg-danger",
-        var a when a.StartsWith("auth.") => "bg-primary",
-        var a when a.Contains("admin.") => "bg-warning text-dark",
-        var a when a.Contains("project.") => "bg-info text-dark",
-        _ => "bg-secondary"
+        _offset = Math.Max(0, page * PageSize);
+        await LoadAsync();
+    }
+
+    private static string ActionChipClass(string action) => action switch
+    {
+        var a when a.Contains("fail") || a.Contains("delete") || a.Contains("blocked") => "sh-chip-danger",
+        var a when a.StartsWith("auth.") => "sh-chip-accent",
+        var a when a.Contains("admin.") => "sh-chip-warn",
+        var a when a.Contains("create") => "sh-chip-ok",
+        _ => string.Empty
     };
 
     public void Dispose() => _debounce?.Dispose();

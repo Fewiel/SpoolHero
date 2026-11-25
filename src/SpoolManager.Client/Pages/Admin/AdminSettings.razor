@@ -4,258 +4,393 @@
 
 @if (Auth.CurrentUser?.IsPlatformAdmin != true)
 {
-    <div class="alert alert-danger mt-3">@L["common.access.denied"]</div>
+    <AdminAccessDenied />
 }
 else
 {
     <div class="page-header">
-        <h1><i class="bi bi-gear me-2"></i>@L["admin.settings.title"]</h1>
-    </div>
-
-    <div class="card mb-4">
-        <div class="card-header fw-semibold">
-            <i class="bi bi-sliders me-2"></i>@L["admin.settings.general.title"]
-        </div>
-        <div class="card-body">
-            <div class="d-flex align-items-center justify-content-between gap-3">
-                <div>
-                    <div class="fw-semibold">@L["admin.settings.general.landing.label"]</div>
-                    <div class="text-muted small">@L["admin.settings.general.landing.hint"]</div>
-                </div>
-                <div class="form-check form-switch mb-0">
-                    <input class="form-check-input" type="checkbox" id="landingEnabled"
-                           @bind="_landingEnabled"
-                           @bind:after="SaveLandingPageAsync" />
-                    <label class="form-check-label" for="landingEnabled"></label>
-                </div>
-            </div>
+        <div>
+            <h1>@L["admin.settings.title"]</h1>
+            <p class="page-subtitle">@L["admin.settings.subtitle"]</p>
         </div>
     </div>
 
-    <div class="card mb-4">
-        <div class="card-header fw-semibold">
-            <i class="bi bi-palette me-2"></i>@L["admin.settings.branding.title"]
-        </div>
-        <div class="card-body">
-            @if (_brandingSuccess != null)
+    <div class="as-layout">
+        <nav class="as-nav" aria-label="@L["admin.settings.sections"]">
+            @foreach (var (id, icon, key) in Sections)
             {
-                <div class="alert @(_brandingSuccess == true ? "alert-success" : "alert-danger") py-2">@_brandingMessage</div>
+                <a class="sh-nav-link" href="/admin/settings#@id" @onclick="() => ScrollToAsync(id)" @onclick:preventDefault>
+                    <i class="bi @icon" aria-hidden="true"></i>@L[key]
+                </a>
             }
+        </nav>
 
-            <div class="row g-4">
-                <div class="col-md-4">
-                    <label class="form-label fw-semibold">@L["admin.settings.branding.logo"]</label>
-                    <div class="mb-2">
-                        @if (!string.IsNullOrEmpty(Branding.LogoDataUrl))
-                        {
-                            <div class="border rounded p-2 d-inline-block mb-2" style="background:#f8f9fa">
-                                <img src="@Branding.LogoDataUrl" alt="Logo" style="max-height:60px;max-width:200px;object-fit:contain" />
-                            </div>
-                            <br />
-                            <button class="btn btn-sm btn-outline-danger me-2" @onclick="DeleteLogoAsync" disabled="@_brandingSaving">
-                                <i class="bi bi-trash me-1"></i>@L["common.delete"]
-                            </button>
-                        }
+        <div class="as-sections">
+            @* General *@
+            <section id="general" class="sh-card as-section" aria-labelledby="as-general">
+                <h2 id="as-general" class="sh-card-title">@L["admin.settings.general.title"]</h2>
+                <p class="sh-card-sub mb-3">@L["admin.settings.general.subtitle"]</p>
+                <div class="as-row">
+                    <div class="flex-grow-1">
+                        <label class="fw-semibold d-block" for="landingEnabled">@L["admin.settings.general.landing.label"]</label>
+                        <div class="text-muted small" id="landingHint">@L["admin.settings.general.landing.hint"]</div>
                     </div>
-                    <InputFile OnChange="OnLogoSelected" accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml" class="form-control form-control-sm" />
-                    <div class="form-text">@L["admin.settings.branding.logo.hint"]</div>
-                </div>
-
-                <div class="col-md-4">
-                    <label class="form-label fw-semibold">@L["admin.settings.branding.logo.dark"]</label>
-                    <div class="mb-2">
-                        @if (!string.IsNullOrEmpty(Branding.LogoDarkDataUrl))
-                        {
-                            <div class="border rounded p-2 d-inline-block mb-2" style="background:#212529">
-                                <img src="@Branding.LogoDarkDataUrl" alt="Logo Dark" style="max-height:60px;max-width:200px;object-fit:contain" />
-                            </div>
-                            <br />
-                            <button class="btn btn-sm btn-outline-danger me-2" @onclick="DeleteLogoDarkAsync" disabled="@_brandingSaving">
-                                <i class="bi bi-trash me-1"></i>@L["common.delete"]
-                            </button>
-                        }
+                    <div class="form-check form-switch mb-0 as-switch">
+                        <input class="form-check-input" type="checkbox" role="switch" id="landingEnabled" aria-describedby="landingHint"
+                               checked="@_landingEnabled" @onchange="OnLandingChanged" disabled="@_landingSaving" />
                     </div>
-                    <InputFile OnChange="OnLogoDarkSelected" accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml" class="form-control form-control-sm" />
-                    <div class="form-text">@L["admin.settings.branding.logo.dark.hint"]</div>
                 </div>
-
-                <div class="col-md-4">
-                    <label class="form-label fw-semibold">@L["admin.settings.branding.favicon"]</label>
-                    <div class="mb-2">
-                        @if (!string.IsNullOrEmpty(Branding.FaviconDataUrl))
-                        {
-                            <div class="border rounded p-2 d-inline-block mb-2" style="background:#f8f9fa">
-                                <img src="@Branding.FaviconDataUrl" alt="Favicon" style="height:32px;width:32px;object-fit:contain" />
-                            </div>
-                            <br />
-                            <button class="btn btn-sm btn-outline-danger me-2" @onclick="DeleteFaviconAsync" disabled="@_brandingSaving">
-                                <i class="bi bi-trash me-1"></i>@L["common.delete"]
-                            </button>
-                        }
-                    </div>
-                    <InputFile OnChange="OnFaviconSelected" accept="image/png,image/jpeg,image/x-icon" class="form-control form-control-sm" />
-                    <div class="form-text">@L["admin.settings.branding.favicon.hint"]</div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="card mb-4">
-        <div class="card-header fw-semibold">
-            <i class="bi bi-envelope-at me-2"></i>@L["admin.settings.smtp.title"]
-        </div>
-        <div class="card-body">
-            @if (_smtpLoading)
-            {
-                <div class="text-center py-3"><div class="spinner-border spinner-border-sm"></div></div>
-            }
-            else if (_smtp != null)
-            {
-                @if (_smtpSuccess != null)
+                @if (_landingMessage != null)
                 {
-                    <div class="alert @(_smtpSuccess == true ? "alert-success" : "alert-danger") py-2">
-                        @_smtpMessage
+                    <p class="as-feedback @(_landingOk ? "as-ok" : "as-bad") mb-0 mt-2" role="status">
+                        <i class="bi @(_landingOk ? "bi-check-circle" : "bi-exclamation-circle")" aria-hidden="true"></i>@_landingMessage
+                    </p>
+                }
+            </section>
+
+            @* Branding *@
+            <section id="branding" class="sh-card as-section" aria-labelledby="as-branding">
+                <h2 id="as-branding" class="sh-card-title">@L["admin.settings.branding.title"]</h2>
+                <p class="sh-card-sub mb-3">@L["admin.settings.branding.subtitle"]</p>
+                @if (_brandingMessage != null)
+                {
+                    <div class="alert @(_brandingOk ? "alert-success" : "alert-danger") d-flex align-items-center gap-2 py-2" role="status">
+                        <i class="bi @(_brandingOk ? "bi-check-circle" : "bi-exclamation-circle")" aria-hidden="true"></i>
+                        <span class="flex-grow-1">@_brandingMessage</span>
+                        <button type="button" class="btn-close" aria-label="@L["common.close"]" @onclick="() => _brandingMessage = null"></button>
                     </div>
                 }
+                <div class="as-brand-grid">
+                    <div class="as-brand">
+                        <div class="as-brand-title">@L["admin.settings.branding.logo"]</div>
+                        <div class="as-brand-preview as-light">
+                            @if (!string.IsNullOrEmpty(Branding.LogoDataUrl))
+                            {
+                                <img src="@Branding.LogoDataUrl" alt="@L["admin.settings.branding.logo"]" />
+                            }
+                            else
+                            {
+                                <span class="as-brand-empty">@L["admin.settings.branding.none"]</span>
+                            }
+                        </div>
+                        <div class="form-text mt-0">@L["admin.settings.branding.logo.hint"]</div>
+                        <div class="as-brand-actions">
+                            <label class="btn btn-outline-secondary btn-sm as-file @(_brandingSaving ? "disabled" : "")">
+                                <i class="bi bi-upload" aria-hidden="true"></i>@(string.IsNullOrEmpty(Branding.LogoDataUrl) ? L["admin.settings.branding.upload"] : L["admin.settings.branding.replace"])
+                                <InputFile OnChange="OnLogoSelected" accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml" disabled="@_brandingSaving" />
+                            </label>
+                            @if (!string.IsNullOrEmpty(Branding.LogoDataUrl))
+                            {
+                                <button type="button" class="btn btn-outline-danger btn-sm" @onclick='() => AskDelete("logo")' disabled="@_brandingSaving">
+                                    <i class="bi bi-trash" aria-hidden="true"></i>@L["common.delete"]
+                                </button>
+                            }
+                        </div>
+                    </div>
 
-                <div class="row g-3">
-                    <div class="col-md-8">
-                        <label class="form-label">@L["admin.settings.smtp.host"]</label>
-                        <input class="form-control" @bind="_smtp.Host" placeholder="smtp.example.com" />
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">@L["admin.settings.smtp.port"]</label>
-                        <input class="form-control" type="number" @bind="_smtp.Port" />
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label">@L["admin.settings.smtp.username"]</label>
-                        <input class="form-control" @bind="_smtp.Username" />
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label">@L["admin.settings.smtp.password"]</label>
-                        <input class="form-control" type="password" @bind="_smtp.Password" placeholder="@L["admin.settings.smtp.password.hint"]" />
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label">@L["admin.settings.smtp.from.email"]</label>
-                        <input class="form-control" type="email" @bind="_smtp.FromEmail" />
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label">@L["admin.settings.smtp.from.name"]</label>
-                        <input class="form-control" @bind="_smtp.FromName" />
-                    </div>
-                    <div class="col-12">
-                        <label class="form-label">@L["admin.settings.smtp.base.url"]</label>
-                        <input class="form-control" @bind="_smtp.BaseUrl" placeholder="https://spoolmanager.example.com" />
-                        <div class="form-text">@L["admin.settings.smtp.base.url.hint"]</div>
-                    </div>
-                    <div class="col-auto">
-                        <div class="form-check form-switch mt-1">
-                            <input class="form-check-input" type="checkbox" id="useSsl" @bind="_smtp.UseSsl" />
-                            <label class="form-check-label" for="useSsl">SSL</label>
+                    <div class="as-brand">
+                        <div class="as-brand-title">@L["admin.settings.branding.logo.dark"]</div>
+                        <div class="as-brand-preview as-dark">
+                            @if (!string.IsNullOrEmpty(Branding.LogoDarkDataUrl))
+                            {
+                                <img src="@Branding.LogoDarkDataUrl" alt="@L["admin.settings.branding.logo.dark"]" />
+                            }
+                            else if (!string.IsNullOrEmpty(Branding.LogoDataUrl))
+                            {
+                                <img src="@Branding.LogoDataUrl" alt="@L["admin.settings.branding.logo.dark"]" />
+                            }
+                            else
+                            {
+                                <span class="as-brand-empty">@L["admin.settings.branding.none"]</span>
+                            }
+                        </div>
+                        <div class="form-text mt-0">@L["admin.settings.branding.logo.dark.hint"]</div>
+                        <div class="as-brand-actions">
+                            <label class="btn btn-outline-secondary btn-sm as-file @(_brandingSaving ? "disabled" : "")">
+                                <i class="bi bi-upload" aria-hidden="true"></i>@(string.IsNullOrEmpty(Branding.LogoDarkDataUrl) ? L["admin.settings.branding.upload"] : L["admin.settings.branding.replace"])
+                                <InputFile OnChange="OnLogoDarkSelected" accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml" disabled="@_brandingSaving" />
+                            </label>
+                            @if (!string.IsNullOrEmpty(Branding.LogoDarkDataUrl))
+                            {
+                                <button type="button" class="btn btn-outline-danger btn-sm" @onclick='() => AskDelete("logodark")' disabled="@_brandingSaving">
+                                    <i class="bi bi-trash" aria-hidden="true"></i>@L["common.delete"]
+                                </button>
+                            }
                         </div>
                     </div>
-                    <div class="col-auto">
-                        <div class="form-check form-switch mt-1">
-                            <input class="form-check-input" type="checkbox" id="useStartTls" @bind="_smtp.UseStartTls" />
-                            <label class="form-check-label" for="useStartTls">STARTTLS</label>
+
+                    <div class="as-brand">
+                        <div class="as-brand-title">@L["admin.settings.branding.favicon"]</div>
+                        <div class="as-brand-preview">
+                            @if (!string.IsNullOrEmpty(Branding.FaviconDataUrl))
+                            {
+                                <img src="@Branding.FaviconDataUrl" alt="@L["admin.settings.branding.favicon"]" class="as-favicon" />
+                            }
+                            else
+                            {
+                                <span class="as-brand-empty">@L["admin.settings.branding.favicon.default"]</span>
+                            }
                         </div>
-                    </div>
-                    <div class="col-auto">
-                        <div class="form-check form-switch mt-1">
-                            <input class="form-check-input" type="checkbox" id="smtpEnabled" @bind="_smtp.IsEnabled" />
-                            <label class="form-check-label" for="smtpEnabled">@L["admin.settings.smtp.enabled"]</label>
+                        <div class="form-text mt-0">@L["admin.settings.branding.favicon.hint"]</div>
+                        <div class="as-brand-actions">
+                            <label class="btn btn-outline-secondary btn-sm as-file @(_brandingSaving ? "disabled" : "")">
+                                <i class="bi bi-upload" aria-hidden="true"></i>@(string.IsNullOrEmpty(Branding.FaviconDataUrl) ? L["admin.settings.branding.upload"] : L["admin.settings.branding.replace"])
+                                <InputFile OnChange="OnFaviconSelected" accept="image/png,image/jpeg,image/x-icon" disabled="@_brandingSaving" />
+                            </label>
+                            @if (!string.IsNullOrEmpty(Branding.FaviconDataUrl))
+                            {
+                                <button type="button" class="btn btn-outline-danger btn-sm" @onclick='() => AskDelete("favicon")' disabled="@_brandingSaving">
+                                    <i class="bi bi-trash" aria-hidden="true"></i>@L["common.delete"]
+                                </button>
+                            }
                         </div>
                     </div>
                 </div>
+            </section>
 
-                <div class="d-flex gap-2 mt-3 flex-wrap">
-                    <button class="btn btn-primary" @onclick="SaveSmtpAsync" disabled="@_smtpSaving">
-                        @if (_smtpSaving) { <span class="spinner-border spinner-border-sm me-1"></span> }
-                        <i class="bi bi-floppy me-1"></i>@L["common.save"]
+            @* Email *@
+            <section id="email" class="sh-card as-section" aria-labelledby="as-email">
+                <div class="d-flex flex-wrap align-items-start justify-content-between gap-2">
+                    <div>
+                        <h2 id="as-email" class="sh-card-title">@L["admin.settings.smtp.title"]</h2>
+                        <p class="sh-card-sub mb-3">@L["admin.settings.smtp.subtitle"]</p>
+                    </div>
+                    @if (_smtp != null)
+                    {
+                        <span class="sh-chip @(_smtpSavedEnabled ? "sh-chip-ok" : "sh-chip-warn")">
+                            <i class="bi @(_smtpSavedEnabled ? "bi-check-circle" : "bi-pause-circle")" aria-hidden="true"></i>
+                            @(_smtpSavedEnabled ? L["admin.settings.smtp.status.on"] : L["admin.settings.smtp.status.off"])
+                        </span>
+                    }
+                </div>
+
+                @if (_smtpLoading)
+                {
+                    <div class="placeholder-glow" role="status"><span class="placeholder col-12 mb-2"></span><span class="placeholder col-8"></span><span class="visually-hidden">@L["common.loading"]</span></div>
+                }
+                else if (_smtp != null)
+                {
+                    @if (_smtpMessage != null)
+                    {
+                        <div class="alert @(_smtpOk ? "alert-success" : "alert-danger") d-flex align-items-center gap-2 py-2" role="status">
+                            <i class="bi @(_smtpOk ? "bi-check-circle" : "bi-exclamation-circle")" aria-hidden="true"></i>
+                            <span class="flex-grow-1">@_smtpMessage</span>
+                            <button type="button" class="btn-close" aria-label="@L["common.close"]" @onclick="() => _smtpMessage = null"></button>
+                        </div>
+                    }
+
+                    <form @onsubmit="SaveSmtpAsync" @onsubmit:preventDefault>
+                        <div class="row g-3">
+                            <div class="col-12 col-md-8">
+                                <label class="form-label" for="smtpHost">@L["admin.settings.smtp.host"]</label>
+                                <input id="smtpHost" class="form-control" @bind="_smtp.Host" placeholder="smtp.example.com" autocomplete="off" />
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <label class="form-label" for="smtpPort">@L["admin.settings.smtp.port"]</label>
+                                <input id="smtpPort" class="form-control" type="number" min="1" max="65535" inputmode="numeric" @bind="_smtp.Port" />
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label" for="smtpUser">@L["admin.settings.smtp.username"]</label>
+                                <input id="smtpUser" class="form-control" @bind="_smtp.Username" autocomplete="off" />
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label" for="smtpPassword">@L["admin.settings.smtp.password"]</label>
+                                <PasswordField Id="smtpPassword" @bind-Value="_smtp.Password" Autocomplete="new-password" Required="false" DescribedBy="smtpPasswordHelp" />
+                                <div id="smtpPasswordHelp" class="form-text">@L["admin.settings.smtp.password.hint"]</div>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label" for="smtpFrom">@L["admin.settings.smtp.from.email"]</label>
+                                <input id="smtpFrom" class="form-control" type="email" @bind="_smtp.FromEmail" placeholder="noreply@example.com" />
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label" for="smtpFromName">@L["admin.settings.smtp.from.name"]</label>
+                                <input id="smtpFromName" class="form-control" @bind="_smtp.FromName" />
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label" for="smtpBaseUrl">@L["admin.settings.smtp.base.url"]</label>
+                                <input id="smtpBaseUrl" class="form-control" type="url" @bind="_smtp.BaseUrl" placeholder="https://spoolhero.example.com" aria-describedby="smtpBaseUrlHelp" />
+                                <div id="smtpBaseUrlHelp" class="form-text">@L["admin.settings.smtp.base.url.hint"]</div>
+                            </div>
+                            <div class="col-12">
+                                <fieldset class="as-switches">
+                                    <legend class="form-label">@L["admin.settings.smtp.security"]</legend>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" role="switch" id="useSsl" @bind="_smtp.UseSsl" />
+                                        <label class="form-check-label" for="useSsl">@L["admin.settings.smtp.ssl"]</label>
+                                    </div>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" role="switch" id="useStartTls" @bind="_smtp.UseStartTls" />
+                                        <label class="form-check-label" for="useStartTls">@L["admin.settings.smtp.starttls"]</label>
+                                    </div>
+                                </fieldset>
+                            </div>
+                            <div class="col-12">
+                                <div class="as-row as-enable">
+                                    <div class="flex-grow-1">
+                                        <label class="fw-semibold d-block" for="smtpEnabled">@L["admin.settings.smtp.enabled"]</label>
+                                        <div class="text-muted small" id="smtpEnabledHint">@L["admin.settings.smtp.enabled.hint"]</div>
+                                    </div>
+                                    <div class="form-check form-switch mb-0 as-switch">
+                                        <input class="form-check-input" type="checkbox" role="switch" id="smtpEnabled" aria-describedby="smtpEnabledHint" @bind="_smtp.IsEnabled" />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <button type="submit" class="btn btn-primary" disabled="@_smtpSaving" aria-busy="@(_smtpSaving ? "true" : "false")">
+                                @if (_smtpSaving)
+                                {
+                                    <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-check-lg" aria-hidden="true"></i>
+                                }
+                                @L["admin.settings.smtp.save"]
+                            </button>
+                        </div>
+                    </form>
+
+                    <div class="as-test">
+                        <h3 class="h6 mb-1">@L["admin.settings.smtp.test.title"]</h3>
+                        <p class="small text-muted mb-2">@L["admin.settings.smtp.test.hint"]</p>
+                        <form class="as-test-row" @onsubmit="TestSmtpAsync" @onsubmit:preventDefault>
+                            <label for="smtpTestEmail" class="visually-hidden">@L["admin.settings.smtp.test.email"]</label>
+                            <input id="smtpTestEmail" class="form-control" type="email" @bind="_testEmail" placeholder="@L["admin.settings.smtp.test.email"]" />
+                            <button type="submit" class="btn btn-outline-secondary" disabled="@_smtpTesting" aria-busy="@(_smtpTesting ? "true" : "false")">
+                                @if (_smtpTesting)
+                                {
+                                    <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-send" aria-hidden="true"></i>
+                                }
+                                @L["admin.settings.smtp.test"]
+                            </button>
+                        </form>
+                    </div>
+                }
+            </section>
+
+            @* Material database *@
+            <section id="ofd" class="sh-card as-section" aria-labelledby="as-ofd">
+                <h2 id="as-ofd" class="sh-card-title">@L["admin.ofd.sync"]</h2>
+                <p class="sh-card-sub mb-3">@L["admin.settings.ofd.hint"]</p>
+                @if (_ofdMessage != null)
+                {
+                    <p class="as-feedback @(_ofdOk ? "as-ok" : "as-bad")" role="status">
+                        <i class="bi @(_ofdOk ? "bi-check-circle" : "bi-exclamation-circle")" aria-hidden="true"></i>@_ofdMessage
+                    </p>
+                }
+                <div class="d-flex flex-wrap gap-2">
+                    <button type="button" class="btn btn-outline-secondary" @onclick="SyncOfdAsync" disabled="@_ofdSyncing" aria-busy="@(_ofdSyncing ? "true" : "false")">
+                        @if (_ofdSyncing)
+                        {
+                            <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>@L["admin.ofd.sync.running"]
+                        }
+                        else
+                        {
+                            <i class="bi bi-cloud-download" aria-hidden="true"></i>@L["admin.ofd.sync.button"]
+                        }
                     </button>
-
-                    <div class="input-group" style="width:auto">
-                        <input class="form-control form-control-sm" @bind="_testEmail" placeholder="@L["admin.settings.smtp.test.email"]" style="width:220px" />
-                        <button class="btn btn-outline-secondary btn-sm" @onclick="TestSmtpAsync" disabled="@_smtpTesting">
-                            @if (_smtpTesting) { <span class="spinner-border spinner-border-sm me-1"></span> }
-                            <i class="bi bi-send me-1"></i>@L["admin.settings.smtp.test"]
-                        </button>
-                    </div>
+                    <a href="/admin/materials" class="btn btn-link">@L["admin.settings.ofd.open.materials"]</a>
                 </div>
-            }
-        </div>
-    </div>
-    <div class="card mb-4">
-        <div class="card-header fw-semibold">
-            <i class="bi bi-file-text me-2"></i>@L["admin.settings.legal.title"]
-        </div>
-        <div class="card-body">
-            <p class="text-muted small">@L["admin.settings.legal.hint"]</p>
+            </section>
 
-            @if (_legalLoading)
-            {
-                <div class="text-center py-3"><div class="spinner-border spinner-border-sm"></div></div>
-            }
-            else if (_legal != null)
-            {
-                @if (_legalSuccess != null)
+            @* Legal *@
+            <section id="legal" class="sh-card as-section" aria-labelledby="as-legal">
+                <h2 id="as-legal" class="sh-card-title">@L["admin.settings.legal.title"]</h2>
+                <p class="sh-card-sub mb-3">@L["admin.settings.legal.hint"]</p>
+
+                @if (_legalLoading)
                 {
-                    <div class="alert @(_legalSuccess == true ? "alert-success" : "alert-danger") py-2">
-                        @_legalMessage
+                    <div class="placeholder-glow" role="status"><span class="placeholder col-12 mb-2"></span><span class="placeholder col-8"></span><span class="visually-hidden">@L["common.loading"]</span></div>
+                }
+                else if (_legal != null)
+                {
+                    @if (_legalMessage != null)
+                    {
+                        <div class="alert @(_legalOk ? "alert-success" : "alert-danger") d-flex align-items-center gap-2 py-2" role="status">
+                            <i class="bi @(_legalOk ? "bi-check-circle" : "bi-exclamation-circle")" aria-hidden="true"></i>
+                            <span class="flex-grow-1">@_legalMessage</span>
+                            <button type="button" class="btn-close" aria-label="@L["common.close"]" @onclick="() => _legalMessage = null"></button>
+                        </div>
+                    }
+
+                    <div class="as-legal-bar">
+                        <div class="sh-segmented" role="group" aria-label="@L["admin.settings.legal.document"]">
+                            @foreach (var (doc, key) in LegalDocs)
+                            {
+                                <button type="button" aria-pressed="@(_legalDoc == doc ? "true" : "false")" @onclick="() => _legalDoc = doc">
+                                    @L[key]
+                                    @if (string.IsNullOrWhiteSpace(GetLegal(doc, "de")) && string.IsNullOrWhiteSpace(GetLegal(doc, "en")))
+                                    {
+                                        <span class="as-dot" title="@L["admin.settings.legal.missing"]"><span class="visually-hidden">@L["admin.settings.legal.missing"]</span></span>
+                                    }
+                                </button>
+                            }
+                        </div>
+                        <div class="sh-segmented" role="group" aria-label="@L["nav.language"]">
+                            <button type="button" aria-pressed="@(_legalLang == "de" ? "true" : "false")" @onclick='() => _legalLang = "de"' lang="de">Deutsch</button>
+                            <button type="button" aria-pressed="@(_legalLang == "en" ? "true" : "false")" @onclick='() => _legalLang = "en"' lang="en">English</button>
+                        </div>
+                        <div class="sh-segmented ms-lg-auto" role="group" aria-label="@L["admin.settings.legal.mode"]">
+                            <button type="button" aria-pressed="@(!_legalPreview ? "true" : "false")" @onclick="() => _legalPreview = false"><i class="bi bi-code-slash" aria-hidden="true"></i>@L["admin.settings.legal.edit"]</button>
+                            <button type="button" aria-pressed="@(_legalPreview ? "true" : "false")" @onclick="() => _legalPreview = true"><i class="bi bi-eye" aria-hidden="true"></i>@L["admin.settings.legal.preview"]</button>
+                        </div>
+                    </div>
+
+                    @if (_legalPreview)
+                    {
+                        <div class="as-legal-preview">
+                            @if (string.IsNullOrWhiteSpace(CurrentLegal))
+                            {
+                                <p class="text-muted mb-0">@L["legal.not.configured"]</p>
+                            }
+                            else
+                            {
+                                <Prose Html="@CurrentLegal" />
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <label class="visually-hidden" for="legalText">@L[LegalDocs.First(d => d.Doc == _legalDoc).Key] (@_legalLang.ToUpperInvariant())</label>
+                        <textarea id="legalText" class="form-control font-monospace as-legal-text" rows="16" value="@CurrentLegal" @oninput="OnLegalChanged"
+                                  placeholder="@L["admin.settings.legal.empty.hint"]" spellcheck="false"></textarea>
+                    }
+
+                    <div class="d-flex flex-wrap align-items-center gap-2 mt-3">
+                        <button type="button" class="btn btn-primary" @onclick="SaveLegalAsync" disabled="@_legalSaving" aria-busy="@(_legalSaving ? "true" : "false")">
+                            @if (_legalSaving)
+                            {
+                                <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                            }
+                            else
+                            {
+                                <i class="bi bi-check-lg" aria-hidden="true"></i>
+                            }
+                            @L["admin.settings.legal.save"]
+                        </button>
+                        <a class="btn btn-link" href="/@_legalDoc" target="_blank" rel="noopener">@L["admin.settings.legal.view"] <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i></a>
                     </div>
                 }
-
-                <ul class="nav nav-tabs mb-3" id="legalTabs">
-                    <li class="nav-item">
-                        <button class="nav-link @(_legalTab == "privacy_de" ? "active" : "")" @onclick='() => _legalTab = "privacy_de"'>Datenschutz (DE)</button>
-                    </li>
-                    <li class="nav-item">
-                        <button class="nav-link @(_legalTab == "privacy_en" ? "active" : "")" @onclick='() => _legalTab = "privacy_en"'>Privacy (EN)</button>
-                    </li>
-                    <li class="nav-item">
-                        <button class="nav-link @(_legalTab == "imprint_de" ? "active" : "")" @onclick='() => _legalTab = "imprint_de"'>Impressum (DE)</button>
-                    </li>
-                    <li class="nav-item">
-                        <button class="nav-link @(_legalTab == "imprint_en" ? "active" : "")" @onclick='() => _legalTab = "imprint_en"'>Imprint (EN)</button>
-                    </li>
-                    <li class="nav-item">
-                        <button class="nav-link @(_legalTab == "terms_de" ? "active" : "")" @onclick='() => _legalTab = "terms_de"'>Nutzungsbedingungen (DE)</button>
-                    </li>
-                    <li class="nav-item">
-                        <button class="nav-link @(_legalTab == "terms_en" ? "active" : "")" @onclick='() => _legalTab = "terms_en"'>Terms (EN)</button>
-                    </li>
-                </ul>
-
-                @if (_legalTab == "privacy_de")
-                {
-                    <textarea class="form-control font-monospace" rows="18" @bind="_legal.PrivacyDe" placeholder="@L["admin.settings.legal.empty.hint"]"></textarea>
-                }
-                else if (_legalTab == "privacy_en")
-                {
-                    <textarea class="form-control font-monospace" rows="18" @bind="_legal.PrivacyEn" placeholder="@L["admin.settings.legal.empty.hint"]"></textarea>
-                }
-                else if (_legalTab == "imprint_de")
-                {
-                    <textarea class="form-control font-monospace" rows="18" @bind="_legal.ImprintDe" placeholder="@L["admin.settings.legal.empty.hint"]"></textarea>
-                }
-                else if (_legalTab == "imprint_en")
-                {
-                    <textarea class="form-control font-monospace" rows="18" @bind="_legal.ImprintEn" placeholder="@L["admin.settings.legal.empty.hint"]"></textarea>
-                }
-                else if (_legalTab == "terms_de")
-                {
-                    <textarea class="form-control font-monospace" rows="18" @bind="_legal.TermsDe" placeholder="@L["admin.settings.legal.empty.hint"]"></textarea>
-                }
-                else
-                {
-                    <textarea class="form-control font-monospace" rows="18" @bind="_legal.TermsEn" placeholder="@L["admin.settings.legal.empty.hint"]"></textarea>
-                }
-
-                <button class="btn btn-primary mt-3" @onclick="SaveLegalAsync" disabled="@_legalSaving">
-                    @if (_legalSaving) { <span class="spinner-border spinner-border-sm me-1"></span> }
-                    <i class="bi bi-floppy me-1"></i>@L["common.save"]
-                </button>
-            }
+            </section>
         </div>
     </div>
+
+    @if (_confirmDelete != null)
+    {
+        <div class="modal-backdrop-custom" @onclick="() => _confirmDelete = null">
+            <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="asDeleteTitle" @onclick:stopPropagation>
+                <h2 id="asDeleteTitle" class="h5">@L["admin.settings.branding.delete.title"]</h2>
+                <p>@L["admin.settings.branding.delete.text"]</p>
+                <div class="d-flex gap-2 justify-content-end flex-wrap">
+                    <button type="button" class="btn btn-outline-secondary" @onclick="() => _confirmDelete = null">@L["common.cancel"]</button>
+                    <button type="button" class="btn btn-danger" @onclick="ConfirmDeleteAsync"><i class="bi bi-trash" aria-hidden="true"></i>@L["common.delete"]</button>
+                </div>
+            </div>
+        </div>
+    }
 }

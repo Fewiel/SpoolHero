@@ -1,0 +1,17 @@
+.sh-searchbox {
+    position: relative;
+    flex: 1 1 260px;
+    max-width: 420px;
+    min-width: 0;
+}
+
+.sh-searchbox .bi {
+    position: absolute;
+    left: .85rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--sh-muted);
+    pointer-events: none;
+}
+
+.sh-searchbox .form-control { padding-left: 2.4rem; }

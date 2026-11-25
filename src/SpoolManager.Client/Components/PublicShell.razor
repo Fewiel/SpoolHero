@@ -1,0 +1,61 @@
+@if (BypassWhenAuthenticated && Auth.IsAuthenticated)
+{
+    <div class="sh-public-scope sh-public-bypass-@Variant">
+        @ChildContent
+    </div>
+}
+else
+{
+    <a href="#public-main" class="visually-hidden-focusable sh-skip-link">@L["nav.skip"]</a>
+
+    <div class="sh-public sh-public-scope sh-public-@Variant">
+        <header class="sh-public-header">
+            <div class="sh-public-bar">
+                <a class="sh-brand px-0" href="@BrandHref" aria-label="@L["app.name"] – @L["public.home"]">
+                    @if (!string.IsNullOrEmpty(Branding.LogoDataUrl))
+                    {
+                        <img src="@Branding.LogoDataUrl" class="logo-light" alt="@L["app.name"]" />
+                        <img src="@(string.IsNullOrEmpty(Branding.LogoDarkDataUrl) ? Branding.LogoDataUrl : Branding.LogoDarkDataUrl)" class="logo-dark" alt="@L["app.name"]" />
+                    }
+                    else
+                    {
+                        <svg class="sh-logo-mark" width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="12.5" fill="none" stroke="var(--sh-accent)" stroke-width="5"></circle><circle cx="16" cy="16" r="4.5" fill="currentColor"></circle></svg>
+                        <span>@L["app.name"]</span>
+                    }
+                </a>
+
+                <div class="sh-public-actions">
+                    @HeaderActions
+                    <div class="dropdown">
+                        <button type="button" class="sh-icon-btn" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false"
+                                aria-label="@L["public.display.settings"]" title="@L["public.display.settings"]">
+                            <i class="bi bi-sliders2" aria-hidden="true"></i>
+                        </button>
+                        <div class="dropdown-menu dropdown-menu-end sh-public-display">
+                            <div class="sh-public-display-label">@L["nav.theme"]</div>
+                            <ThemeToggle />
+                            <div class="sh-public-display-label">@L["nav.language"]</div>
+                            <LanguageSelector />
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main id="public-main" class="sh-public-main" tabindex="-1">
+            <div class="sh-public-inner" @key="_languageKey">
+                @ChildContent
+            </div>
+        </main>
+
+        <footer class="sh-public-footer">
+            <nav class="sh-public-links" aria-label="@L["public.footer.links"]">
+                <a href="/changelog">@L["nav.changelog"]</a>
+                <a href="/privacy">@L["legal.privacy.title"]</a>
+                <a href="/imprint">@L["legal.imprint.title"]</a>
+                <a href="/terms">@L["legal.terms.title"]</a>
+            </nav>
+            <p class="mb-0">&copy; @DateTime.UtcNow.Year @L["app.name"]</p>
+        </footer>
+    </div>
+}

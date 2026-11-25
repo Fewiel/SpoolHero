@@ -1,0 +1,50 @@
+<PageTitle>@L[TitleKey] – @L["app.name"]</PageTitle>
+
+<PublicShell Variant="page" BypassWhenAuthenticated="true">
+    <article class="sh-doc">
+        <div class="page-header">
+            <div>
+                <h1>@L[TitleKey]</h1>
+                <p class="page-subtitle">@L[SubtitleKey]</p>
+            </div>
+        </div>
+
+        @if (_loading)
+        {
+            <div class="sh-card sh-doc-card" role="status">
+                <div class="placeholder-glow">
+                    <span class="placeholder col-7 mb-3"></span>
+                    <span class="placeholder col-12"></span>
+                    <span class="placeholder col-10"></span>
+                    <span class="placeholder col-11"></span>
+                </div>
+                <span class="visually-hidden">@L["common.loading"]</span>
+            </div>
+        }
+        else if (!string.IsNullOrWhiteSpace(Content))
+        {
+            <div class="sh-card sh-doc-card">
+                <Prose Html="@Content" />
+            </div>
+        }
+        else
+        {
+            <div class="sh-empty">
+                <i class="bi bi-file-earmark-text" aria-hidden="true"></i>
+                <h2>@L["legal.empty.title"]</h2>
+                <p>@L["legal.not.configured"]</p>
+                @if (Auth.CurrentUser?.IsPlatformAdmin == true)
+                {
+                    <a href="/admin/settings#legal" class="btn btn-primary mt-2"><i class="bi bi-pencil" aria-hidden="true"></i>@L["legal.edit"]</a>
+                }
+            </div>
+        }
+
+        <nav class="sh-doc-related" aria-label="@L["legal.related"]">
+            @foreach (var (href, key) in Related)
+            {
+                <a class="sh-chip" href="@href">@L[key]</a>
+            }
+        </nav>
+    </article>
+</PublicShell>

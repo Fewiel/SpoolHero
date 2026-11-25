@@ -1,72 +1,118 @@
 @page "/register"
 
-<div class="login-card">
-    <div class="text-center mb-4">
-        <i class="bi bi-layers-half fs-1 text-primary"></i>
-        <h2 class="mt-2">@L["auth.register"]</h2>
+<PageTitle>@L["auth.register.title"] – @L["app.name"]</PageTitle>
+
+<PublicShell Variant="auth">
+    <div class="sh-auth-card">
+        @if (_requiresVerification)
+        {
+            <div class="sh-auth-head mb-3">
+                <span class="sh-auth-icon sh-ok" aria-hidden="true"><i class="bi bi-envelope-check"></i></span>
+                <h1>@L["auth.register.check.title"]</h1>
+                <p role="status">@L["auth.register.verify.email"]</p>
+            </div>
+            <p class="text-muted small text-center">@L["auth.register.check.hint"]</p>
+            <a href="/login" class="btn btn-primary btn-lg w-100">@L["auth.login"]</a>
+            <p class="sh-auth-alt mb-0"><a href="/verify-email">@L["auth.resend.button"]</a></p>
+        }
+        else if (_success)
+        {
+            <div class="sh-auth-head mb-0" role="status">
+                <span class="sh-auth-icon sh-ok" aria-hidden="true"><i class="bi bi-check-lg"></i></span>
+                <h1>@L["auth.register.done.title"]</h1>
+                <p>@L["auth.register.success"]</p>
+                <a href="/login" class="btn btn-primary btn-lg w-100 mt-3">@L["auth.login"]</a>
+            </div>
+        }
+        else
+        {
+            <div class="sh-auth-head">
+                <span class="sh-auth-icon" aria-hidden="true"><i class="bi bi-person-plus"></i></span>
+                <h1>@L["auth.register.title"]</h1>
+                <p>@L["auth.register.subtitle"]</p>
+            </div>
+
+            @if (_error != null)
+            {
+                <div class="alert alert-danger d-flex gap-2" role="alert">
+                    <i class="bi bi-exclamation-circle mt-1" aria-hidden="true"></i><span>@_error</span>
+                </div>
+            }
+
+            <form @onsubmit="HandleRegister" @onsubmit:preventDefault novalidate>
+                <div class="mb-3">
+                    <label class="form-label" for="regUsername">@L["auth.username"]</label>
+                    <input id="regUsername" class="form-control @Invalid("username")" @bind="_model.Username" autocomplete="username"
+                           required maxlength="100" aria-describedby="regUsernameHelp" />
+                    @if (_errors.TryGetValue("username", out var usernameError))
+                    {
+                        <div class="invalid-feedback">@usernameError</div>
+                    }
+                    <div id="regUsernameHelp" class="form-text">@L["auth.username.hint"]</div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="regEmail">@L["auth.email"]</label>
+                    <input id="regEmail" class="form-control @Invalid("email")" type="email" @bind="_model.Email" autocomplete="email"
+                           inputmode="email" required maxlength="256" />
+                    @if (_errors.TryGetValue("email", out var emailError))
+                    {
+                        <div class="invalid-feedback">@emailError</div>
+                    }
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="regPassword">@L["auth.password"]</label>
+                    <PasswordField Id="regPassword" @bind-Value="_model.Password" Autocomplete="new-password"
+                                   Invalid='_errors.ContainsKey("password")' DescribedBy="regPasswordHelp">
+                        @if (_errors.TryGetValue("password", out var passwordError))
+                        {
+                            <div class="invalid-feedback">@passwordError</div>
+                        }
+                    </PasswordField>
+                    <div id="regPasswordHelp" class="form-text">@L["auth.password.min"]</div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="regPasswordConfirm">@L["auth.confirm.password"]</label>
+                    <PasswordField Id="regPasswordConfirm" @bind-Value="_confirmPassword" Autocomplete="new-password"
+                                   Invalid='_errors.ContainsKey("confirm")'>
+                        @if (_errors.TryGetValue("confirm", out var confirmError))
+                        {
+                            <div class="invalid-feedback">@confirmError</div>
+                        }
+                    </PasswordField>
+                </div>
+
+                <fieldset class="sh-consent @(_errors.ContainsKey("consent") ? "sh-consent-invalid" : "")">
+                    <legend class="visually-hidden">@L["auth.consent.legend"]</legend>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="acceptTerms" @bind="_termsAccepted" />
+                        <label class="form-check-label" for="acceptTerms">
+                            @L["auth.terms.accept"] <a href="/terms" target="_blank" rel="noopener">@L["legal.terms.title"]</a>
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="acceptPrivacy" @bind="_privacyAccepted" />
+                        <label class="form-check-label" for="acceptPrivacy">
+                            @L["auth.privacy.accept"] <a href="/privacy" target="_blank" rel="noopener">@L["legal.privacy.title"]</a>
+                        </label>
+                    </div>
+                    @if (_errors.TryGetValue("consent", out var consentError))
+                    {
+                        <div class="sh-consent-error">@consentError</div>
+                    }
+                </fieldset>
+
+                <button type="submit" class="btn btn-primary btn-lg w-100" disabled="@_loading" aria-busy="@(_loading ? "true" : "false")">
+                    @if (_loading)
+                    {
+                        <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                    }
+                    @L["auth.register.submit"]
+                </button>
+            </form>
+
+            <p class="sh-auth-alt mb-0">
+                @L["auth.has.account"] <a href="/login" class="fw-semibold">@L["auth.login"]</a>
+            </p>
+        }
     </div>
-
-    @if (_requiresVerification)
-    {
-        <div class="alert alert-info">
-            <i class="bi bi-envelope-check me-2"></i>@L["auth.register.verify.email"]
-        </div>
-        <div class="text-center mt-3">
-            <a href="/login" class="btn btn-primary">@L["auth.login"]</a>
-        </div>
-    }
-    else
-    {
-        @if (_success)
-        {
-            <div class="alert alert-success">@L["auth.register.success"]</div>
-        }
-        @if (_error != null)
-        {
-            <div class="alert alert-danger">@_error</div>
-        }
-
-        <EditForm Model="_model" OnValidSubmit="HandleRegister">
-            <div class="mb-3">
-                <label class="form-label">@L["auth.username"]</label>
-                <input class="form-control" @bind="_model.Username" required />
-            </div>
-            <div class="mb-3">
-                <label class="form-label">@L["auth.email"]</label>
-                <input class="form-control" type="email" @bind="_model.Email" required />
-            </div>
-            <div class="mb-3">
-                <label class="form-label">@L["auth.password"]</label>
-                <input class="form-control" type="password" @bind="_model.Password" required minlength="8" />
-            </div>
-
-            <div class="mb-2">
-                <div class="form-check">
-                    <input class="form-check-input" type="checkbox" id="acceptTerms" @bind="_termsAccepted" />
-                    <label class="form-check-label small" for="acceptTerms">
-                        @L["auth.terms.accept"] <a href="/terms" target="_blank">@L["legal.terms.title"]</a>
-                    </label>
-                </div>
-            </div>
-            <div class="mb-3">
-                <div class="form-check">
-                    <input class="form-check-input" type="checkbox" id="acceptPrivacy" @bind="_privacyAccepted" />
-                    <label class="form-check-label small" for="acceptPrivacy">
-                        @L["auth.privacy.accept"] <a href="/privacy" target="_blank">@L["legal.privacy.title"]</a>
-                    </label>
-                </div>
-            </div>
-
-            <button type="submit" class="btn btn-primary w-100" disabled="@(_loading || !_termsAccepted || !_privacyAccepted)">
-                @if (_loading) { <span class="spinner-border spinner-border-sm me-2"></span> }
-                @L["auth.register.submit"]
-            </button>
-        </EditForm>
-
-        <hr />
-        <div class="text-center">
-            <small>@L["auth.has.account"] <a href="/login">@L["auth.login"]</a></small>
-        </div>
-    }
-</div>
-
+</PublicShell>

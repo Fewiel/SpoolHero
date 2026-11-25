@@ -1,57 +1,86 @@
 @page "/verify-email"
 
-<div class="d-flex justify-content-center align-items-center" style="min-height:100vh;padding:1rem">
-    <div style="width:100%;max-width:420px">
-        <div class="text-center mb-4">
-            <i class="bi bi-envelope-check fs-1 text-primary"></i>
-            <h2 class="mt-2">@L["auth.verify.title"]</h2>
-        </div>
+<PageTitle>@L["auth.verify.title"] – @L["app.name"]</PageTitle>
 
+<PublicShell Variant="auth" BypassWhenAuthenticated="true">
+    <div class="sh-auth-card">
         @if (_loading)
         {
-            <div class="text-center py-4"><div class="spinner-border text-primary"></div></div>
+            <div class="sh-auth-head mb-0" role="status">
+                <span class="spinner-border text-primary" aria-hidden="true"></span>
+                <h1>@L["auth.verify.title"]</h1>
+                <p>@L["auth.verify.checking"]</p>
+            </div>
         }
         else if (_success)
         {
-            <div class="alert alert-success">
-                <i class="bi bi-check-circle me-2"></i>@L["auth.verify.success"]
+            <div class="sh-auth-head mb-3" role="status">
+                <span class="sh-auth-icon sh-ok" aria-hidden="true"><i class="bi bi-patch-check"></i></span>
+                <h1>@L["auth.verify.done.title"]</h1>
+                <p>@L["auth.verify.success"]</p>
             </div>
-            <div class="text-center mt-3">
-                <a href="/login" class="btn btn-primary">@L["auth.login"]</a>
-            </div>
+            <a href="/login" class="btn btn-primary btn-lg w-100">@L["auth.login.submit"]</a>
         }
         else
         {
-            <div class="alert alert-danger">
-                <i class="bi bi-x-circle me-2"></i>@L["auth.verify.error"]
-            </div>
+            @if (_hadToken)
+            {
+                <div class="sh-auth-head mb-3">
+                    <span class="sh-auth-icon sh-danger" aria-hidden="true"><i class="bi bi-envelope-x"></i></span>
+                    <h1>@L["auth.verify.failed.title"]</h1>
+                    <p role="alert">@L["auth.verify.error"]</p>
+                </div>
+            }
+            else
+            {
+                <div class="sh-auth-head mb-3">
+                    <span class="sh-auth-icon" aria-hidden="true"><i class="bi bi-envelope-arrow-up"></i></span>
+                    <h1>@L["auth.resend.title"]</h1>
+                    <p>@L["auth.resend.subtitle"]</p>
+                </div>
+            }
 
-            <div class="card mt-3">
-                <div class="card-body">
-                    <p class="small text-muted mb-2">@L["auth.resend.hint"]</p>
-
-                    @if (_resendSuccess)
-                    {
-                        <div class="alert alert-success py-2 small">
-                            <i class="bi bi-check-circle me-1"></i>@L["auth.resend.success"]
-                        </div>
-                    }
-
-                    <div class="mb-2">
-                        <input class="form-control form-control-sm" type="email" @bind="_resendEmail"
-                               placeholder="@L["auth.email"]" />
+            @if (_resendSuccess)
+            {
+                <div class="alert alert-success d-flex gap-2" role="status">
+                    <i class="bi bi-check-circle mt-1" aria-hidden="true"></i><span>@L["auth.resend.success"]</span>
+                </div>
+            }
+            else
+            {
+                @if (_hadToken)
+                {
+                    <p class="text-muted small">@L["auth.resend.hint"]</p>
+                }
+                @if (_resendError != null)
+                {
+                    <div class="alert alert-danger d-flex gap-2" role="alert">
+                        <i class="bi bi-exclamation-circle mt-1" aria-hidden="true"></i><span>@_resendError</span>
                     </div>
-                    <button class="btn btn-sm btn-outline-primary w-100" @onclick="ResendAsync" disabled="@_resending">
-                        @if (_resending) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                }
+                <form @onsubmit="ResendAsync" @onsubmit:preventDefault novalidate>
+                    <div class="mb-3">
+                        <label class="form-label" for="resendEmail">@L["auth.email"]</label>
+                        <input id="resendEmail" class="form-control @(_emailInvalid ? "is-invalid" : "")" type="email" @bind="_resendEmail"
+                               autocomplete="email" inputmode="email" required />
+                        @if (_emailInvalid)
+                        {
+                            <div class="invalid-feedback">@L["auth.email.invalid"]</div>
+                        }
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-lg w-100" disabled="@_resending" aria-busy="@(_resending ? "true" : "false")">
+                        @if (_resending)
+                        {
+                            <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                        }
                         @L["auth.resend.button"]
                     </button>
-                </div>
-            </div>
+                </form>
+            }
 
-            <div class="text-center mt-3">
-                <a href="/login" class="btn btn-outline-secondary">@L["auth.login"]</a>
-            </div>
+            <p class="sh-auth-alt mb-0">
+                <a href="/login" class="fw-semibold"><i class="bi bi-arrow-left" aria-hidden="true"></i> @L["auth.back.to.login"]</a>
+            </p>
         }
     </div>
-</div>
-
+</PublicShell>

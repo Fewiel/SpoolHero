@@ -1,0 +1,65 @@
+.cl-page { max-width: 900px; }
+
+.cl-list {
+    list-style: none;
+    margin: 0;
+    padding: 0 0 0 1.75rem;
+    position: relative;
+    display: grid;
+    gap: 1rem;
+}
+
+.cl-list::before {
+    content: "";
+    position: absolute;
+    left: .45rem;
+    top: .5rem;
+    bottom: .5rem;
+    width: 2px;
+    background: var(--sh-border);
+}
+
+.cl-item { position: relative; }
+
+.cl-dot {
+    position: absolute;
+    left: -1.75rem;
+    top: 1.45rem;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--sh-surface);
+    border: 4px solid var(--sh-border-strong);
+}
+
+.cl-dot-latest { border-color: var(--sh-accent); }
+
+.cl-card { padding: clamp(1.1rem, .9rem + 1vw, 1.75rem); }
+
+.cl-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .5rem;
+    margin-bottom: .6rem;
+}
+
+.cl-date {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    color: var(--sh-muted);
+    font-size: .88rem;
+    margin-left: auto;
+}
+
+.cl-title {
+    font-size: 1.35rem;
+    margin: 0 0 1rem;
+}
+
+@media (max-width: 575.98px) {
+    .cl-list { padding-left: 0; }
+    .cl-list::before, .cl-dot { display: none; }
+    .cl-date { margin-left: 0; width: 100%; }
+}
