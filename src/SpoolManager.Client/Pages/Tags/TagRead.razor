@@ -43,6 +43,15 @@
             }
         }
 
+        else if (_nfcSupported == false)
+        {
+            <label class="btn btn-primary btn-lg scan-main-btn scan-file-btn">
+                <i class="bi bi-file-earmark-arrow-up" aria-hidden="true"></i>@L["tag.read.file.button"]
+                <InputFile class="visually-hidden" accept=".bin,.json,application/json,application/octet-stream" OnChange="OnFileSelectedAsync" />
+            </label>
+            <p class="small text-muted mt-2 mb-0">@L["tag.read.file.text"]</p>
+        }
+
         @if (_error != null)
         {
             <div class="alert alert-warning text-start mt-3 mb-0 w-100" role="alert">
@@ -109,7 +118,7 @@
                     {
                         <SpoolRing ColorHex="@_spool.MaterialColorHex" Percent="@_spool.RemainingPercent" Size="76"
                                    AriaLabel="@L.Format("tag.read.remaining.aria", Math.Round(_spool.RemainingPercent))">
-                            @(Math.Round(_spool.RemainingPercent))<small>%</small>
+                            @($"{Math.Round(_spool.RemainingPercent)} %")
                         </SpoolRing>
                         <div class="min-w-0">
                             <span class="small text-muted d-block text-truncate">@_spool.MaterialBrand @_spool.MaterialType · #@_spool.MaterialColorHex</span>
@@ -253,7 +262,9 @@
             </section>
         }
 
-        @* ── File import (always available, the only way without Web NFC) ── *@
+        @* ── File import (secondary when Web NFC works; in the scan panel otherwise) ── *@
+        @if (_nfcSupported == true)
+        {
         <section class="sh-card scan-file" aria-labelledby="scan-file-title">
             <h2 class="sh-card-title" id="scan-file-title">@L["tag.read.file.title"]</h2>
             <p class="sh-card-sub">@L["tag.read.file.text"]</p>
@@ -262,5 +273,6 @@
                 <InputFile class="visually-hidden" accept=".bin,.json,application/json,application/octet-stream" OnChange="OnFileSelectedAsync" />
             </label>
         </section>
+        }
     </div>
 </div>
