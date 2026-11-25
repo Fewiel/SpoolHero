@@ -33,6 +33,15 @@ public partial class PlaceBoard : IDisposable
     [Parameter, EditorRequired] public string Icon { get; set; } = "bi-geo-alt";
 
     private string Kind => Api.Kind;
+
+    // Spool list filtered to this place (see SpoolList location filter: p:/s:/d: + id)
+    private string SpoolsLink(Guid id) => Kind switch
+    {
+        "printer" => $"/spools?location=p:{id}",
+        "storage" => $"/spools?location=s:{id}",
+        "dryer" => $"/spools?location=d:{id}",
+        _ => "/spools"
+    };
     private bool HasProject => Project.CurrentProject != null;
     private bool IsAdmin => Project.CurrentProject?.MyRole == "admin";
     private string NotesLabelKey => Kind == "printer" ? "printer.notes" : $"{Kind}.description";

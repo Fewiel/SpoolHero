@@ -184,7 +184,7 @@ else
                         @if (spools.Count > MaxRings)
                         {
                             <li>
-                                <a href="/spools" class="place-ring place-ring-more" aria-label="@L.Format("place.spools.more", spools.Count - MaxRings)">
+                                <a href="@SpoolsLink(item.Id)" class="place-ring place-ring-more" aria-label="@L.Format("place.spools.more", spools.Count - MaxRings)">
                                     <span class="place-ring-more-badge">+@(spools.Count - MaxRings)</span>
                                     <span class="place-ring-name">@L["place.spools.all"]</span>
                                 </a>
