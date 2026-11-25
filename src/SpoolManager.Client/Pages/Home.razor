@@ -1,176 +1,376 @@
 @page "/"
+@using SpoolManager.Client.Helpers
 
 @if (!Auth.IsAuthenticated)
 {
     <PageTitle>@L["auth.login"] – @L["app.name"]</PageTitle>
-    <div class="text-center py-5"><div class="spinner-border"></div></div>
+    <div class="text-center py-5"><div class="spinner-border" role="status"><span class="visually-hidden">@L["common.loading"]</span></div></div>
     return;
 }
 
 <PageTitle>@L["nav.dashboard"] – @L["app.name"]</PageTitle>
 
-<div class="page-header">
-    <h1><i class="bi bi-speedometer2 me-2"></i>@L["dashboard.title"]</h1>
-</div>
-
 @if (_loading)
 {
-    <div class="text-center py-5"><div class="spinner-border"></div></div>
+    <div class="text-center py-5"><div class="spinner-border" role="status"><span class="visually-hidden">@L["common.loading"]</span></div></div>
+}
+else if (Project.CurrentProject == null)
+{
+    <div class="page-header">
+        <div>
+            <h1>@Greeting</h1>
+            <p class="page-subtitle">@L["dashboard.no.project.subtitle"]</p>
+        </div>
+    </div>
+    <div class="sh-empty">
+        <i class="bi bi-folder-plus" aria-hidden="true"></i>
+        <h2>@L["dashboard.no.project.title"]</h2>
+        <p>@L["dashboard.no.project.text"]</p>
+        <a class="btn btn-primary mt-2" href="/projects"><i class="bi bi-plus-lg" aria-hidden="true"></i>@L["dashboard.no.project.action"]</a>
+    </div>
+}
+else if (_loadFailed)
+{
+    <div class="page-header"><div><h1>@Greeting</h1></div></div>
+    <div class="alert alert-danger d-flex align-items-center gap-3 flex-wrap" role="alert">
+        <span class="flex-grow-1">@L["dashboard.load.error"]</span>
+        <button type="button" class="btn btn-outline-danger" @onclick="LoadDataAsync"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i>@L["common.retry"]</button>
+    </div>
 }
 else
 {
+    <div class="page-header">
+        <div>
+            <h1>@Greeting</h1>
+            <p class="page-subtitle">@(_total == 0 ? L["dashboard.subtitle.empty"] : AttentionSummary)</p>
+        </div>
+    </div>
+
     @if (_showOnboarding)
     {
-        <div class="card border-primary-subtle mb-4">
-            <div class="card-body py-2">
-                <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap mb-2">
-                    <div>
-                        <h5 class="mb-1"><i class="bi bi-signpost-split me-2"></i>@L["dashboard.onboarding.title"]</h5>
-                        <div class="text-muted small">@L["dashboard.onboarding.subtitle"]</div>
-                    </div>
-                    <button class="btn btn-sm btn-outline-secondary" @onclick="SkipOnboardingAsync" disabled="@_onboardingSaving">
-                        @if (_onboardingSaving) { <span class="spinner-border spinner-border-sm me-1"></span> }
-                        @L["dashboard.onboarding.skip"]
-                    </button>
+        <section class="sh-card dash-onboarding mb-4" aria-labelledby="onboarding-title">
+            <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-3">
+                <div>
+                    <h2 class="sh-card-title" id="onboarding-title">@L["dashboard.onboarding.title"]</h2>
+                    <p class="sh-card-sub">@L.Format("dashboard.onboarding.progress", OnboardingDoneCount, 4)</p>
                 </div>
-
-                <ul class="list-group list-group-flush">
-                    <li class="list-group-item px-0 py-1 border-0">
-                        <div class="d-flex align-items-center gap-2 small">
-                            <i class="bi @(_printersCount > 0 ? "bi-check-circle-fill text-success" : "bi-circle text-secondary")"></i>
-                            <a class="text-decoration-none" href="/printers" aria-label="@L["printer.title"]">
-                                1. @L["printer.title"] <i class="bi bi-arrow-right-circle" aria-hidden="true"></i>
-                            </a>
-                        </div>
-                    </li>
-
-                    <li class="list-group-item px-0 py-1 border-0">
-                        <div class="d-flex align-items-center gap-2 small">
-                            <i class="bi @(_storageCount > 0 ? "bi-check-circle-fill text-success" : "bi-circle text-secondary")"></i>
-                            <a class="text-decoration-none" href="/storage" aria-label="@L["storage.title"]">
-                                2. @L["storage.title"] <i class="bi bi-arrow-right-circle" aria-hidden="true"></i>
-                            </a>
-                        </div>
-                    </li>
-
-                    <li class="list-group-item px-0 py-1 border-0">
-                        <div class="d-flex align-items-center gap-2 small">
-                            <i class="bi @(_total > 0 ? "bi-check-circle-fill text-success" : "bi-circle text-secondary")"></i>
-                            <a class="text-decoration-none" href="/spools/new" aria-label="@L["spool.add"]">
-                                3. @L["spool.title"] <i class="bi bi-arrow-right-circle" aria-hidden="true"></i>
-                            </a>
-                        </div>
-                    </li>
-
-                    <li class="list-group-item px-0 py-1 border-0">
-                        <div class="d-flex align-items-center gap-2 small">
-                            <i class="bi @(_storedCount > 0 ? "bi-check-circle-fill text-success" : "bi-circle text-secondary")"></i>
-                            <a class="text-decoration-none" href="/inventory" aria-label="@L["inventory.title"]">
-                                4. @L["inventory.title"] <i class="bi bi-arrow-right-circle" aria-hidden="true"></i>
-                            </a>
-                        </div>
-                    </li>
-                </ul>
+                <button type="button" class="btn btn-outline-secondary" @onclick="SkipOnboardingAsync" disabled="@_onboardingSaving">
+                    @if (_onboardingSaving) { <span class="spinner-border spinner-border-sm" aria-hidden="true"></span> }
+                    @L["dashboard.onboarding.hide"]
+                </button>
             </div>
-        </div>
+            <ol class="dash-steps">
+                <li>
+                    <a href="/printers" class="dash-step @(_printersCount > 0 ? "done" : "")">
+                        <span class="dash-step-mark" aria-hidden="true">@if (_printersCount > 0) { <i class="bi bi-check-lg"></i> } else { <span>1</span> }</span>
+                        <span class="dash-step-text">
+                            <span class="fw-semibold">@L["dashboard.onboarding.printer.title"]</span>
+                            <span class="small text-muted">@L["dashboard.onboarding.printer.text"]</span>
+                        </span>
+                        <span class="visually-hidden">@(_printersCount > 0 ? L["dashboard.onboarding.done"] : L["dashboard.onboarding.pending"])</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/storage" class="dash-step @(_storageCount > 0 ? "done" : "")">
+                        <span class="dash-step-mark" aria-hidden="true">@if (_storageCount > 0) { <i class="bi bi-check-lg"></i> } else { <span>2</span> }</span>
+                        <span class="dash-step-text">
+                            <span class="fw-semibold">@L["dashboard.onboarding.storage.title"]</span>
+                            <span class="small text-muted">@L["dashboard.onboarding.storage.text"]</span>
+                        </span>
+                        <span class="visually-hidden">@(_storageCount > 0 ? L["dashboard.onboarding.done"] : L["dashboard.onboarding.pending"])</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/spools/new" class="dash-step @(_total > 0 ? "done" : "")">
+                        <span class="dash-step-mark" aria-hidden="true">@if (_total > 0) { <i class="bi bi-check-lg"></i> } else { <span>3</span> }</span>
+                        <span class="dash-step-text">
+                            <span class="fw-semibold">@L["dashboard.onboarding.spool.title"]</span>
+                            <span class="small text-muted">@L["dashboard.onboarding.spool.text"]</span>
+                        </span>
+                        <span class="visually-hidden">@(_total > 0 ? L["dashboard.onboarding.done"] : L["dashboard.onboarding.pending"])</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/inventory" class="dash-step @(_storedCount > 0 ? "done" : "")">
+                        <span class="dash-step-mark" aria-hidden="true">@if (_storedCount > 0) { <i class="bi bi-check-lg"></i> } else { <span>4</span> }</span>
+                        <span class="dash-step-text">
+                            <span class="fw-semibold">@L["dashboard.onboarding.inventory.title"]</span>
+                            <span class="small text-muted">@L["dashboard.onboarding.inventory.text"]</span>
+                        </span>
+                        <span class="visually-hidden">@(_storedCount > 0 ? L["dashboard.onboarding.done"] : L["dashboard.onboarding.pending"])</span>
+                    </a>
+                </li>
+            </ol>
+        </section>
     }
 
-    <div class="row g-3 mb-4">
-        <div class="col-6 col-md-3">
-            <div class="stat-card text-center">
-                <div class="stat-value text-primary">@_total</div>
-                <div class="stat-label">@L["dashboard.total.spools"]</div>
-            </div>
-        </div>
-        <div class="col-6 col-md-3">
-            <div class="stat-card text-center">
-                <div class="stat-value text-success">@_active</div>
-                <div class="stat-label">@L["dashboard.active.spools"]</div>
-            </div>
-        </div>
-        <div class="col-6 col-md-3">
-            <div class="stat-card text-center">
-                <div class="stat-value text-warning">@_lowStock</div>
-                <div class="stat-label">@L["dashboard.low.stock"]</div>
-            </div>
-        </div>
-        <div class="col-6 col-md-3">
-            <div class="stat-card text-center">
-                <div class="stat-value text-secondary">@_consumed</div>
-                <div class="stat-label">@L["dashboard.consumed"]</div>
-            </div>
-        </div>
-    </div>
-
-    @if (_locationGroups.Count > 0)
+    @if (_total == 0)
     {
-        <h5 class="mb-3"><i class="bi bi-grid me-2"></i>@L["dashboard.by.location"]</h5>
-        <div class="location-scroll mb-4">
-            @foreach (var group in _locationGroups)
-            {
-                <div class="location-item">
-                    <i class="bi @group.Icon text-@group.Color location-icon"></i>
-                    <div class="location-info">
-                        <span class="location-name">@group.Name</span>
-                        <span class="location-count">@group.SpoolCount @L["spool.title"].ToLower()</span>
-                    </div>
-                    <span class="location-badge">@group.SpoolCount</span>
-                </div>
-            }
+        <div class="sh-empty">
+            <i class="bi bi-record-circle" aria-hidden="true"></i>
+            <h2>@L["dashboard.empty.title"]</h2>
+            <p>@L["dashboard.empty.text"]</p>
+            <div class="d-flex gap-2 flex-wrap justify-content-center mt-2">
+                <a class="btn btn-primary" href="/spools/new"><i class="bi bi-plus-lg" aria-hidden="true"></i>@L["spool.add"]</a>
+                <a class="btn btn-outline-secondary" href="/tags/read"><i class="bi bi-broadcast" aria-hidden="true"></i>@L["nav.scan"]</a>
+            </div>
         </div>
     }
-
-    @if (_materialStock.Count > 0)
+    else
     {
-        <div class="d-flex align-items-center justify-content-between mb-3">
-            <h5 class="mb-0"><i class="bi bi-collection me-2"></i>@L["dashboard.stock.by.material"]</h5>
-            <a href="/spools?view=materials" class="small text-decoration-none">
-                @L["dashboard.stock.show.all"] (@_materialStockTotal) <i class="bi bi-arrow-right"></i>
-            </a>
-        </div>
-        <div class="row g-2 mb-4">
-            @foreach (var m in _materialStock)
-            {
-                <div class="col-12 col-sm-6 col-lg-4 col-xxl-3">
-                    <div class="d-flex align-items-center gap-2 p-2 rounded border h-100">
-                        <div class="color-dot flex-shrink-0" style="background-color: #@m.ColorHex"></div>
-                        <div class="flex-grow-1 overflow-hidden">
-                            <div class="text-truncate small fw-semibold">@m.Brand @m.Type</div>
-                            <div class="text-muted text-truncate" style="font-size:.75em">@(m.ColorName ?? "#" + m.ColorHex) · @m.SpoolCount× </div>
-                        </div>
-                        <span class="fw-semibold small text-nowrap">@m.TotalGrams.ToString("0") g</span>
-                    </div>
-                </div>
-            }
-        </div>
-    }
-
-    <h5 class="mb-3">@L["dashboard.recent"]</h5>
-    <div class="row g-3">
-        @foreach (var spool in _recent)
+        @if (_attention.Count > 0)
         {
-            <div class="col-12 col-md-6 col-xl-4">
-                <a href="/spools/@spool.Id" class="text-decoration-none">
-                    <div class="spool-card">
-                        <div class="d-flex align-items-center gap-2 mb-2">
-                            <div class="color-dot" style="background-color: #@spool.MaterialColorHex"></div>
+            <section class="mb-4" aria-label="@L["dashboard.attention.title"]">
+                <div class="dash-attention-grid">
+                    @foreach (var item in _attention)
+                    {
+                        <article class="sh-attention">
+                            <div class="d-flex align-items-center gap-3">
+                                @if (item.Kind == AttentionKind.NoLocation && item.Spool == null)
+                                {
+                                    <span class="dash-attention-icon" aria-hidden="true"><i class="bi bi-geo-alt"></i></span>
+                                }
+                                else if (item.Spool != null)
+                                {
+                                    <SpoolRing ColorHex="@item.Spool.MaterialColorHex" Percent="item.Spool.RemainingPercent" Size="52" />
+                                }
+                                <div class="min-w-0">
+                                    @switch (item.Kind)
+                                    {
+                                        case AttentionKind.Low:
+                                            <span class="sh-chip sh-chip-sm sh-chip-warn">@L["dashboard.attention.low.kind"]</span>
+                                            break;
+                                        case AttentionKind.DryingDone:
+                                            <span class="sh-chip sh-chip-sm sh-chip-ok">@L["dashboard.attention.dry.kind"]</span>
+                                            break;
+                                        default:
+                                            <span class="sh-chip sh-chip-sm sh-chip-accent">@L["dashboard.attention.noloc.kind"]</span>
+                                            break;
+                                    }
+                                    <h2 class="dash-attention-title">
+                                        @if (item.Spool != null && item.Count == 1)
+                                        {
+                                            @($"{item.Spool.MaterialBrand} {SpoolUi.Title(item.Spool)}")
+                                        }
+                                        else
+                                        {
+                                            @L.Format("dashboard.attention.noloc.title", item.Count)
+                                        }
+                                    </h2>
+                                </div>
+                            </div>
+                            <p class="mb-0 text-muted flex-grow-1">
+                                @switch (item.Kind)
+                                {
+                                    case AttentionKind.Low:
+                                        @(SpoolUi.HasLocation(item.Spool!)
+                                            ? L.Format("dashboard.attention.low.text.at", SpoolUi.Grams(item.Spool!.RemainingWeightGrams), SpoolUi.Percent(item.Spool.RemainingPercent), SpoolUi.LocationName(item.Spool))
+                                            : L.Format("dashboard.attention.low.text", SpoolUi.Grams(item.Spool!.RemainingWeightGrams), SpoolUi.Percent(item.Spool.RemainingPercent)))
+                                        break;
+                                    case AttentionKind.DryingDone:
+                                        @L.Format("dashboard.attention.dry.text", item.Spool!.DryerName ?? "", SpoolUi.Duration(SpoolUi.GetDrying(item.Spool)!.Elapsed))
+                                        break;
+                                    default:
+                                        @(item.Count == 1 ? L["dashboard.attention.noloc.text.one"] : L["dashboard.attention.noloc.text"])
+                                        break;
+                                }
+                            </p>
                             <div>
-                                <div class="fw-semibold text-body">@spool.MaterialBrand @spool.MaterialType</div>
-                                <small class="text-muted">@(spool.MaterialColorName ?? "#" + spool.MaterialColorHex)</small>
+                                @switch (item.Kind)
+                                {
+                                    case AttentionKind.Low when item.ReorderUrl != null:
+                                        <a class="btn btn-primary" href="@item.ReorderUrl" target="_blank" rel="noopener noreferrer" @onclick="() => TrackReorder(item)">
+                                            <i class="bi bi-cart" aria-hidden="true"></i>@L["dashboard.attention.low.reorder"]
+                                            <span class="visually-hidden">(@L["common.new.window"])</span>
+                                        </a>
+                                        <a class="btn btn-outline-secondary" href="/spools/@item.Spool!.Id">@L["dashboard.attention.open"]</a>
+                                        break;
+                                    case AttentionKind.Low:
+                                        <a class="btn btn-primary" href="/spools/@item.Spool!.Id">@L["dashboard.attention.open"]</a>
+                                        break;
+                                    case AttentionKind.DryingDone:
+                                        <a class="btn btn-primary" href="/spools/@item.Spool!.Id#location">@L["dashboard.attention.dry.action"]</a>
+                                        break;
+                                    default:
+                                        <a class="btn btn-primary" href="@(item.Spool != null ? $"/spools/{item.Spool.Id}#location" : "/spools?location=none")">@L["dashboard.attention.noloc.action"]</a>
+                                        break;
+                                }
+                            </div>
+                        </article>
+                    }
+                </div>
+                @if (_attentionTotal > _attention.Count)
+                {
+                    <p class="mt-2 mb-0"><a href="/spools?low=1">@L.Format("dashboard.attention.more", _attentionTotal - _attention.Count)</a></p>
+                }
+            </section>
+        }
+
+        <section class="dash-stats mb-4" aria-label="@L["dashboard.stats"]">
+            <a class="sh-stat dash-stat-link" href="/spools">
+                <span class="sh-stat-value">@_active.Count</span>
+                <span class="sh-stat-label">@L["dashboard.active.spools"]</span>
+            </a>
+            <a class="sh-stat dash-stat-link" href="/spools?view=materials">
+                <span class="sh-stat-value">@SpoolUi.Weight(_totalGrams)</span>
+                <span class="sh-stat-label">@L["dashboard.stat.filament"]</span>
+            </a>
+            <a class="sh-stat dash-stat-link" href="/spools?low=1">
+                <span class="sh-stat-value @(_lowCount > 0 ? "text-warning-emphasis" : "")">@_lowCount</span>
+                <span class="sh-stat-label">@L["dashboard.low.stock"]</span>
+            </a>
+            <a class="sh-stat dash-stat-link" href="/overview">
+                <span class="sh-stat-value">@_inPrinterCount</span>
+                <span class="sh-stat-label">@L["dashboard.stat.in.printers"]</span>
+            </a>
+        </section>
+
+        <div class="dash-main">
+            <section class="sh-card" aria-labelledby="shelf-title">
+                <div class="dash-section-head">
+                    <div>
+                        <h2 class="sh-card-title" id="shelf-title">@L["dashboard.shelf.title"]</h2>
+                        <p class="sh-card-sub">@L.Format("dashboard.shelf.sub", _active.Count, SpoolUi.Weight(_totalGrams))</p>
+                    </div>
+                    <a class="btn btn-outline-secondary" href="/spools?view=materials">@L["dashboard.shelf.all"]<i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+                </div>
+                @if (_shelf.Count == 0)
+                {
+                    <p class="text-muted mb-0">@L["dashboard.shelf.empty"]</p>
+                }
+                else
+                {
+                    <ul class="dash-shelf list-unstyled mb-0">
+                        @foreach (var g in _shelf)
+                        {
+                            <li class="dash-shelf-row">
+                                <div class="dash-shelf-head">
+                                    <a class="dash-shelf-name" href="/spools?type=@Uri.EscapeDataString(g.Type)">@g.Type</a>
+                                    <span class="text-muted small">@GroupMeta(g.Spools.Count, g.TotalGrams)</span>
+                                </div>
+                                <div class="dash-shelf-rings">
+                                    @foreach (var s in g.Spools.Take(8))
+                                    {
+                                        <a href="/spools/@s.Id" class="dash-ring-link" title="@($"{SpoolUi.Title(s)} · {SpoolUi.Percent(s.RemainingPercent)}")">
+                                            <SpoolRing ColorHex="@s.MaterialColorHex" Percent="s.RemainingPercent" Size="44"
+                                                       AriaLabel="@L.Format("spool.ring.label", SpoolUi.Title(s), SpoolUi.Percent(s.RemainingPercent))" />
+                                        </a>
+                                    }
+                                    @if (g.Spools.Count > 8)
+                                    {
+                                        <a class="dash-ring-more" href="/spools?type=@Uri.EscapeDataString(g.Type)">+@(g.Spools.Count - 8)</a>
+                                    }
+                                </div>
+                                <div class="dash-shelf-foot">
+                                    <div class="sh-progress flex-grow-1" aria-hidden="true"><span class="@(g.LowCount > 0 ? "sh-warn" : "sh-ok")" style="width:@(Fill(g.TotalGrams, g.CapacityGrams))%"></span></div>
+                                    <span class="small @(g.LowCount > 0 ? "text-warning-emphasis fw-semibold" : "text-muted")">
+                                        @(g.LowCount switch { 0 => L["dashboard.shelf.ok"], 1 => L["dashboard.shelf.low.one"], _ => L.Format("dashboard.shelf.low.many", g.LowCount) })
+                                    </span>
+                                </div>
+                            </li>
+                        }
+                    </ul>
+                }
+            </section>
+
+            <section class="sh-card" aria-labelledby="active-title">
+                <div class="dash-section-head">
+                    <div>
+                        <h2 class="sh-card-title" id="active-title">@L["dashboard.active.title"]</h2>
+                        <p class="sh-card-sub">@L["dashboard.active.sub"]</p>
+                    </div>
+                </div>
+                @if (_places.Count == 0)
+                {
+                    <p class="text-muted">@L["dashboard.active.empty"]</p>
+                    <a class="btn btn-outline-secondary" href="/overview"><i class="bi bi-geo-alt" aria-hidden="true"></i>@L["dashboard.active.locations"]</a>
+                }
+                else
+                {
+                    <ul class="list-unstyled mb-0 dash-places">
+                        @foreach (var p in _places)
+                        {
+                            <li class="dash-place">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="dash-place-icon" aria-hidden="true"><i class="bi @(p.IsDryer ? "bi-thermometer-half" : "bi-printer")"></i></span>
+                                    <div class="min-w-0">
+                                        <div class="fw-semibold text-truncate">@p.Name</div>
+                                        <div class="small text-muted">@(p.IsDryer ? L["spool.dryer"] : L["spool.printer"]) · @L.Format("dashboard.active.count", p.Spools.Count)</div>
+                                    </div>
+                                </div>
+                                <div class="d-flex flex-wrap gap-2 mt-2">
+                                    @foreach (var s in p.Spools)
+                                    {
+                                        <a class="sh-chip dash-spool-chip" href="/spools/@s.Id">
+                                            <span class="sh-color-swatch" style="background:#@s.MaterialColorHex" aria-hidden="true"></span>
+                                            @SpoolUi.ColorLabel(s) · @SpoolUi.Grams(s.RemainingWeightGrams)
+                                        </a>
+                                    }
+                                </div>
+                                @if (p.IsDryer)
+                                {
+                                    @foreach (var s in p.Spools)
+                                    {
+                                        var dry = SpoolUi.GetDrying(s);
+                                        if (dry?.Total == null)
+                                            continue;
+                                        <div class="mt-2">
+                                            <div class="sh-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@dry.Percent"
+                                                 aria-label="@L.Format("spool.drying.progress.label", SpoolUi.ColorLabel(s))">
+                                                <span class="@(dry.Done ? "sh-ok" : "sh-warn")" style="width:@(dry.Percent)%"></span>
+                                            </div>
+                                            <div class="small mt-1 @(dry.Done ? "text-success fw-semibold" : "text-muted")">
+                                                @SpoolUi.ColorLabel(s): @(dry.Done ? L["spool.drying.finished"] : L.Format("spool.drying.left", SpoolUi.Duration(dry.Remaining)))
+                                            </div>
+                                        </div>
+                                    }
+                                }
+                            </li>
+                        }
+                    </ul>
+                }
+            </section>
+        </div>
+
+        <section class="mt-4" aria-labelledby="recent-title">
+            <div class="dash-section-head">
+                <h2 class="sh-section-title" id="recent-title">@L["dashboard.recent"]</h2>
+                <a href="/spools?sort=new">@L["dashboard.recent.all"]</a>
+            </div>
+            <div class="sh-tile-grid dash-recent">
+                @foreach (var s in _recent)
+                {
+                    <a href="/spools/@s.Id" class="sh-spool-tile @(SpoolUi.IsLow(s) ? "sh-low" : "") @(s.ConsumedAt != null ? "sh-consumed" : "")">
+                        <div class="d-flex align-items-center gap-3">
+                            <SpoolRing ColorHex="@s.MaterialColorHex" Percent="s.RemainingPercent" Size="56">
+                                <span>@((int)Math.Round(s.RemainingPercent))<small>%</small></span>
+                            </SpoolRing>
+                            <div class="min-w-0">
+                                <div class="fw-semibold text-truncate">@SpoolUi.Title(s)</div>
+                                <div class="small text-muted text-truncate">@s.MaterialBrand · @SpoolUi.Grams(s.RemainingWeightGrams)</div>
                             </div>
                         </div>
-                        <div class="remaining-bar mb-1">
-                            <div class="remaining-bar-fill @GetBarClass(spool.RemainingPercent)" style="width: @((int)spool.RemainingPercent)%"></div>
+                        <div class="d-flex flex-wrap gap-1">
+                            @if (s.ConsumedAt != null)
+                            {
+                                <span class="sh-chip sh-chip-sm">@L["spool.status.consumed"]</span>
+                            }
+                            else if (SpoolUi.HasLocation(s))
+                            {
+                                <span class="sh-chip sh-chip-sm"><i class="bi @SpoolUi.LocationIcon(s)" aria-hidden="true"></i>@SpoolUi.LocationName(s)</span>
+                            }
+                            else
+                            {
+                                <span class="sh-chip sh-chip-sm sh-chip-accent">@L["dashboard.no.location"]</span>
+                            }
+                            @if (s.OwnerName != null)
+                            {
+                                <span class="sh-chip sh-chip-sm"><i class="bi bi-person" aria-hidden="true"></i>@s.OwnerName</span>
+                            }
                         </div>
-                        <small class="text-muted">@spool.RemainingWeightGrams g (@spool.RemainingPercent%)</small>
-                        @if (spool.OwnerName != null)
-                        {
-                            <span class="badge text-bg-light border ms-1"><i class="bi bi-person me-1"></i>@spool.OwnerName</span>
-                        }
-                    </div>
-                </a>
+                    </a>
+                }
             </div>
-        }
-    </div>
+        </section>
+    }
 }
-

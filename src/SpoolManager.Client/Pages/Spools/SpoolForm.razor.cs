@@ -17,6 +17,7 @@ namespace SpoolManager.Client.Pages.Spools;
 public partial class SpoolForm
 {
     [Parameter] public Guid? Id { get; set; }
+    [SupplyParameterFromQuery(Name = "material")] public Guid? PresetMaterialId { get; set; }
     [Inject] private SpoolService Spools { get; set; } = default!;
     [Inject] private MaterialService Materials { get; set; } = default!;
     [Inject] private PrinterService Printers { get; set; } = default!;
@@ -32,6 +33,8 @@ public partial class SpoolForm
     private bool _loading = true;
     private bool _saving;
     private string? _error;
+    private bool _submitted;
+    private bool _notFound;
     private CreateSpoolRequest _form = new() { RemainingPercent = 100 };
     private FilamentMaterialDto? _selectedMaterial;
     private List<PrinterDto> _printers = [];
@@ -82,10 +85,27 @@ public partial class SpoolForm
                 _form.EmptySpoolWeightGrams = spool.EmptySpoolWeightGrams;
                 _selectedMaterial = await Materials.GetByIdAsync(spool.FilamentMaterialId);
             }
+            else
+            {
+                _notFound = true;
+            }
         }
         else
         {
             _nfcAvailable = await Nfc.CheckSupportAsync();
+            if (PresetMaterialId is { } preset)
+            {
+                try
+                {
+                    var mat = await Materials.GetByIdAsync(preset);
+                    if (mat != null)
+                        OnMaterialPicked(mat);
+                }
+                catch (Exception)
+                {
+                    // invalid preset – the user simply picks a material
+                }
+            }
         }
         _loading = false;
     }
@@ -245,20 +265,6 @@ public partial class SpoolForm
         ApplyGrossWeight();
     }
 
-    private void OnLocationChange(string type, string? value)
-    {
-        var parsed = Guid.TryParse(value, out var id) ? id : (Guid?)null;
-        _form.PrinterId = null;
-        _form.StorageLocationId = null;
-        _form.DryerId = null;
-        if (type == "printer")
-            _form.PrinterId = parsed;
-        else if (type == "storage")
-            _form.StorageLocationId = parsed;
-        else if (type == "dryer")
-            _form.DryerId = parsed;
-    }
-
     private void SetWeight(decimal value)
     {
         _form.RemainingWeightGrams = value;
@@ -292,44 +298,94 @@ public partial class SpoolForm
             _form.RemainingWeightGrams = Math.Round(value / 100m * _selectedMaterial.WeightGrams.Value, 1);
     }
 
+    // ── Validation ────────────────────────────────────────────────────────
+    private bool MaterialInvalid => _form.FilamentMaterialId == Guid.Empty;
+    private bool GramsInvalid => _form.RemainingWeightGrams < 0;
+    private bool PercentInvalid => _form.RemainingPercent is < 0 or > 100;
+    private bool PriceInvalid => _form.PurchasePrice is < 0;
+    private bool ReorderInvalid => !string.IsNullOrWhiteSpace(_form.ReorderUrl)
+        && !(Uri.TryCreate(_form.ReorderUrl.Trim(), UriKind.Absolute, out var u) && (u.Scheme == Uri.UriSchemeHttp || u.Scheme == Uri.UriSchemeHttps));
+    private bool HasErrors => MaterialInvalid || GramsInvalid || PercentInvalid || PriceInvalid || ReorderInvalid;
+
+    private string Invalid(bool invalid) => _submitted && invalid ? "is-invalid" : string.Empty;
+
+    private string CurrentLocationKey =>
+        _form.PrinterId != null ? "p:" + _form.PrinterId :
+        _form.StorageLocationId != null ? "s:" + _form.StorageLocationId :
+        _form.DryerId != null ? "d:" + _form.DryerId : "none";
+
+    private void SetLocation(string key)
+    {
+        Guid? id = key.Length > 2 && Guid.TryParse(key[2..], out var g) ? g : null;
+        _form.PrinterId = key.StartsWith("p:") ? id : null;
+        _form.StorageLocationId = key.StartsWith("s:") ? id : null;
+        _form.DryerId = key.StartsWith("d:") ? id : null;
+    }
+
+    private string CancelUrl => Id.HasValue ? $"/spools/{Id}" : "/spools";
+
     private async Task SaveAsync()
     {
-        if (_form.FilamentMaterialId == Guid.Empty)
+        _submitted = true;
+        _error = null;
+        if (HasErrors)
         {
-            _error = L["spool.material.required"];
+            _error = MaterialInvalid ? L["spool.material.required"] : L["spool.form.fix.errors"];
             return;
         }
         _saving = true;
-        _error = null;
+        _form.ReorderUrl = string.IsNullOrWhiteSpace(_form.ReorderUrl) ? null : _form.ReorderUrl.Trim();
+        _form.RfidTagUid = string.IsNullOrWhiteSpace(_form.RfidTagUid) ? null : _form.RfidTagUid.Trim();
 
-        HttpResponseMessage resp;
-        if (Id.HasValue)
+        try
         {
-            resp = await Spools.UpdateAsync(Id.Value, new UpdateSpoolRequest
+            HttpResponseMessage resp;
+            if (Id.HasValue)
             {
-                FilamentMaterialId = _form.FilamentMaterialId,
-                RemainingWeightGrams = _form.RemainingWeightGrams,
-                RemainingPercent = _form.RemainingPercent,
-                RfidTagUid = _form.RfidTagUid,
-                PrinterId = _form.PrinterId,
-                StorageLocationId = _form.StorageLocationId,
-                DryerId = _form.DryerId,
-                PurchasedAt = _form.PurchasedAt,
-                PurchasePrice = _form.PurchasePrice,
-                ReorderUrl = _form.ReorderUrl,
-                Notes = _form.Notes,
-                OwnerName = _form.OwnerName,
-                EmptySpoolWeightGrams = _form.EmptySpoolWeightGrams
-            });
-        }
-        else
-        {
-            resp = await Spools.CreateAsync(_form);
-        }
+                resp = await Spools.UpdateAsync(Id.Value, new UpdateSpoolRequest
+                {
+                    FilamentMaterialId = _form.FilamentMaterialId,
+                    RemainingWeightGrams = _form.RemainingWeightGrams,
+                    RemainingPercent = _form.RemainingPercent,
+                    RfidTagUid = _form.RfidTagUid,
+                    PrinterId = _form.PrinterId,
+                    StorageLocationId = _form.StorageLocationId,
+                    DryerId = _form.DryerId,
+                    PurchasedAt = _form.PurchasedAt,
+                    PurchasePrice = _form.PurchasePrice,
+                    ReorderUrl = _form.ReorderUrl,
+                    Notes = _form.Notes,
+                    OwnerName = _form.OwnerName,
+                    EmptySpoolWeightGrams = _form.EmptySpoolWeightGrams
+                });
+            }
+            else
+            {
+                resp = await Spools.CreateAsync(_form);
+            }
 
-        _saving = false;
-        if (resp.IsSuccessStatusCode)
-            Nav.NavigateTo("/spools");
-        else _error = await resp.Content.ReadAsStringAsync();
+            if (resp.IsSuccessStatusCode)
+            {
+                var saved = await ReadSpoolAsync(resp);
+                Nav.NavigateTo(saved != null ? $"/spools/{saved.Id}" : Id.HasValue ? $"/spools/{Id}" : "/spools");
+                return;
+            }
+            var body = await resp.Content.ReadAsStringAsync();
+            _error = string.IsNullOrWhiteSpace(body) || body.Length > 300 ? L["spool.form.save.error"] : $"{L["spool.form.save.error"]} ({body})";
+        }
+        catch (Exception)
+        {
+            _error = L["spool.form.save.error"];
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private static async Task<SpoolDto?> ReadSpoolAsync(HttpResponseMessage resp)
+    {
+        try { return await resp.Content.ReadFromJsonAsync<SpoolDto>(); }
+        catch (Exception) { return null; }
     }
 }

@@ -1,6 +1,12 @@
+using System.Net.Http.Json;
 using Microsoft.AspNetCore.Components;
+using SpoolManager.Client.Helpers;
 using SpoolManager.Client.Services;
+using SpoolManager.Shared.DTOs.Dryers;
+using SpoolManager.Shared.DTOs.Materials;
+using SpoolManager.Shared.DTOs.Printers;
 using SpoolManager.Shared.DTOs.Spools;
+using Timer = System.Timers.Timer;
 
 namespace SpoolManager.Client.Pages;
 
@@ -9,25 +15,44 @@ public partial class Home : IDisposable
     [Inject] private SpoolService Spools { get; set; } = default!;
     [Inject] private PrinterService Printers { get; set; } = default!;
     [Inject] private StorageService Storage { get; set; } = default!;
+    [Inject] private DryerService Dryers { get; set; } = default!;
+    [Inject] private TicketService Tickets { get; set; } = default!;
+    [Inject] private HttpClient Http { get; set; } = default!;
     [Inject] private LocalizationService L { get; set; } = default!;
     [Inject] private AuthService Auth { get; set; } = default!;
     [Inject] private NavigationManager Nav { get; set; } = default!;
     [Inject] private ProjectService Project { get; set; } = default!;
 
+    private const int MaxAttentionCards = 6;
+
     private bool _loading = true;
+    private bool _loadFailed;
     private bool _showOnboarding;
     private bool _onboardingSaving;
     private int _printersCount;
     private int _storageCount;
-    private int _total, _active, _lowStock, _consumed;
+    private int _total;
     private int _storedCount;
-    private List<SpoolDto> _recent = [];
-    private List<LocationGroup> _locationGroups = [];
+    private Timer? _clockTimer;
 
-    private record LocationGroup(string Name, string Icon, string Color, int SpoolCount);
-    private List<MaterialStock> _materialStock = [];
-    private int _materialStockTotal;
-    private record MaterialStock(string Brand, string Type, string ColorHex, string? ColorName, int SpoolCount, decimal TotalGrams);
+    private List<SpoolDto> _active = [];
+    private List<SpoolDto> _recent = [];
+    private List<AttentionItem> _attention = [];
+    private int _attentionTotal;
+    private List<ShelfGroup> _shelf = [];
+    private List<ActivePlace> _places = [];
+    private decimal _totalGrams;
+    private int _lowCount;
+    private int _inPrinterCount;
+    private int _consumedCount;
+
+    private enum AttentionKind { Low, DryingDone, NoLocation }
+
+    private sealed record AttentionItem(AttentionKind Kind, SpoolDto? Spool, int Count, string? ReorderUrl, Guid? ReorderMaterialId);
+
+    private sealed record ShelfGroup(string Type, List<SpoolDto> Spools, decimal TotalGrams, decimal CapacityGrams, int LowCount);
+
+    private sealed record ActivePlace(string Name, bool IsDryer, Guid Id, List<SpoolDto> Spools);
 
     protected override void OnInitialized()
     {
@@ -43,60 +68,85 @@ public partial class Home : IDisposable
         }
         _showOnboarding = Auth.CurrentUser?.DashboardOnboardingDismissed != true;
         await LoadDataAsync();
+        // Keep drying progress current
+        _clockTimer = new Timer(60_000);
+        _clockTimer.Elapsed += (_, _) => InvokeAsync(StateHasChanged);
+        _clockTimer.Start();
     }
 
-    private void OnProjectChanged()
-    {
-        _ = InvokeAsync(LoadDataAsync);
-    }
+    private void OnProjectChanged() => _ = InvokeAsync(LoadDataAsync);
 
     private async Task LoadDataAsync()
     {
         if (Project.CurrentProject == null)
+        {
+            _loading = false;
+            StateHasChanged();
             return;
+        }
         _loading = true;
+        _loadFailed = false;
         StateHasChanged();
 
-        var printers = await Printers.GetAllAsync() ?? [];
+        List<SpoolDto> all;
+        List<PrinterDto> printers;
+        List<DryerDto> dryers;
+        try
+        {
+            var pt = Printers.GetAllAsync();
+            var st = Storage.GetAllAsync();
+            var dt = Dryers.GetAllAsync();
+            var spt = Spools.GetAllAsync();
+            await Task.WhenAll(pt, st, dt, spt);
+            printers = await pt ?? [];
+            _storageCount = (await st ?? []).Count;
+            dryers = await dt ?? [];
+            all = await spt ?? [];
+        }
+        catch (Exception)
+        {
+            _loadFailed = true;
+            _loading = false;
+            StateHasChanged();
+            return;
+        }
+
         _printersCount = printers.Count;
-
-        var storageLocations = await Storage.GetAllAsync() ?? [];
-        _storageCount = storageLocations.Count;
-
-        var all = await Spools.GetAllAsync() ?? [];
         _total = all.Count;
-        _active = all.Count(s => s.ConsumedAt == null);
-        _consumed = all.Count(s => s.ConsumedAt != null);
-        _lowStock = all.Count(s => s.ConsumedAt == null && s.RemainingPercent < 20);
+        _active = [.. all.Where(SpoolUi.IsActive)];
+        _consumedCount = all.Count - _active.Count;
+        _storedCount = _active.Count(s => s.StorageLocationId != null);
+        _totalGrams = _active.Sum(s => s.RemainingWeightGrams);
+        _lowCount = _active.Count(SpoolUi.IsLow);
+        _inPrinterCount = _active.Count(s => s.PrinterId != null);
         _recent = [.. all.OrderByDescending(s => s.CreatedAt).Take(6)];
 
-        var activeSpools = all.Where(s => s.ConsumedAt == null).ToList();
-        _storedCount = activeSpools.Count(s => s.StorageLocationName != null);
+        _shelf = [.. _active
+            .GroupBy(s => s.MaterialType.Trim().ToUpperInvariant())
+            .Select(g => new ShelfGroup(
+                g.First().MaterialType,
+                [.. g.OrderBy(s => s.RemainingPercent)],
+                g.Sum(s => s.RemainingWeightGrams),
+                g.Sum(s => (decimal)(s.MaterialWeightGrams ?? 0)),
+                g.Count(SpoolUi.IsLow)))
+            .OrderByDescending(g => g.Spools.Count).ThenBy(g => g.Type)];
 
-        var stock = activeSpools
-            .GroupBy(s => s.FilamentMaterialId)
-            .Select(g => new MaterialStock(g.First().MaterialBrand, g.First().MaterialType, g.First().MaterialColorHex,
-                g.First().MaterialColorName, g.Count(), g.Sum(s => s.RemainingWeightGrams)))
-            .OrderBy(m => m.TotalGrams)
-            .ToList();
-        _materialStockTotal = stock.Count;
-        _materialStock = [.. stock.Take(12)];
-        var groups = new List<LocationGroup>();
+        var places = new List<ActivePlace>();
+        foreach (var p in printers)
+        {
+            var spools = _active.Where(s => s.PrinterId == p.Id).ToList();
+            if (spools.Count > 0)
+                places.Add(new ActivePlace(p.Name, false, p.Id, spools));
+        }
+        foreach (var d in dryers)
+        {
+            var spools = _active.Where(s => s.DryerId == d.Id).ToList();
+            if (spools.Count > 0)
+                places.Add(new ActivePlace(d.Name, true, d.Id, spools));
+        }
+        _places = places;
 
-        foreach (var g in activeSpools.Where(s => s.PrinterName != null).GroupBy(s => s.PrinterName!))
-            groups.Add(new LocationGroup(g.Key, "bi-printer", "primary", g.Count()));
-
-        foreach (var g in activeSpools.Where(s => s.StorageLocationName != null && s.PrinterName == null).GroupBy(s => s.StorageLocationName!))
-            groups.Add(new LocationGroup(g.Key, "bi-box", "secondary", g.Count()));
-
-        foreach (var g in activeSpools.Where(s => s.DryerName != null && s.PrinterName == null && s.StorageLocationName == null).GroupBy(s => s.DryerName!))
-            groups.Add(new LocationGroup(g.Key, "bi-thermometer-half", "warning", g.Count()));
-
-        var noLocation = activeSpools.Count(s => s.PrinterName == null && s.StorageLocationName == null && s.DryerName == null);
-        if (noLocation > 0)
-            groups.Add(new LocationGroup(L["dashboard.no.location"], "bi-question-circle", "muted", noLocation));
-
-        _locationGroups = groups;
+        await BuildAttentionAsync();
 
         if (_showOnboarding && !_onboardingSaving && IsOnboardingCompleted())
         {
@@ -111,9 +161,75 @@ public partial class Home : IDisposable
         StateHasChanged();
     }
 
+    private async Task BuildAttentionAsync()
+    {
+        var items = new List<AttentionItem>();
+
+        foreach (var s in _active.Where(s => SpoolUi.GetDrying(s)?.Done == true))
+            items.Add(new AttentionItem(AttentionKind.DryingDone, s, 1, null, null));
+
+        var low = _active.Where(SpoolUi.IsLow).OrderBy(s => s.RemainingPercent).ToList();
+        Dictionary<Guid, string> materialReorder = [];
+        var missing = low.Where(s => string.IsNullOrWhiteSpace(s.ReorderUrl)).Select(s => s.FilamentMaterialId).Distinct().ToList();
+        if (missing.Count > 0)
+        {
+            try
+            {
+                var mats = await Http.GetFromJsonAsync<List<FilamentMaterialDto>>(
+                    $"api/materials?ids={Uri.EscapeDataString(string.Join(",", missing))}") ?? [];
+                materialReorder = mats.Where(m => !string.IsNullOrWhiteSpace(m.ReorderUrl)).ToDictionary(m => m.Id, m => m.ReorderUrl!);
+            }
+            catch (Exception)
+            {
+                // Reorder links are optional – the card falls back to "open spool".
+            }
+        }
+        foreach (var s in low)
+        {
+            if (!string.IsNullOrWhiteSpace(s.ReorderUrl))
+                items.Add(new AttentionItem(AttentionKind.Low, s, 1, s.ReorderUrl, null));
+            else if (materialReorder.TryGetValue(s.FilamentMaterialId, out var url))
+                items.Add(new AttentionItem(AttentionKind.Low, s, 1, url, s.FilamentMaterialId));
+            else
+                items.Add(new AttentionItem(AttentionKind.Low, s, 1, null, null));
+        }
+
+        var homeless = _active.Where(s => !SpoolUi.HasLocation(s)).ToList();
+        if (homeless.Count > 0)
+            items.Add(new AttentionItem(AttentionKind.NoLocation, homeless.Count == 1 ? homeless[0] : null, homeless.Count, null, null));
+
+        _attentionTotal = items.Count;
+        _attention = [.. items.Take(MaxAttentionCards)];
+    }
+
+    private void TrackReorder(AttentionItem item)
+    {
+        if (item.ReorderMaterialId is { } id)
+            _ = Tickets.TrackReorderClickAsync(id);
+    }
+
+    private string Greeting
+    {
+        get
+        {
+            var hour = DateTime.Now.Hour;
+            var key = hour < 5 ? "dashboard.greeting.evening" : hour < 12 ? "dashboard.greeting.morning" : hour < 18 ? "dashboard.greeting.afternoon" : "dashboard.greeting.evening";
+            var name = Auth.CurrentUser?.Username;
+            return string.IsNullOrWhiteSpace(name) ? L[key + ".anon"] : L.Format(key, name);
+        }
+    }
+
+    private string AttentionSummary => _attentionTotal switch
+    {
+        0 => L["dashboard.attention.none"],
+        1 => L["dashboard.attention.one"],
+        _ => L.Format("dashboard.attention.many", _attentionTotal)
+    };
+
     public void Dispose()
     {
         Project.OnProjectChanged -= OnProjectChanged;
+        _clockTimer?.Dispose();
     }
 
     private async Task SkipOnboardingAsync()
@@ -134,6 +250,13 @@ public partial class Home : IDisposable
         && _total > 0
         && _storedCount > 0;
 
-    private static string GetBarClass(decimal percent) =>
-        percent >= 50 ? "high" : percent >= 20 ? "medium" : "low";
+    private int OnboardingDoneCount =>
+        (_printersCount > 0 ? 1 : 0) + (_storageCount > 0 ? 1 : 0) + (_total > 0 ? 1 : 0) + (_storedCount > 0 ? 1 : 0);
+
+    private string GroupMeta(int count, decimal grams) => count == 1
+        ? L.Format("dashboard.shelf.group.meta.one", SpoolUi.Weight(grams))
+        : L.Format("dashboard.shelf.group.meta", count, SpoolUi.Weight(grams));
+
+    private static int Fill(decimal value, decimal capacity) =>
+        capacity <= 0 ? 0 : (int)Math.Clamp(Math.Round(value / capacity * 100), 0, 100);
 }
