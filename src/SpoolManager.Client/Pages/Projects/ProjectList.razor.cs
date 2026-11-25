@@ -12,33 +12,68 @@ public partial class ProjectList
     [Inject] private NavigationManager Nav { get; set; } = default!;
 
     private bool _loading = true;
+    private bool _loadError;
     private List<ProjectDto> _projects = [];
+    private Guid? _switchingId;
     private string _token = string.Empty;
     private InvitationInfoDto? _joinInfo;
     private string? _joinError;
+    private bool _checking;
     private bool _joining;
 
     protected override async Task OnInitializedAsync()
     {
-        _projects = await Project.GetMyProjectsAsync() ?? [];
+        try
+        {
+            _projects = (await Project.GetMyProjectsAsync() ?? [])
+                .OrderByDescending(p => p.Id == Project.CurrentProject?.Id)
+                .ThenBy(p => p.Name, StringComparer.CurrentCultureIgnoreCase)
+                .ToList();
+        }
+        catch (HttpRequestException)
+        {
+            _loadError = true;
+        }
         _loading = false;
     }
 
+    private static string Initial(string name) =>
+        string.IsNullOrWhiteSpace(name) ? "?" : name.Trim()[..1].ToUpperInvariant();
+
     private async Task SwitchAsync(ProjectDto p)
     {
+        _switchingId = p.Id;
         await Project.SwitchProjectAsync(p);
         Nav.NavigateTo("/");
     }
 
+    private void ResetJoin()
+    {
+        _joinInfo = null;
+        _joinError = null;
+        _token = string.Empty;
+    }
+
     private async Task LookupTokenAsync()
     {
+        if (string.IsNullOrWhiteSpace(_token))
+            return;
+        _checking = true;
         _joinError = null;
         _joinInfo = null;
-        var info = await Invitations.GetInfoAsync(_token.Trim());
-        if (info == null || !info.IsValid)
-            _joinError = info?.ErrorMessage ?? L["project.invite.invalid"];
-        else
-            _joinInfo = info;
+        try
+        {
+            var info = await Invitations.GetInfoAsync(_token.Trim());
+            if (info == null || !info.IsValid)
+                _joinError = info?.ErrorMessage ?? L["project.invite.invalid"];
+            else
+                _joinInfo = info;
+        }
+        catch (HttpRequestException)
+        {
+            _joinError = L["project.invite.invalid"];
+        }
+        _checking = false;
     }
 
     private async Task AcceptInviteAsync()
@@ -62,7 +97,7 @@ public partial class ProjectList
         }
         else
         {
-            _joinError = await resp.Content.ReadAsStringAsync();
+            _joinError = await ResponseMessages.ReadAsync(resp, L["project.invite.invalid"]);
         }
     }
 }

@@ -2,40 +2,56 @@
 
 <PageTitle>@L["project.create"] – @L["app.name"]</PageTitle>
 
-<div class="page-header">
-    <h1><i class="bi bi-diagram-3 me-2"></i>@L["project.create"]</h1>
-</div>
-
-<div class="row justify-content-center">
-    <div class="col-12 col-lg-6">
-        <div class="card">
-            <div class="card-body">
-                @if (_error != null) { <div class="alert alert-danger">@_error</div> }
-
-                <div class="mb-3">
-                    <label class="form-label">@L["project.name"] *</label>
-                    <input class="form-control" @bind="_form.Name" maxlength="200"
-                           placeholder="@L["project.name.placeholder"]" />
-                    <small class="text-muted">@((_form.Name?.Length ?? 0)) / 200</small>
-                </div>
-                <div class="mb-4">
-                    <label class="form-label">@L["project.description"] @L["common.optional"]</label>
-                    <textarea class="form-control" rows="3" @bind="_form.Description"
-                              placeholder="@L["project.description.placeholder"]"></textarea>
-                </div>
-
-                <div class="d-flex gap-2">
-                    <button class="btn btn-primary" @onclick="SaveAsync" disabled="@_saving">
-                        @if (_saving) { <span class="spinner-border spinner-border-sm me-2"></span> }
-                        @L["project.create"]
-                    </button>
-                    @if (_hasProjects)
-                    {
-                        <a href="/projects" class="btn btn-secondary">@L["common.cancel"]</a>
-                    }
-                </div>
-            </div>
+<div class="project-create">
+    <div class="page-header">
+        <div>
+            <h1>@(_hasProjects ? L["project.create"] : L["project.create.first"])</h1>
+            <p class="page-subtitle">@L["project.create.subtitle"]</p>
         </div>
+        @if (_hasProjects)
+        {
+            <div class="page-actions">
+                <a href="/projects" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left" aria-hidden="true"></i>@L["project.back"]
+                </a>
+            </div>
+        }
+    </div>
+
+    <div class="sh-card">
+        <form @onsubmit="SaveAsync" @onsubmit:preventDefault>
+            @if (_error != null)
+            {
+                <div class="alert alert-danger py-2" role="alert">@_error</div>
+            }
+            <div class="mb-3">
+                <label class="form-label" for="project-name">@L["project.name"]</label>
+                <input id="project-name" class="form-control" @bind="_form.Name" @bind:event="oninput" maxlength="200" required
+                       placeholder="@L["project.name.placeholder"]" autocomplete="off" aria-describedby="project-name-count" />
+                <div class="form-text text-end" id="project-name-count">@((_form.Name?.Length ?? 0)) / 200</div>
+            </div>
+            <div class="mb-4">
+                <label class="form-label" for="project-desc">@L["project.description"] <span class="text-muted fw-normal">@L["common.optional"]</span></label>
+                <textarea id="project-desc" class="form-control" rows="3" @bind="_form.Description"
+                          placeholder="@L["project.description.placeholder"]"></textarea>
+            </div>
+
+            <ul class="project-create-facts">
+                <li><i class="bi bi-shield-check" aria-hidden="true"></i>@L["project.create.fact.admin"]</li>
+                <li><i class="bi bi-people" aria-hidden="true"></i>@L["project.create.fact.invite"]</li>
+                <li><i class="bi bi-arrow-left-right" aria-hidden="true"></i>@L["project.create.fact.switch"]</li>
+            </ul>
+
+            <div class="d-flex gap-2 flex-wrap justify-content-end">
+                @if (_hasProjects)
+                {
+                    <a href="/projects" class="btn btn-outline-secondary">@L["common.cancel"]</a>
+                }
+                <button type="submit" class="btn btn-primary" disabled="@(_saving || string.IsNullOrWhiteSpace(_form.Name))">
+                    @if (_saving) { <span class="spinner-border spinner-border-sm" aria-hidden="true"></span> }
+                    @L["project.create"]
+                </button>
+            </div>
+        </form>
     </div>
 </div>
-

@@ -4,165 +4,194 @@
 
 @if (_loading)
 {
-    <div class="text-center py-5"><div class="spinner-border"></div></div>
+    <div class="text-center py-5" role="status">
+        <div class="spinner-border text-primary" aria-hidden="true"></div>
+        <span class="visually-hidden">@L["common.loading"]</span>
+    </div>
 }
-else
+else if (_project != null)
 {
     <div class="page-header">
-        <h1><i class="bi bi-plug me-2"></i>@L["spoolman.title"]</h1>
-        <a href="/projects/@Id/settings" class="btn btn-outline-secondary">
-            <i class="bi bi-arrow-left me-1"></i>@L["project.settings"]
-        </a>
-    </div>
-
-    <p class="text-muted">@L["spoolman.intro"] <strong>@_project?.Name</strong></p>
-
-    <div class="card mb-4">
-        <div class="card-body">
-            <h5 class="card-title"><i class="bi bi-info-circle me-2"></i>@L["spoolman.setup"]</h5>
-            <p class="small mb-2">@L["spoolman.hint"]</p>
-            <pre class="mb-2 p-2 border rounded bg-body-tertiary small">[spoolman]
-server: @ExampleServerUrl
-sync_rate: 5</pre>
-            <p class="small text-muted mb-0">@L["spoolman.hint.clients"]</p>
+        <div class="min-w-0">
+            <h1>@L["spoolman.title"]</h1>
+            <p class="page-subtitle">@L.Format("spoolman.subtitle", _project.Name)</p>
+        </div>
+        <div class="page-actions">
+            <a href="/projects/@Id/settings" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left" aria-hidden="true"></i>@L["project.settings"]
+            </a>
+            @if (_canManage && _keys.Count > 0)
+            {
+                <button type="button" class="btn btn-primary" @onclick="OpenCreate">
+                    <i class="bi bi-plus-lg" aria-hidden="true"></i>@L["spoolman.apikeys.create"]
+                </button>
+            }
         </div>
     </div>
 
-    @if (!_canManage)
-    {
-        <div class="alert alert-warning">@L["spoolman.no.permission"]</div>
-    }
-    else
-    {
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <span class="fw-semibold"><i class="bi bi-key me-1"></i>@L["spoolman.apikeys"]</span>
-                <button class="btn btn-sm btn-primary" @onclick="() => _showCreate = true" disabled="@_showCreate">
-                    <i class="bi bi-plus-lg me-1"></i>@L["spoolman.apikeys.create"]
-                </button>
-            </div>
-            <div class="card-body">
-                @if (_showCreate)
-                {
-                    <div class="row g-2 mb-3 align-items-end">
-                        <div class="col">
-                            <label class="form-label">@L["spoolman.apikeys.name"]</label>
-                            <input class="form-control form-control-sm" @bind="_newKeyName" @bind:event="oninput"
-                                   placeholder="@L["spoolman.apikeys.name.placeholder"]" maxlength="100" />
-                        </div>
-                        <div class="col-auto d-flex gap-1">
-                            <button class="btn btn-sm btn-success" @onclick="CreateKeyAsync"
-                                    disabled="@(string.IsNullOrWhiteSpace(_newKeyName) || _creating)">
-                                @if (_creating) { <span class="spinner-border spinner-border-sm me-1"></span> }
-                                @L["common.save"]
-                            </button>
-                            <button class="btn btn-sm btn-secondary" @onclick="CancelCreate">@L["common.cancel"]</button>
-                        </div>
-                    </div>
-                }
+    <div class="sm-layout">
+        <section class="sh-card" aria-labelledby="sm-keys">
+            <h2 class="sh-card-title" id="sm-keys">@L["spoolman.apikeys"]</h2>
+            <p class="sh-card-sub mb-3">@L["spoolman.apikeys.text"]</p>
 
+            @if (!_canManage)
+            {
+                <div class="alert alert-warning mb-0">@L["spoolman.no.permission"]</div>
+            }
+            else
+            {
                 @if (_error != null)
                 {
-                    <div class="alert alert-danger py-2">@_error</div>
+                    <div class="alert alert-danger py-2" role="alert">@_error</div>
                 }
 
                 @if (_keys.Count == 0)
                 {
-                    <p class="text-muted mb-0">@L["spoolman.apikeys.empty"]</p>
+                    <div class="sh-empty">
+                        <i class="bi bi-key" aria-hidden="true"></i>
+                        <h3>@L["spoolman.apikeys.empty.title"]</h3>
+                        <p>@L["spoolman.apikeys.empty"]</p>
+                        <button type="button" class="btn btn-primary" @onclick="OpenCreate">
+                            <i class="bi bi-plus-lg" aria-hidden="true"></i>@L["spoolman.apikeys.create"]
+                        </button>
+                    </div>
                 }
                 else
                 {
-                    <div class="table-responsive">
-                        <table class="table table-sm align-middle mb-0">
-                            <thead>
-                                <tr>
-                                    <th>@L["spoolman.apikeys.name"]</th>
-                                    <th>@L["spoolman.apikeys.url"]</th>
-                                    <th class="d-none d-md-table-cell">@L["spoolman.apikeys.lastused"]</th>
-                                    <th></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach (var key in _keys)
+                    <ul class="sm-keys">
+                        @foreach (var key in _keys)
+                        {
+                            var serverUrl = ServerUrl(key.ApiKey);
+                            <li class="sm-key @(key.Id == _newKeyId ? "is-new" : "")">
+                                <div class="sm-key-head">
+                                    <div class="min-w-0">
+                                        <strong class="text-break">@key.Name</strong>
+                                        <span class="small text-muted d-block">
+                                            @L["spoolman.apikeys.lastused"]: @(key.LastUsedAt == null ? L["spoolman.apikeys.never"] : FormatTime(key.LastUsedAt.Value))
+                                        </span>
+                                    </div>
+                                    <div class="sm-key-actions">
+                                        <button type="button" class="btn btn-outline-secondary btn-sm" aria-expanded="@(_expandedKeyId == key.Id ? "true" : "false")"
+                                                @onclick="() => ToggleLogsAsync(key.Id)">
+                                            <i class="bi bi-list-ul" aria-hidden="true"></i>@L["spoolman.apikeys.logs.short"]
+                                        </button>
+                                        <button type="button" class="btn btn-outline-danger btn-sm sm-icon-btn" @onclick="() => _deleteTarget = key"
+                                                aria-label="@L.Format("spoolman.apikeys.delete.for", key.Name)" title="@L["spoolman.apikeys.delete"]">
+                                            <i class="bi bi-trash" aria-hidden="true"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                @if (key.Id == _newKeyId)
                                 {
-                                    var serverUrl = ServerUrl(key.ApiKey);
-                                    <tr>
-                                        <td>@key.Name</td>
-                                        <td>
-                                            <div class="input-group input-group-sm" style="min-width:16rem">
-                                                <input class="form-control font-monospace" readonly value="@serverUrl" />
-                                                <button class="btn btn-outline-secondary" title="@L["spoolman.copy"]" @onclick="() => CopyAsync(key.Id, serverUrl)">
-                                                    <i class="bi @(_copiedKeyId == key.Id ? "bi-check-lg" : "bi-clipboard")"></i>
-                                                </button>
-                                            </div>
-                                        </td>
-                                        <td class="small text-muted d-none d-md-table-cell">@(key.LastUsedAt?.ToLocalTime().ToString("g") ?? "–")</td>
-                                        <td class="text-end">
-                                            <div class="d-flex gap-1 justify-content-end">
-                                                <button class="btn btn-sm @(_expandedKeyId == key.Id ? "btn-secondary" : "btn-outline-secondary")"
-                                                        title="@L["spoolman.apikeys.logs"]" @onclick="() => ToggleLogsAsync(key.Id)">
-                                                    <i class="bi bi-list-ul"></i>
-                                                </button>
-                                                <button class="btn btn-sm btn-outline-danger" title="@L["common.delete"]" @onclick="() => _deleteTarget = key">
-                                                    <i class="bi bi-trash"></i>
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    @if (_expandedKeyId == key.Id)
-                                    {
-                                        <tr>
-                                            <td colspan="4" class="bg-body-tertiary">
-                                                <small class="text-muted fw-semibold">@L["spoolman.apikeys.logs"]</small>
-                                                @if (_logsLoading)
-                                                {
-                                                    <div class="my-2"><span class="spinner-border spinner-border-sm"></span></div>
-                                                }
-                                                else if (_logs.Count == 0)
-                                                {
-                                                    <p class="text-muted small mb-0 mt-1">@L["spoolman.apikeys.logs.empty"]</p>
-                                                }
-                                                else
-                                                {
-                                                    <div style="max-height:20rem;overflow-y:auto">
-                                                        <table class="table table-sm mb-0 mt-1">
-                                                            <tbody>
-                                                                @foreach (var log in _logs)
-                                                                {
-                                                                    <tr>
-                                                                        <td class="small text-muted text-nowrap">@log.CalledAt.ToLocalTime().ToString("HH:mm:ss")</td>
-                                                                        <td><span class="badge bg-secondary">@log.Method</span></td>
-                                                                        <td class="small font-monospace text-break">@log.Path</td>
-                                                                        <td><span class="badge @(log.StatusCode < 400 ? "bg-success" : "bg-danger")">@log.StatusCode</span></td>
-                                                                    </tr>
-                                                                }
-                                                            </tbody>
-                                                        </table>
-                                                    </div>
-                                                }
-                                            </td>
-                                        </tr>
-                                    }
+                                    <p class="small mb-0 sm-new-hint"><i class="bi bi-check-circle" aria-hidden="true"></i> @L["spoolman.apikeys.created"]</p>
                                 }
-                            </tbody>
-                        </table>
-                    </div>
+                                <div class="sm-url">
+                                    <label class="visually-hidden" for="url-@key.Id">@L["spoolman.apikeys.url"]</label>
+                                    <input id="url-@key.Id" class="form-control font-monospace" readonly value="@serverUrl" />
+                                    <button type="button" class="btn btn-outline-secondary" @onclick="() => CopyAsync(key.Id, serverUrl)">
+                                        <i class="bi @(_copiedKeyId == key.Id ? "bi-check-lg" : "bi-clipboard")" aria-hidden="true"></i>@(_copiedKeyId == key.Id ? L["place.copied"] : L["spoolman.copy"])
+                                    </button>
+                                </div>
+                                @if (_expandedKeyId == key.Id)
+                                {
+                                    <div class="sm-logs">
+                                        <h3 class="sm-logs-title">@L["spoolman.apikeys.logs"]</h3>
+                                        @if (_logsLoading)
+                                        {
+                                            <div class="py-2" role="status"><span class="spinner-border spinner-border-sm" aria-hidden="true"></span><span class="visually-hidden">@L["common.loading"]</span></div>
+                                        }
+                                        else if (_logs.Count == 0)
+                                        {
+                                            <p class="text-muted small mb-0">@L["spoolman.apikeys.logs.empty"]</p>
+                                        }
+                                        else
+                                        {
+                                            <div class="table-responsive sm-logs-table">
+                                                <table class="table table-sm mb-0">
+                                                    <thead>
+                                                        <tr>
+                                                            <th scope="col">@L["spoolman.logs.time"]</th>
+                                                            <th scope="col">@L["spoolman.logs.method"]</th>
+                                                            <th scope="col">@L["spoolman.logs.path"]</th>
+                                                            <th scope="col">@L["spoolman.logs.status"]</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        @foreach (var log in _logs)
+                                                        {
+                                                            <tr>
+                                                                <td class="small text-muted text-nowrap">@FormatClock(log.CalledAt)</td>
+                                                                <td><span class="badge bg-secondary">@log.Method</span></td>
+                                                                <td class="small font-monospace text-break">@log.Path</td>
+                                                                <td><span class="badge @(log.StatusCode < 400 ? "bg-success" : "bg-danger")">@log.StatusCode</span></td>
+                                                            </tr>
+                                                        }
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                            </li>
+                        }
+                    </ul>
                 }
-            </div>
+            }
+        </section>
+
+        <aside class="sh-card" aria-labelledby="sm-setup">
+            <h2 class="sh-card-title" id="sm-setup">@L["spoolman.setup"]</h2>
+            <ol class="sm-steps">
+                <li>@L["spoolman.step.key"]</li>
+                <li>
+                    @L["spoolman.step.config"]
+                    <pre class="sm-config">[spoolman]
+server: @ExampleServerUrl
+sync_rate: 5</pre>
+                </li>
+                <li>@L["spoolman.step.restart"]</li>
+            </ol>
+            <p class="small text-muted mb-0"><i class="bi bi-shield-lock" aria-hidden="true"></i> @L["spoolman.hint.clients"]</p>
+        </aside>
+    </div>
+}
+
+@if (_showCreate)
+{
+    <div class="modal-backdrop-custom" @onclick="CancelCreate">
+        <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="sm-create-title" @onclick:stopPropagation>
+            <form @onsubmit="CreateKeyAsync" @onsubmit:preventDefault>
+                <h5 id="sm-create-title">@L["spoolman.apikeys.create"]</h5>
+                <p class="text-muted">@L["spoolman.apikeys.create.text"]</p>
+                <label class="form-label" for="sm-key-name">@L["spoolman.apikeys.name"]</label>
+                <input id="sm-key-name" class="form-control" @bind="_newKeyName" @bind:event="oninput"
+                       placeholder="@L["spoolman.apikeys.name.placeholder"]" maxlength="100" autocomplete="off" />
+                @if (_createError != null)
+                {
+                    <div class="alert alert-danger py-2 mt-3 mb-0" role="alert">@_createError</div>
+                }
+                <div class="d-flex gap-2 justify-content-end flex-wrap mt-3">
+                    <button type="button" class="btn btn-outline-secondary" @onclick="CancelCreate">@L["common.cancel"]</button>
+                    <button type="submit" class="btn btn-primary" disabled="@(string.IsNullOrWhiteSpace(_newKeyName) || _creating)">
+                        @if (_creating) { <span class="spinner-border spinner-border-sm" aria-hidden="true"></span> }
+                        @L["spoolman.apikeys.create"]
+                    </button>
+                </div>
+            </form>
         </div>
-    }
+    </div>
 }
 
 @if (_deleteTarget != null)
 {
     <div class="modal-backdrop-custom" @onclick="() => _deleteTarget = null">
-        <div class="modal-box" @onclick:stopPropagation>
-            <h5>@L["spoolman.apikeys.delete"]</h5>
+        <div class="modal-box" role="alertdialog" aria-modal="true" aria-labelledby="sm-delete-title" @onclick:stopPropagation>
+            <h5 id="sm-delete-title">@L["spoolman.apikeys.delete"]</h5>
+            <p class="mb-2"><strong>@_deleteTarget.Name</strong></p>
             <p>@L["spoolman.apikeys.delete.confirm"]</p>
-            <p><strong>@_deleteTarget.Name</strong></p>
-            <div class="d-flex gap-2 justify-content-end">
-                <button class="btn btn-secondary" @onclick="() => _deleteTarget = null">@L["common.cancel"]</button>
-                <button class="btn btn-danger" @onclick="DeleteKeyAsync">@L["common.delete"]</button>
+            <div class="d-flex gap-2 justify-content-end flex-wrap">
+                <button type="button" class="btn btn-outline-secondary" @onclick="() => _deleteTarget = null">@L["common.cancel"]</button>
+                <button type="button" class="btn btn-danger" @onclick="DeleteKeyAsync">@L["spoolman.apikeys.delete"]</button>
             </div>
         </div>
     </div>
