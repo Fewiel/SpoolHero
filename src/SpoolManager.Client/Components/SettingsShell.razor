@@ -1,0 +1,28 @@
+<PageTitle>@Title – @L["app.name"]</PageTitle>
+
+<div class="page-header">
+    <div>
+        <h1>@Title</h1>
+        @if (!string.IsNullOrEmpty(Subtitle))
+        {
+            <p class="page-subtitle">@Subtitle</p>
+        }
+    </div>
+</div>
+
+<div class="settings-layout">
+    <nav class="settings-nav" aria-label="@L["settings.nav.label"]">
+        <NavLink class="settings-nav-link" href="/settings/account" Match="NavLinkMatch.All">
+            <i class="bi bi-person" aria-hidden="true"></i><span>@L["settings.nav.account"]</span>
+        </NavLink>
+        <NavLink class="settings-nav-link" href="/settings/password" Match="NavLinkMatch.All">
+            <i class="bi bi-key" aria-hidden="true"></i><span>@L["settings.nav.password"]</span>
+        </NavLink>
+        <NavLink class="settings-nav-link" href="/settings/notifications" Match="NavLinkMatch.All">
+            <i class="bi bi-bell" aria-hidden="true"></i><span>@L["settings.nav.notifications"]</span>
+        </NavLink>
+    </nav>
+    <div class="settings-content">
+        @ChildContent
+    </div>
+</div>
