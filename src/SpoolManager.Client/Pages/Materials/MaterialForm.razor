@@ -281,15 +281,6 @@ else
                     <div><dt>@L["material.form.dry.short"]</dt><dd>@(_form.DryTempCelsius is > 0 ? $"{_form.DryTempCelsius} °C · {_form.DryTimeHours ?? 0} h" : "–")</dd></div>
                 </dl>
 
-                @if (_error != null)
-                {
-                    <div class="alert alert-danger py-2 mb-0" role="alert">@_error</div>
-                }
-                @if (_submitted && !IsValid)
-                {
-                    <div class="alert alert-warning py-2 mb-0" role="alert">@L["material.form.fix.errors"]</div>
-                }
-
                 <div class="mf-submit">
                     <button type="submit" class="btn btn-primary" disabled="@_saving">
                         @if (_saving) { <span class="spinner-border spinner-border-sm" aria-hidden="true"></span> }
@@ -298,6 +289,15 @@ else
                     </button>
                     <a href="/materials" class="btn btn-outline-secondary">@L["common.cancel"]</a>
                 </div>
+
+                @if (_error != null)
+                {
+                    <div class="alert alert-danger py-2 mb-0" role="alert">@_error</div>
+                }
+                @if (_submitted && !IsValid)
+                {
+                    <div class="alert alert-warning py-2 mb-0" role="alert">@L["material.form.fix.errors"]</div>
+                }
             </div>
         </aside>
     </form>

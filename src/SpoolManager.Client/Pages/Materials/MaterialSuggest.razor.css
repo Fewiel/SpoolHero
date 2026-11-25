@@ -26,3 +26,5 @@ legend.form-label { font-size: .9rem; float: none; width: auto; }
 @media (max-width: 991.98px) {
     .sug-grid { grid-template-columns: minmax(0, 1fr); }
 }
+
+.sug-subhead { font-family: var(--sh-font); font-size: .8rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--sh-muted); margin: .5rem 0 0; }

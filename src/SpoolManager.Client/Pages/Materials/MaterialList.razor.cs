@@ -1,3 +1,4 @@
+using System.Net.Http.Json;
 using Microsoft.AspNetCore.Components;
 using SpoolManager.Client.Services;
 using SpoolManager.Shared.DTOs.Materials;
@@ -241,6 +242,12 @@ public partial class MaterialList : IDisposable
         try
         {
             var resp = await Materials.DeleteAsync(_deleteTarget.Id);
+            if (resp.StatusCode == System.Net.HttpStatusCode.Conflict)
+            {
+                var body = await resp.Content.ReadFromJsonAsync<ConflictBody>();
+                _deleteError = L.Format("material.delete.inuse", body?.SpoolCount ?? 1);
+                return;
+            }
             if (!resp.IsSuccessStatusCode)
             {
                 _deleteError = L["material.delete.failed"];
@@ -258,6 +265,8 @@ public partial class MaterialList : IDisposable
             _deleting = false;
         }
     }
+
+    private sealed record ConflictBody(int SpoolCount);
 
     public void Dispose()
     {

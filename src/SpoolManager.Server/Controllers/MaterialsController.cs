@@ -20,15 +20,17 @@ public class MaterialsController : ControllerBase
     private readonly IOrcaExportService _orcaExport;
     private readonly IAuditService _audit;
     private readonly IFavoriteRepository _favorites;
+    private readonly ISpoolRepository _spools;
     private ProjectMember ProjectMember => (ProjectMember)HttpContext.Items["ProjectMember"]!;
     private string? UserName => User.FindFirst(ClaimTypes.Name)?.Value;
     private Guid UserId => Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
     private string? ClientIp => HttpContext.Connection.RemoteIpAddress?.ToString();
 
     public MaterialsController(IMaterialRepository materials, IMaterialExportService exportService,
-        IOrcaExportService orcaExport, IAuditService audit, IFavoriteRepository favorites)
+        IOrcaExportService orcaExport, IAuditService audit, IFavoriteRepository favorites, ISpoolRepository spools)
     {
         _favorites = favorites;
+        _spools = spools;
         _materials = materials;
         _exportService = exportService;
         _orcaExport = orcaExport;
@@ -142,6 +144,11 @@ public class MaterialsController : ControllerBase
             return Forbid();
         if (material.ProjectId != ProjectMember.ProjectId)
             return NotFound();
+
+        // Spools reference the material (FK) – deleting would fail with a database error.
+        var usedBy = await _spools.GetAllAsync(ProjectMember.ProjectId, materialId: id);
+        if (usedBy.Count > 0)
+            return Conflict(new { message = "Material is still used by spools.", spoolCount = usedBy.Count });
 
         await _audit.LogAsync("material.delete",
             userId: UserId, username: UserName,

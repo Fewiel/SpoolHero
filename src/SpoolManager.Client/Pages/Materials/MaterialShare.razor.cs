@@ -131,10 +131,7 @@ public partial class MaterialShare
             }
             else
             {
-                var err = await TryReadMessageAsync(resp);
-                _importError = string.IsNullOrWhiteSpace(err)
-                    ? L["material.share.import.invalid"]
-                    : $"{L["material.share.import.invalid"]} ({err})";
+                _importError = L["material.share.import.invalid"];
             }
         }
         catch (HttpRequestException)
@@ -144,19 +141,5 @@ public partial class MaterialShare
         _importing = false;
     }
 
-    private static async Task<string?> TryReadMessageAsync(HttpResponseMessage resp)
-    {
-        try
-        {
-            var body = await resp.Content.ReadFromJsonAsync<ErrorBody>();
-            return body?.Message;
-        }
-        catch (Exception)
-        {
-            return null;
-        }
-    }
-
     private record ImportResult(int Imported);
-    private record ErrorBody(string? Message);
 }
