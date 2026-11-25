@@ -1,0 +1,17 @@
+.as-placeholder { height: 2.5rem; border-radius: 8px; }
+.as-material { min-width: 220px; }
+.as-related { max-width: 220px; }
+.min-w-0 { min-width: 0; }
+
+.as-modal { max-width: 620px; }
+
+.as-kv { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: .75rem; }
+
+.as-notes {
+    padding: .75rem 1rem;
+    border-radius: var(--sh-radius-sm);
+    background: var(--sh-surface-2);
+    border: 1px solid var(--sh-border);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}

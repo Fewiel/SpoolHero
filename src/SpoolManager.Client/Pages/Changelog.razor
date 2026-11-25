@@ -1,25 +1,72 @@
 @page "/changelog"
-@using Markdig
 
 <PageTitle>@L["nav.changelog"] – @L["app.name"]</PageTitle>
 
-<div class="page-header">
-    <h1><i class="bi bi-journal-text me-2"></i>@L["nav.changelog"]</h1>
-</div>
-
-@if (_loading)
-{
-    <div class="text-center py-5"><div class="spinner-border"></div></div>
-}
-else
-{
-    @foreach (var entry in _entries)
-    {
-        <div class="card mb-3">
-            <div class="card-body changelog-content">
-                @((MarkupString)Markdown.ToHtml(entry, _pipeline))
+<PublicShell Variant="page" BypassWhenAuthenticated="true">
+    <div class="cl-page">
+        <div class="page-header">
+            <div>
+                <h1>@L["nav.changelog"]</h1>
+                <p class="page-subtitle">@L["changelog.subtitle"]</p>
             </div>
         </div>
-    }
-}
 
+        @if (_loading)
+        {
+            <div class="sh-card" role="status">
+                <div class="placeholder-glow">
+                    <span class="placeholder col-4 mb-3"></span>
+                    <span class="placeholder col-12"></span>
+                    <span class="placeholder col-9"></span>
+                </div>
+                <span class="visually-hidden">@L["common.loading"]</span>
+            </div>
+        }
+        else if (_entries.Count == 0)
+        {
+            <div class="sh-empty">
+                <i class="bi bi-journal-x" aria-hidden="true"></i>
+                <h2>@L["changelog.empty.title"]</h2>
+                <p>@L["changelog.empty.text"]</p>
+                <button type="button" class="btn btn-primary mt-2" @onclick="LoadAsync">
+                    <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>@L["common.retry"]
+                </button>
+            </div>
+        }
+        else
+        {
+            <ol class="cl-list">
+                @foreach (var (entry, index) in VisibleEntries.Select((e, i) => (e, i)))
+                {
+                    <li class="cl-item">
+                        <span class="cl-dot @(index == 0 ? "cl-dot-latest" : "")" aria-hidden="true"></span>
+                        <article class="sh-card cl-card" aria-labelledby="cl-@index">
+                            <header class="cl-head">
+                                <span class="sh-chip @(index == 0 ? "sh-chip-accent" : "")">@entry.Version</span>
+                                @if (index == 0)
+                                {
+                                    <span class="sh-chip sh-chip-ok sh-chip-sm">@L["changelog.latest"]</span>
+                                }
+                                @if (!string.IsNullOrEmpty(entry.Date))
+                                {
+                                    <span class="cl-date"><i class="bi bi-calendar3" aria-hidden="true"></i>@entry.Date</span>
+                                }
+                            </header>
+                            <h2 id="cl-@index" class="cl-title">@entry.Title</h2>
+                            <Prose Html="@entry.Html" />
+                        </article>
+                    </li>
+                }
+            </ol>
+
+            @if (!_showAll && _entries.Count > InitialCount)
+            {
+                <div class="text-center mt-3">
+                    <button type="button" class="btn btn-outline-secondary" @onclick="() => _showAll = true">
+                        <i class="bi bi-chevron-down" aria-hidden="true"></i>@L.Format("changelog.show.older", _entries.Count - InitialCount)
+                    </button>
+                </div>
+            }
+        }
+    </div>
+</PublicShell>

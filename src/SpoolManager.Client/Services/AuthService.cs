@@ -37,26 +37,37 @@ public class AuthService
         catch { }
     }
 
-    public async Task<bool> LoginAsync(LoginRequest request)
+    public async Task<bool> LoginAsync(LoginRequest request) =>
+        await LoginWithResultAsync(request) == LoginResult.Success;
+
+    /// <summary>Signs in and tells why a sign-in failed (wrong credentials, unverified email, too many attempts).</summary>
+    public async Task<LoginResult> LoginWithResultAsync(LoginRequest request)
     {
         try
         {
             var response = await _http.PostAsJsonAsync("api/auth/login", request);
             if (!response.IsSuccessStatusCode)
-                return false;
+            {
+                if ((int)response.StatusCode == 429)
+                    return LoginResult.TooManyAttempts;
+                var body = await response.Content.ReadAsStringAsync();
+                return body.Contains("email_not_verified", StringComparison.Ordinal)
+                    ? LoginResult.EmailNotVerified
+                    : LoginResult.InvalidCredentials;
+            }
 
             var result = await response.Content.ReadFromJsonAsync<LoginResponse>();
             if (result == null)
-                return false;
+                return LoginResult.Failed;
 
             Token = result.AccessToken;
             await _js.InvokeVoidAsync("localStorage.setItem", "auth_token", Token);
             SetAuthHeader();
             await LoadCurrentUserAsync();
             OnAuthStateChanged?.Invoke();
-            return true;
+            return LoginResult.Success;
         }
-        catch { return false; }
+        catch { return LoginResult.Failed; }
     }
 
     public async Task UpdateTokenAsync(string newToken)
@@ -150,4 +161,13 @@ public class AuthService
         }
         catch { return true; }
     }
+}
+
+public enum LoginResult
+{
+    Success,
+    InvalidCredentials,
+    EmailNotVerified,
+    TooManyAttempts,
+    Failed
 }

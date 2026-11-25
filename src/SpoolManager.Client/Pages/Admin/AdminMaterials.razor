@@ -4,98 +4,171 @@
 
 @if (Auth.CurrentUser?.IsPlatformAdmin != true)
 {
-    <div class="alert alert-danger mt-3">@L["common.access.denied"]</div>
+    <AdminAccessDenied />
 }
 else
 {
     <div class="page-header">
-        <h1><i class="bi bi-shield-check me-2"></i>@L["admin.materials.title"]</h1>
-        <div class="d-flex gap-2">
-            <button class="btn btn-outline-secondary" @onclick="SyncOfdAsync" disabled="@_syncing">
-                @if (_syncing) { <span class="spinner-border spinner-border-sm me-2"></span> }
-                <i class="bi bi-cloud-download me-1"></i>@L["admin.ofd.sync.button"]
+        <div>
+            <h1>@L["admin.materials.title"]</h1>
+            <p class="page-subtitle">@L["admin.materials.global"]</p>
+        </div>
+        <div class="page-actions">
+            <button type="button" class="btn btn-outline-secondary" @onclick="SyncOfdAsync" disabled="@_syncing" aria-busy="@(_syncing ? "true" : "false")">
+                @if (_syncing)
+                {
+                    <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                    @L["admin.ofd.sync.running"]
+                }
+                else
+                {
+                    <i class="bi bi-cloud-download" aria-hidden="true"></i>
+                    @L["admin.ofd.sync.button"]
+                }
             </button>
             <a href="/admin/materials/new" class="btn btn-primary">
-                <i class="bi bi-plus-lg me-1"></i>@L["material.add"]
+                <i class="bi bi-plus-lg" aria-hidden="true"></i>@L["material.add"]
             </a>
         </div>
     </div>
 
     @if (_syncResult != null)
     {
-        <div class="alert alert-success alert-dismissible">
-            @L["admin.ofd.sync.result"].Replace("{0}", _syncResult.Created.ToString()).Replace("{1}", _syncResult.Updated.ToString()).Replace("{2}", _syncResult.Skipped.ToString())
-            <button type="button" class="btn-close" @onclick="() => _syncResult = null"></button>
+        <div class="alert alert-success d-flex align-items-center gap-2" role="status">
+            <i class="bi bi-check-circle" aria-hidden="true"></i>
+            <span class="flex-grow-1">@L["admin.ofd.sync.done"] @L.Format("admin.ofd.sync.result", _syncResult.Created, _syncResult.Updated, _syncResult.Skipped)</span>
+            <button type="button" class="btn-close" aria-label="@L["common.close"]" @onclick="() => _syncResult = null"></button>
+        </div>
+    }
+    @if (_error != null)
+    {
+        <div class="alert alert-danger d-flex align-items-center gap-2" role="alert">
+            <i class="bi bi-exclamation-circle" aria-hidden="true"></i>
+            <span class="flex-grow-1">@_error</span>
+            <button type="button" class="btn-close" aria-label="@L["common.close"]" @onclick="() => _error = null"></button>
         </div>
     }
 
-    <p class="text-muted">@L["admin.materials.global"]</p>
-
-    <div class="mb-3">
-        <input class="form-control" placeholder="@L["material.search"]" value="@_search" @oninput="OnSearch" />
+    <div class="sh-toolbar">
+        <SearchBox Id="adminMaterialSearch" Label="@L["admin.materials.search"]" Value="@_search" ValueChanged="OnSearch" />
+        <label for="adminMaterialType" class="visually-hidden">@L["material.type"]</label>
+        <select id="adminMaterialType" class="form-select am-type" value="@_type" @onchange="OnTypeChanged">
+            <option value="">@L["material.filter.type.all"]</option>
+            @foreach (var t in _types)
+            {
+                <option value="@t">@t</option>
+            }
+        </select>
+        @if (!_loading)
+        {
+            <span class="text-muted small ms-md-auto">@L.Format("admin.materials.count", _filtered.Count)</span>
+        }
     </div>
 
     @if (_loading)
     {
-        <div class="text-center py-5"><div class="spinner-border"></div></div>
+        <div class="table-responsive placeholder-glow p-3" role="status">
+            @for (var i = 0; i < 6; i++)
+            {
+                <span class="placeholder col-12 mb-3 am-placeholder"></span>
+            }
+            <span class="visually-hidden">@L["common.loading"]</span>
+        </div>
+    }
+    else if (_loadFailed)
+    {
+        <div class="sh-empty">
+            <i class="bi bi-cloud-slash" aria-hidden="true"></i>
+            <h2>@L["admin.load.failed.title"]</h2>
+            <p>@L["admin.load.failed.text"]</p>
+            <button type="button" class="btn btn-primary mt-2" @onclick="LoadAsync"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i>@L["common.retry"]</button>
+        </div>
+    }
+    else if (_allMaterials.Count == 0)
+    {
+        <div class="sh-empty">
+            <i class="bi bi-database" aria-hidden="true"></i>
+            <h2>@L["admin.materials.empty.title"]</h2>
+            <p>@L["admin.materials.empty.text"]</p>
+            <div class="d-flex flex-wrap gap-2 justify-content-center mt-2">
+                <a href="/admin/materials/new" class="btn btn-primary"><i class="bi bi-plus-lg" aria-hidden="true"></i>@L["material.add"]</a>
+                <button type="button" class="btn btn-outline-secondary" @onclick="SyncOfdAsync" disabled="@_syncing"><i class="bi bi-cloud-download" aria-hidden="true"></i>@L["admin.ofd.sync.button"]</button>
+            </div>
+        </div>
     }
     else if (_filtered.Count == 0)
     {
-        <div class="text-center py-5 text-muted">
-            <i class="bi bi-database fs-1"></i>
-            <p class="mt-2">@L["common.none"]</p>
+        <div class="sh-empty">
+            <i class="bi bi-search" aria-hidden="true"></i>
+            <h2>@L["admin.materials.nomatch.title"]</h2>
+            <p>@L["admin.materials.nomatch.text"]</p>
+            <button type="button" class="btn btn-primary mt-2" @onclick="ResetFilters">@L["common.filter.reset"]</button>
         </div>
     }
     else
     {
-        <div class="d-flex justify-content-between align-items-center mb-2">
-            <small class="text-muted">@_filtered.Count @L["admin.materials.total"]</small>
-            <div class="d-flex align-items-center gap-2">
-                <small class="text-muted">@(_page + 1) / @TotalPages</small>
-            </div>
-        </div>
-
-        <div class="table-responsive-card">
-            <table class="table table-hover mb-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
                 <thead>
                     <tr>
-                        <th>@L["material.type"]</th>
-                        <th>@L["material.brand"]</th>
-                        <th>@L["material.color.hex"]</th>
-                        <th class="d-none d-md-table-cell">Temp</th>
-                        <th class="d-none d-md-table-cell">@L["material.reorder.clicks"]</th>
-                        <th>@L["common.actions"]</th>
+                        <th scope="col">@L["admin.materials.col.material"]</th>
+                        <th scope="col">@L["admin.materials.col.print.temp"]</th>
+                        <th scope="col" class="d-none d-lg-table-cell">@L["material.diameter"]</th>
+                        <th scope="col" class="d-none d-lg-table-cell">@L["admin.materials.col.price"]</th>
+                        <th scope="col" class="d-none d-md-table-cell">@L["material.reorder.clicks"]</th>
+                        <th scope="col" class="text-end">@L["common.actions"]</th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach (var m in PagedItems)
                     {
                         <tr>
-                            <td><strong>@m.Type</strong></td>
-                            <td>@m.Brand</td>
                             <td>
-                                <div class="d-flex align-items-center gap-2">
-                                    <div style="width:1.2em;height:1.2em;background:#@m.ColorHex;border-radius:50%;border:1px solid var(--bs-border-color);flex-shrink:0"></div>
-                                    <small class="font-monospace">#@m.ColorHex</small>
-                                    @if (m.ColorName != null) { <small class="text-muted">@m.ColorName</small> }
+                                <div class="d-flex align-items-center gap-3 am-material">
+                                    <SpoolRing ColorHex="@m.ColorHex" Percent="100" Size="40" />
+                                    <div class="min-w-0">
+                                        <div class="fw-semibold text-truncate">
+                                            @m.Brand @m.Type
+                                            @if (!string.IsNullOrEmpty(m.OfdFilamentId))
+                                            {
+                                                <span class="sh-chip sh-chip-sm ms-1" title="@L["admin.materials.ofd.hint"]">OFD</span>
+                                            }
+                                        </div>
+                                        <div class="small text-muted text-truncate">
+                                            @(string.IsNullOrWhiteSpace(m.ColorName) ? "" : m.ColorName + " · ")<span class="font-monospace">#@m.ColorHex</span>
+                                        </div>
+                                    </div>
                                 </div>
                             </td>
-                            <td class="d-none d-md-table-cell">@m.MinTempCelsius–@m.MaxTempCelsius °C</td>
+                            <td class="text-nowrap">
+                                @if (m.MinTempCelsius > 0 || m.MaxTempCelsius > 0)
+                                {
+                                    @($"{m.MinTempCelsius}–{m.MaxTempCelsius} °C")
+                                }
+                                else
+                                {
+                                    <span class="sh-chip sh-chip-sm sh-chip-warn">@L["material.export.orca.warning.short"]</span>
+                                }
+                            </td>
+                            <td class="d-none d-lg-table-cell text-nowrap">@m.DiameterMm.ToString("0.00") mm</td>
+                            <td class="d-none d-lg-table-cell text-nowrap">@(m.PricePerKg.HasValue ? m.PricePerKg.Value.ToString("0.00") + " €/kg" : "–")</td>
                             <td class="d-none d-md-table-cell">@m.ReorderClickCount</td>
-                            <td>
-                                <div class="d-flex gap-1">
+                            <td class="text-end">
+                                <div class="am-actions">
                                     @if (m.ReorderUrl != null)
                                     {
-                                        <a href="@m.ReorderUrl" target="_blank" rel="noopener noreferrer"
-                                           class="btn btn-sm btn-outline-success" title="@L["material.reorder"]">
-                                            <i class="bi bi-cart"></i>
+                                        <a href="@m.ReorderUrl" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-secondary am-icon-btn"
+                                           aria-label="@L.Format("admin.materials.open.shop", m.Brand + " " + m.Type)" title="@L["material.reorder"]">
+                                            <i class="bi bi-cart" aria-hidden="true"></i>
                                         </a>
                                     }
-                                    <a href="/admin/materials/@m.Id/edit" class="btn btn-sm btn-outline-secondary">
-                                        <i class="bi bi-pencil"></i>
+                                    <a href="/admin/materials/@m.Id/edit" class="btn btn-sm btn-outline-secondary am-icon-btn"
+                                       aria-label="@L.Format("admin.materials.edit.aria", m.Brand + " " + m.Type)" title="@L["common.edit"]">
+                                        <i class="bi bi-pencil" aria-hidden="true"></i>
                                     </a>
-                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => _deleteTarget = m">
-                                        <i class="bi bi-trash"></i>
+                                    <button type="button" class="btn btn-sm btn-outline-danger am-icon-btn" @onclick="() => _deleteTarget = m"
+                                            aria-label="@L.Format("admin.materials.delete.aria", m.Brand + " " + m.Type)" title="@L["common.delete"]">
+                                        <i class="bi bi-trash" aria-hidden="true"></i>
                                     </button>
                                 </div>
                             </td>
@@ -105,43 +178,27 @@ else
             </table>
         </div>
 
-        @if (TotalPages > 1)
-        {
-            <nav class="mt-3 d-flex justify-content-center">
-                <ul class="pagination pagination-sm mb-0">
-                    <li class="page-item @(_page == 0 ? "disabled" : "")">
-                        <button class="page-link" @onclick="() => SetPage(0)"><i class="bi bi-chevron-bar-left"></i></button>
-                    </li>
-                    <li class="page-item @(_page == 0 ? "disabled" : "")">
-                        <button class="page-link" @onclick="() => SetPage(_page - 1)"><i class="bi bi-chevron-left"></i></button>
-                    </li>
-                    @foreach (var p in VisiblePages)
-                    {
-                        <li class="page-item @(p == _page ? "active" : "")">
-                            <button class="page-link" @onclick="() => SetPage(p)">@(p + 1)</button>
-                        </li>
-                    }
-                    <li class="page-item @(_page >= TotalPages - 1 ? "disabled" : "")">
-                        <button class="page-link" @onclick="() => SetPage(_page + 1)"><i class="bi bi-chevron-right"></i></button>
-                    </li>
-                    <li class="page-item @(_page >= TotalPages - 1 ? "disabled" : "")">
-                        <button class="page-link" @onclick="() => SetPage(TotalPages - 1)"><i class="bi bi-chevron-bar-right"></i></button>
-                    </li>
-                </ul>
-            </nav>
-        }
+        <Pager Page="_page" PageSize="PageSize" TotalItems="_filtered.Count" PageChanged="p => _page = p" />
     }
 
     @if (_deleteTarget != null)
     {
         <div class="modal-backdrop-custom" @onclick="() => _deleteTarget = null">
-            <div class="modal-box" @onclick:stopPropagation>
-                <h5>@L["material.delete"]</h5>
-                <p>@L["material.delete.confirm"]</p>
-                <p><strong>@_deleteTarget.Brand @_deleteTarget.Type</strong></p>
-                <div class="d-flex gap-2 justify-content-end">
-                    <button class="btn btn-secondary" @onclick="() => _deleteTarget = null">@L["common.cancel"]</button>
-                    <button class="btn btn-danger" @onclick="DeleteAsync">@L["common.delete"]</button>
+            <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="amDeleteTitle" @onclick:stopPropagation>
+                <h2 id="amDeleteTitle" class="h5">@L["material.delete"]</h2>
+                <div class="d-flex align-items-center gap-3 my-3">
+                    <SpoolRing ColorHex="@_deleteTarget.ColorHex" Percent="100" Size="48" />
+                    <div>
+                        <div class="fw-semibold">@_deleteTarget.Brand @_deleteTarget.Type</div>
+                        <div class="small text-muted">@_deleteTarget.ColorName</div>
+                    </div>
+                </div>
+                <p class="text-muted small">@L["admin.materials.delete.hint"]</p>
+                <div class="d-flex gap-2 justify-content-end flex-wrap">
+                    <button type="button" class="btn btn-outline-secondary" @onclick="() => _deleteTarget = null">@L["common.cancel"]</button>
+                    <button type="button" class="btn btn-danger" @onclick="DeleteAsync" disabled="@_deleting">
+                        <i class="bi bi-trash" aria-hidden="true"></i>@L["material.delete"]
+                    </button>
                 </div>
             </div>
         </div>

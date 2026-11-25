@@ -4,138 +4,197 @@
 
 @if (Auth.CurrentUser?.IsPlatformAdmin != true)
 {
-    <div class="alert alert-danger mt-3">@L["common.access.denied"]</div>
+    <AdminAccessDenied />
 }
 else
 {
+    RenderFragment<AdminUserDto> statusChips = u =>
+        @<div class="d-flex flex-wrap gap-1">
+            @if (u.IsSuperAdmin)
+            {
+                <span class="sh-chip sh-chip-sm sh-chip-accent"><i class="bi bi-star-fill" aria-hidden="true"></i>@L["admin.users.superadmin"]</span>
+            }
+            else if (u.IsPlatformAdmin)
+            {
+                <span class="sh-chip sh-chip-sm sh-chip-accent"><i class="bi bi-shield-check" aria-hidden="true"></i>@L["admin.users.admin"]</span>
+            }
+            else
+            {
+                <span class="sh-chip sh-chip-sm">@L["admin.users.user"]</span>
+            }
+            @if (u.EmailVerified)
+            {
+                <span class="sh-chip sh-chip-sm sh-chip-ok"><i class="bi bi-envelope-check" aria-hidden="true"></i>@L["admin.users.verified"]</span>
+            }
+            else
+            {
+                <span class="sh-chip sh-chip-sm sh-chip-warn"><i class="bi bi-envelope-exclamation" aria-hidden="true"></i>@L["admin.users.unverified"]</span>
+            }
+        </div>;
+
+    RenderFragment<AdminUserDto> actions = u =>
+        @<div class="au-actions">
+            @if (u.Id == Auth.CurrentUser?.Id)
+            {
+                <span class="text-muted small"><i class="bi bi-person-check" aria-hidden="true"></i> @L["admin.users.yourself"]</span>
+            }
+            else if (u.IsSuperAdmin)
+            {
+                <span class="text-muted small"><i class="bi bi-shield-lock" aria-hidden="true"></i> @L["admin.users.protected"]</span>
+            }
+            else
+            {
+                <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => _toggleTarget = u">
+                    <i class="bi @(u.IsPlatformAdmin ? "bi-shield-x" : "bi-shield-plus")" aria-hidden="true"></i>@(u.IsPlatformAdmin ? L["admin.users.remove.admin"] : L["admin.users.make.admin"])
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => ResetOnboardingAsync(u)"
+                        disabled="@(_resettingOnboardingUserId == u.Id)" title="@L["admin.users.reset.onboarding.hint"]">
+                    @if (_resettingOnboardingUserId == u.Id)
+                    {
+                        <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                    }
+                    else
+                    {
+                        <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
+                    }
+                    @L["admin.users.reset.onboarding"]
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => _deleteTarget = u" aria-label="@L.Format("admin.users.delete.aria", u.Username)">
+                    <i class="bi bi-trash" aria-hidden="true"></i>@L["common.delete"]
+                </button>
+            }
+        </div>;
+
     <div class="page-header">
-        <h1><i class="bi bi-people me-2"></i>@L["admin.users.title"]</h1>
+        <div>
+            <h1>@L["admin.users.title"]</h1>
+            <p class="page-subtitle">@L["admin.users.subtitle"]</p>
+        </div>
     </div>
 
-    @if (_resetStatusMessage != null)
+    @if (_message != null)
     {
-        <div class="alert alert-success py-2">
-            <i class="bi bi-check-circle me-1"></i>@_resetStatusMessage
+        <div class="alert @(_messageOk ? "alert-success" : "alert-danger") d-flex align-items-center gap-2" role="status">
+            <i class="bi @(_messageOk ? "bi-check-circle" : "bi-exclamation-circle")" aria-hidden="true"></i>
+            <span class="flex-grow-1">@_message</span>
+            <button type="button" class="btn-close" aria-label="@L["common.close"]" @onclick="() => _message = null"></button>
         </div>
     }
 
+    <div class="sh-toolbar">
+        <SearchBox Id="userSearch" Label="@L["admin.users.search"]" Value="@_search" ValueChanged="OnSearch" />
+        <div class="d-flex flex-wrap gap-2" role="group" aria-label="@L["common.filter"]">
+            <button type="button" class="sh-chip" aria-pressed="@(_filter == "all" ? "true" : "false")" @onclick='() => SetFilter("all")'>
+                @L["spool.filter.all"] <span class="au-count">@_users.Count</span>
+            </button>
+            <button type="button" class="sh-chip" aria-pressed="@(_filter == "admins" ? "true" : "false")" @onclick='() => SetFilter("admins")'>
+                @L["admin.users.filter.admins"] <span class="au-count">@_users.Count(u => u.IsPlatformAdmin)</span>
+            </button>
+            <button type="button" class="sh-chip" aria-pressed="@(_filter == "unverified" ? "true" : "false")" @onclick='() => SetFilter("unverified")'>
+                @L["admin.users.unverified"] <span class="au-count">@_users.Count(u => !u.EmailVerified)</span>
+            </button>
+        </div>
+    </div>
+
     @if (_loading)
     {
-        <div class="text-center py-5"><div class="spinner-border"></div></div>
+        <div class="table-responsive placeholder-glow p-3" role="status">
+            @for (var i = 0; i < 5; i++)
+            {
+                <span class="placeholder col-12 mb-3 au-placeholder"></span>
+            }
+            <span class="visually-hidden">@L["common.loading"]</span>
+        </div>
     }
-    else if (_users.Count == 0)
+    else if (_loadFailed)
     {
-        <div class="text-center py-5 text-muted">
-            <i class="bi bi-people fs-1"></i>
-            <p class="mt-2">@L["common.none"]</p>
+        <div class="sh-empty">
+            <i class="bi bi-cloud-slash" aria-hidden="true"></i>
+            <h2>@L["admin.load.failed.title"]</h2>
+            <p>@L["admin.load.failed.text"]</p>
+            <button type="button" class="btn btn-primary mt-2" @onclick="LoadAsync"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i>@L["common.retry"]</button>
+        </div>
+    }
+    else if (_filtered.Count == 0)
+    {
+        <div class="sh-empty">
+            <i class="bi bi-person-x" aria-hidden="true"></i>
+            <h2>@L["admin.users.empty.title"]</h2>
+            <p>@L["admin.users.empty.text"]</p>
+            <button type="button" class="btn btn-primary mt-2" @onclick="ResetFilters">@L["common.filter.reset"]</button>
         </div>
     }
     else
     {
-        <div class="table-responsive-card">
-            <table class="table table-hover mb-0">
+        <div class="table-responsive d-none d-md-block">
+            <table class="table table-hover align-middle">
                 <thead>
                     <tr>
-                        <th>@L["auth.username"]</th>
-                        <th>@L["auth.email"]</th>
-                        <th class="d-none d-md-table-cell">@L["common.created"]</th>
-                        <th class="d-none d-md-table-cell">@L["admin.users.last.active"]</th>
-                        <th>@L["common.actions"]</th>
+                        <th scope="col">@L["admin.users.col.user"]</th>
+                        <th scope="col">@L["admin.users.col.status"]</th>
+                        <th scope="col">@L["common.created"]</th>
+                        <th scope="col">@L["admin.users.last.active"]</th>
+                        <th scope="col" class="text-end">@L["common.actions"]</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (var u in _users)
+                    @foreach (var u in PagedUsers)
                     {
                         <tr>
                             <td>
-                                @u.Username
-                                @if (u.IsSuperAdmin)
-                                {
-                                    <span class="badge bg-dark ms-1"><i class="bi bi-star-fill me-1"></i>Hauptadmin</span>
-                                }
-                                else if (u.IsPlatformAdmin)
-                                {
-                                    <span class="badge bg-danger ms-1">Admin</span>
-                                }
-                                @if (!u.EmailVerified)
-                                {
-                                    <span class="badge bg-warning text-dark ms-1"><i class="bi bi-envelope-exclamation me-1"></i>@L["admin.users.unverified"]</span>
-                                }
-                            </td>
-                            <td><small>@u.Email</small></td>
-                            <td class="d-none d-md-table-cell">
-                                <small>@u.CreatedAt.ToString("dd.MM.yyyy")</small>
-                            </td>
-                            <td class="d-none d-md-table-cell">
-                                <small>
-                                    @if (u.LastActiveAt.HasValue)
-                                    { @u.LastActiveAt.Value.ToString("dd.MM.yyyy HH:mm") }
-                                    else
-                                    { @L["admin.users.never"] }
-                                </small>
-                            </td>
-                            <td>
-                                @if (u.Id == Auth.CurrentUser?.Id)
-                                {
-                                    <span class="text-muted small">@L["admin.users.yourself"]</span>
-                                }
-                                else if (u.IsSuperAdmin)
-                                {
-                                    <span class="text-muted small"><i class="bi bi-shield-lock me-1"></i>@L["admin.users.protected"]</span>
-                                }
-                                else
-                                {
-                                    <div class="d-flex gap-1 flex-wrap">
-                                        @if (u.IsPlatformAdmin)
-                                        {
-                                            <button class="btn btn-sm btn-outline-danger" @onclick="() => RequestToggle(u)">
-                                                <i class="bi bi-shield-x me-1"></i>@L["admin.users.remove.admin"]
-                                            </button>
-                                        }
-                                        else
-                                        {
-                                            <button class="btn btn-sm btn-outline-success" @onclick="() => RequestToggle(u)">
-                                                <i class="bi bi-shield-check me-1"></i>@L["admin.users.make.admin"]
-                                            </button>
-                                        }
-                                        <button class="btn btn-sm btn-outline-secondary"
-                                                @onclick="() => ResetOnboardingAsync(u)"
-                                                disabled="@(_resettingOnboardingUserId == u.Id)">
-                                            @if (_resettingOnboardingUserId == u.Id)
-                                            {
-                                                <span class="spinner-border spinner-border-sm me-1"></span>
-                                            }
-                                            else
-                                            {
-                                                <i class="bi bi-arrow-counterclockwise me-1"></i>
-                                            }
-                                            @L["admin.users.reset.onboarding"]
-                                        </button>
-                                        <button class="btn btn-sm btn-outline-danger" @onclick="() => RequestDelete(u)">
-                                            <i class="bi bi-trash me-1"></i>@L["common.delete"]
-                                        </button>
+                                <div class="d-flex align-items-center gap-2 au-user">
+                                    <span class="sh-avatar" aria-hidden="true">@Initials(u.Username)</span>
+                                    <div class="min-w-0">
+                                        <div class="fw-semibold text-truncate">@u.Username</div>
+                                        <div class="small text-muted text-truncate">@u.Email</div>
                                     </div>
-                                }
+                                </div>
                             </td>
+                            <td>@statusChips(u)</td>
+                            <td class="text-nowrap">@u.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy")</td>
+                            <td class="text-nowrap">@LastActive(u)</td>
+                            <td class="text-end">@actions(u)</td>
                         </tr>
                     }
                 </tbody>
             </table>
         </div>
+
+        <ul class="au-cards d-md-none">
+            @foreach (var u in PagedUsers)
+            {
+                <li class="sh-card au-card">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="sh-avatar" aria-hidden="true">@Initials(u.Username)</span>
+                        <div class="min-w-0 flex-grow-1">
+                            <div class="fw-semibold text-truncate">@u.Username</div>
+                            <div class="small text-muted text-truncate">@u.Email</div>
+                        </div>
+                    </div>
+                    <div>@statusChips(u)</div>
+                    <dl class="sh-kv au-kv">
+                        <div><dt>@L["common.created"]</dt><dd>@u.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy")</dd></div>
+                        <div><dt>@L["admin.users.last.active"]</dt><dd>@LastActive(u)</dd></div>
+                    </dl>
+                    @actions(u)
+                </li>
+            }
+        </ul>
+
+        <Pager Page="_page" PageSize="PageSize" TotalItems="_filtered.Count" PageChanged="p => _page = p" />
     }
 
     @if (_toggleTarget != null)
     {
         <div class="modal-backdrop-custom" @onclick="() => _toggleTarget = null">
-            <div class="modal-box" @onclick:stopPropagation>
-                <h5>@(_toggleTarget.IsPlatformAdmin ? L["admin.users.confirm.demote"] : L["admin.users.confirm.promote"])</h5>
-                <p><strong>@_toggleTarget.Username</strong></p>
-                <p class="text-muted small"><i class="bi bi-info-circle me-1"></i>@L["admin.users.relogin.hint"]</p>
-                <div class="d-flex gap-2 justify-content-end">
-                    <button class="btn btn-secondary" @onclick="() => _toggleTarget = null">@L["common.cancel"]</button>
-                    <button class="btn @(_toggleTarget.IsPlatformAdmin ? "btn-danger" : "btn-success")"
-                            @onclick="ConfirmToggleAsync">
-                        @L["common.confirm"]
+            <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="toggleTitle" @onclick:stopPropagation>
+                <h2 id="toggleTitle" class="h5">@(_toggleTarget.IsPlatformAdmin ? L["admin.users.confirm.demote"] : L["admin.users.confirm.promote"])</h2>
+                <p class="mb-2"><strong>@_toggleTarget.Username</strong> · <span class="text-muted">@_toggleTarget.Email</span></p>
+                <p class="text-muted small"><i class="bi bi-info-circle" aria-hidden="true"></i> @(_toggleTarget.IsPlatformAdmin ? L["admin.users.demote.hint"] : L["admin.users.promote.hint"]) @L["admin.users.relogin.hint"]</p>
+                <div class="d-flex gap-2 justify-content-end flex-wrap">
+                    <button type="button" class="btn btn-outline-secondary" @onclick="() => _toggleTarget = null">@L["common.cancel"]</button>
+                    <button type="button" class="btn @(_toggleTarget.IsPlatformAdmin ? "btn-danger" : "btn-primary")" @onclick="ConfirmToggleAsync" disabled="@_busy">
+                        @(_toggleTarget.IsPlatformAdmin ? L["admin.users.remove.admin"] : L["admin.users.make.admin"])
                     </button>
                 </div>
             </div>
@@ -145,14 +204,16 @@ else
     @if (_deleteTarget != null)
     {
         <div class="modal-backdrop-custom" @onclick="() => _deleteTarget = null">
-            <div class="modal-box" @onclick:stopPropagation>
-                <h5>@L["admin.users.delete.confirm.title"]</h5>
-                <p>@L["admin.users.delete.confirm"] <strong>@_deleteTarget.Username</strong>?</p>
-                <p class="text-danger small"><i class="bi bi-exclamation-triangle me-1"></i>@L["admin.users.delete.warning"]</p>
-                <div class="d-flex gap-2 justify-content-end">
-                    <button class="btn btn-secondary" @onclick="() => _deleteTarget = null">@L["common.cancel"]</button>
-                    <button class="btn btn-danger" @onclick="ConfirmDeleteAsync">
-                        <i class="bi bi-trash me-1"></i>@L["common.delete"]
+            <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="deleteTitle" @onclick:stopPropagation>
+                <h2 id="deleteTitle" class="h5">@L["admin.users.delete.confirm.title"]</h2>
+                <p>@L["admin.users.delete.confirm"] <strong>@_deleteTarget.Username</strong> (@_deleteTarget.Email)?</p>
+                <div class="alert alert-danger d-flex gap-2 small py-2">
+                    <i class="bi bi-exclamation-triangle mt-1" aria-hidden="true"></i><span>@L["admin.users.delete.warning"]</span>
+                </div>
+                <div class="d-flex gap-2 justify-content-end flex-wrap">
+                    <button type="button" class="btn btn-outline-secondary" @onclick="() => _deleteTarget = null">@L["common.cancel"]</button>
+                    <button type="button" class="btn btn-danger" @onclick="ConfirmDeleteAsync" disabled="@_busy">
+                        <i class="bi bi-trash" aria-hidden="true"></i>@L["admin.users.delete.button"]
                     </button>
                 </div>
             </div>

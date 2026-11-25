@@ -4,301 +4,189 @@
 
 @if (!Branding.LandingPageEnabled)
 {
-    <div class="d-flex justify-content-center align-items-center" style="min-height:100vh;padding:1rem">
-        <div style="width:100%;max-width:420px">
-            <div class="text-center mb-4">
-                @if (!string.IsNullOrEmpty(Branding.LogoDataUrl))
-                {
-                    <img src="@Branding.LogoDataUrl" class="logo-light" style="max-height:3rem;width:auto;object-fit:contain" alt="@L["app.name"]" />
-                    <img src="@(string.IsNullOrEmpty(Branding.LogoDarkDataUrl) ? Branding.LogoDataUrl : Branding.LogoDarkDataUrl)" class="logo-dark" style="max-height:3rem;width:auto;object-fit:contain" alt="@L["app.name"]" />
-                }
-                else
-                {
-                    <i class="bi bi-layers-half text-primary" style="font-size:2.5rem" aria-hidden="true"></i>
-                    <div class="fw-bold fs-4 mt-1">@L["app.name"]</div>
-                }
+    <PublicShell Variant="auth">
+        <div class="sh-auth-card">
+            <div class="sh-auth-head">
+                <span class="sh-auth-icon" aria-hidden="true"><i class="bi bi-person"></i></span>
+                <h1>@L["auth.login.title"]</h1>
+                <p>@L["auth.login.subtitle"]</p>
             </div>
-            <div class="card shadow-sm">
-                <div class="card-body p-4">
-                    <h1 class="fs-5 fw-semibold mb-4">
-                        <i class="bi bi-person-circle me-2" aria-hidden="true"></i>@L["auth.login"]
-                    </h1>
-                    @if (_error != null)
-                    {
-                        <div class="alert alert-danger py-2" role="alert">
-                            <i class="bi bi-exclamation-circle me-1" aria-hidden="true"></i>@_error
-                        </div>
-                    }
-                    <EditForm Model="_model" OnValidSubmit="HandleLogin">
-                        <div class="mb-3">
-                            <label class="form-label" for="loginEmailSimple">@L["auth.email"]</label>
-                            <input id="loginEmailSimple" class="form-control" type="email" @bind="_model.Email"
-                                   required autocomplete="email" />
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label" for="loginPasswordSimple">@L["auth.password"]</label>
-                            <input id="loginPasswordSimple" class="form-control" type="password" @bind="_model.Password"
-                                   required autocomplete="current-password" />
-                        </div>
-                        <button type="submit" class="btn btn-primary w-100" disabled="@_loading">
-                            @if (_loading) { <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span> }
-                            @L["auth.login.submit"]
-                        </button>
-                    </EditForm>
-                    <div class="text-center mt-2">
-                        <small><a href="/forgot-password">@L["auth.forgot.password"]</a></small>
-                    </div>
-                    <hr />
-                    <div class="text-center">
-                        <small>@L["auth.no.account"] <a href="/register">@L["auth.register"]</a></small>
-                    </div>
-                </div>
-            </div>
+            <LoginForm IdPrefix="login" />
         </div>
-    </div>
+    </PublicShell>
 }
 else
 {
+    <PublicShell Variant="landing">
+        <HeaderActions>
+            <a href="#login-form" class="btn btn-outline-secondary d-none d-sm-inline-flex">@L["auth.login"]</a>
+            <a href="/register" class="btn btn-primary">@L["auth.register.cta"]</a>
+        </HeaderActions>
+        <ChildContent>
+            <section class="lp-hero" aria-labelledby="lp-title">
+                <div class="lp-wrap lp-hero-grid">
+                    <div class="lp-hero-text">
+                        <span class="sh-chip sh-chip-ok"><i class="bi bi-gift" aria-hidden="true"></i>@L["landing.free.badge"]</span>
+                        <h1 id="lp-title">@L["landing.hero.headline"]</h1>
+                        <p class="lp-lead">@L["landing.hero.subline"]</p>
+                        <div class="lp-cta">
+                            <a href="/register" class="btn btn-primary btn-lg">
+                                <i class="bi bi-person-plus" aria-hidden="true"></i>@L["landing.cta.register"]
+                            </a>
+                            <a href="#login-form" class="btn btn-outline-secondary btn-lg">
+                                <i class="bi bi-box-arrow-in-right" aria-hidden="true"></i>@L["landing.cta.login"]
+                            </a>
+                        </div>
+                        <ul class="lp-points">
+                            <li><i class="bi bi-check-circle-fill" aria-hidden="true"></i>@L["landing.point.rings"]</li>
+                            <li><i class="bi bi-check-circle-fill" aria-hidden="true"></i>@L["landing.point.scan"]</li>
+                            <li><i class="bi bi-check-circle-fill" aria-hidden="true"></i>@L["landing.point.team"]</li>
+                        </ul>
+                    </div>
 
-<div class="landing-page">
+                    <div class="lp-login" id="login-form">
+                        <div class="sh-auth-card">
+                            <h2 class="lp-login-title">@L["auth.login.title"]</h2>
+                            <p class="text-muted mb-4">@L["auth.login.subtitle"]</p>
+                            <LoginForm IdPrefix="landingLogin" />
+                        </div>
+                    </div>
+                </div>
 
-    <header class="landing-hero" role="banner">
-        <div class="container py-5">
-            <div class="row align-items-center g-5">
+                <div class="lp-wrap">
+                    <figure class="lp-preview">
+                        <figcaption class="visually-hidden">@L["landing.preview.description"]</figcaption>
+                        <div class="lp-preview-head" aria-hidden="true">
+                            <div>
+                                <div class="lp-preview-title">@L["landing.preview.title"]</div>
+                                <div class="lp-preview-sub">@L["landing.preview.subtitle"]</div>
+                            </div>
+                            <span class="sh-chip sh-chip-sm"><i class="bi bi-record-circle" aria-hidden="true"></i>6 @L["nav.spools"]</span>
+                        </div>
+                        <div class="lp-preview-body" aria-hidden="true">
+                            <div class="lp-shelf">
+                                @foreach (var s in PreviewSpools)
+                                {
+                                    <div class="lp-spool @(s.Percent < 20 ? "lp-low" : "")">
+                                        <SpoolRing ColorHex="@s.Hex" Percent="s.Percent" Size="72">@(s.Percent) %</SpoolRing>
+                                        <div class="lp-spool-name">@s.Type</div>
+                                        <div class="lp-spool-color">@L[s.ColorKey]</div>
+                                    </div>
+                                }
+                            </div>
+                            <div class="lp-attention">
+                                <SpoolRing ColorHex="FF6A13" Percent="12" Size="48" />
+                                <div class="lp-attention-text">
+                                    <span class="sh-chip sh-chip-warn sh-chip-sm">@L["landing.preview.low"]</span>
+                                    <strong>@L["landing.preview.attention"]</strong>
+                                    <span class="text-muted small">@L["landing.preview.attention.hint"]</span>
+                                </div>
+                                <span class="btn btn-sm btn-outline-secondary lp-fake-btn"><i class="bi bi-cart" aria-hidden="true"></i>@L["material.reorder"]</span>
+                            </div>
+                        </div>
+                    </figure>
+                </div>
+            </section>
 
-                <div class="col-lg-7">
-                    <div class="d-flex align-items-center gap-3 mb-3">
-                        @if (!string.IsNullOrEmpty(Branding.LogoDataUrl))
+            <section class="lp-section" aria-labelledby="lp-steps">
+                <div class="lp-wrap">
+                    <div class="lp-section-head">
+                        <h2 id="lp-steps">@L["landing.steps.title"]</h2>
+                        <p>@L["landing.steps.subtitle"]</p>
+                    </div>
+                    <ol class="lp-steps">
+                        <li>
+                            <span class="lp-step-no" aria-hidden="true">1</span>
+                            <h3>@L["landing.step1.title"]</h3>
+                            <p>@L["landing.step1.desc"]</p>
+                        </li>
+                        <li>
+                            <span class="lp-step-no" aria-hidden="true">2</span>
+                            <h3>@L["landing.step2.title"]</h3>
+                            <p>@L["landing.step2.desc"]</p>
+                        </li>
+                        <li>
+                            <span class="lp-step-no" aria-hidden="true">3</span>
+                            <h3>@L["landing.step3.title"]</h3>
+                            <p>@L["landing.step3.desc"]</p>
+                        </li>
+                    </ol>
+                </div>
+            </section>
+
+            <section class="lp-section lp-section-alt" aria-labelledby="lp-features">
+                <div class="lp-wrap">
+                    <div class="lp-section-head">
+                        <h2 id="lp-features">@L["landing.features.title"]</h2>
+                        <p>@L["landing.features.subtitle"]</p>
+                    </div>
+                    <div class="lp-features">
+                        @foreach (var f in Features)
                         {
-                            <img src="@Branding.LogoDataUrl"
-                                 class="logo-light"
-                                 style="height:2.5rem;width:auto;object-fit:contain"
-                                 alt="@L["app.name"]" />
-                            <img src="@(string.IsNullOrEmpty(Branding.LogoDarkDataUrl) ? Branding.LogoDataUrl : Branding.LogoDarkDataUrl)"
-                                 class="logo-dark"
-                                 style="height:2.5rem;width:auto;object-fit:contain"
-                                 alt="@L["app.name"]" />
-                        }
-                        else
-                        {
-                            <i class="bi bi-layers-half text-primary" style="font-size:2.5rem" aria-hidden="true"></i>
-                            <span class="fw-bold fs-3">@L["app.name"]</span>
+                            <article class="lp-feature">
+                                <span class="lp-feature-icon" aria-hidden="true"><i class="bi @f.Icon"></i></span>
+                                <h3>@L[f.Key + ".title"]</h3>
+                                <p>@L[f.Key + ".desc"]</p>
+                            </article>
                         }
                     </div>
-                    <h1 class="display-5 fw-bold mb-3">@L["landing.hero.headline"]</h1>
-                    <p class="lead text-muted mb-4">@L["landing.hero.subline"]</p>
-                    <div class="d-flex gap-2 flex-wrap">
-                        <a href="/register" class="btn btn-primary btn-lg px-4">
-                            <i class="bi bi-person-plus me-2" aria-hidden="true"></i>@L["auth.register"]
-                        </a>
-                        <a href="#login-form" class="btn btn-outline-secondary btn-lg px-4">
-                            <i class="bi bi-box-arrow-in-right me-2" aria-hidden="true"></i>@L["landing.cta.login"]
-                        </a>
+                    <p class="lp-note">
+                        <i class="bi bi-android2" aria-hidden="true"></i>@L["landing.nfc.android.note"]
+                    </p>
+                </div>
+            </section>
+
+            <section class="lp-section" aria-labelledby="lp-open">
+                <div class="lp-wrap">
+                    <h2 id="lp-open" class="visually-hidden">@L["landing.open.title"]</h2>
+                    <div class="lp-links">
+                        <article class="sh-card lp-link-card">
+                            <span class="lp-feature-icon" aria-hidden="true"><i class="bi bi-broadcast"></i></span>
+                            <h3>@L["landing.openspool.title"]</h3>
+                            <p>@L["landing.openspool.desc"]</p>
+                            <a href="https://github.com/Bambu-Research-Group/RFID-Tag-Guide" target="_blank" rel="noopener noreferrer" class="btn btn-outline-secondary">
+                                <i class="bi bi-github" aria-hidden="true"></i>@L["landing.openspool.github"]
+                            </a>
+                        </article>
+                        <article class="sh-card lp-link-card">
+                            <span class="lp-feature-icon" aria-hidden="true"><i class="bi bi-tags"></i></span>
+                            <h3>@L["landing.ntag.title"]</h3>
+                            <p>@L["landing.ntag.desc"]</p>
+                            <a href="https://amzn.to/46W8bpt" target="_blank" rel="noopener noreferrer" class="btn btn-outline-secondary">
+                                <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>@L["landing.ntag.link"]
+                            </a>
+                        </article>
+                        <article class="sh-card lp-link-card">
+                            <span class="lp-feature-icon" aria-hidden="true"><i class="bi bi-code-slash"></i></span>
+                            <h3>@L["landing.opensource.title"]</h3>
+                            <p>@L["landing.opensource.desc"]</p>
+                            <a href="https://github.com/Fewiel/SpoolHero" target="_blank" rel="noopener noreferrer" class="btn btn-outline-secondary">
+                                <i class="bi bi-github" aria-hidden="true"></i>@L["landing.opensource.github"]
+                            </a>
+                        </article>
                     </div>
-                    <div class="mt-3">
-                        <p class="text-muted small mb-0">
-                            <i class="bi bi-gift-fill me-1 text-success" aria-hidden="true"></i>@L["landing.free.badge"]
+                </div>
+            </section>
+
+            <section class="lp-section" aria-labelledby="lp-free">
+                <div class="lp-wrap">
+                    <div class="lp-free">
+                        <span class="sh-auth-icon sh-ok" aria-hidden="true"><i class="bi bi-gift"></i></span>
+                        <h2 id="lp-free">@L["landing.free.title"]</h2>
+                        <p>@L["landing.free.desc"]</p>
+                        <div class="lp-free-chips">
+                            <span class="sh-chip sh-chip-ok"><i class="bi bi-heart" aria-hidden="true"></i>@L["landing.free.funded.donations"]</span>
+                            <span class="sh-chip sh-chip-accent"><i class="bi bi-link-45deg" aria-hidden="true"></i>@L["landing.free.funded.affiliate"]</span>
+                        </div>
+                        <a href="/register" class="btn btn-primary btn-lg">
+                            <i class="bi bi-person-plus" aria-hidden="true"></i>@L["landing.cta.register"]
+                        </a>
+                        <p class="lp-tos">
+                            @L["landing.tos.desc"] <a href="/terms">@L["landing.tos.link"]</a>
                         </p>
                     </div>
                 </div>
-
-                <div class="col-lg-5" id="login-form">
-                    <div class="landing-login-card">
-                        <h2 class="fs-5 fw-semibold mb-4">
-                            <i class="bi bi-person-circle me-2" aria-hidden="true"></i>@L["auth.login"]
-                        </h2>
-
-                        @if (_error != null)
-                        {
-                            <div class="alert alert-danger py-2" role="alert">
-                                <i class="bi bi-exclamation-circle me-1" aria-hidden="true"></i>@_error
-                            </div>
-                        }
-
-                        <EditForm Model="_model" OnValidSubmit="HandleLogin">
-                            <div class="mb-3">
-                                <label class="form-label" for="loginEmail">@L["auth.email"]</label>
-                                <input id="loginEmail" class="form-control" type="email" @bind="_model.Email"
-                                       required autocomplete="email" aria-required="true" />
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label" for="loginPassword">@L["auth.password"]</label>
-                                <input id="loginPassword" class="form-control" type="password" @bind="_model.Password"
-                                       required autocomplete="current-password" aria-required="true" />
-                            </div>
-                            <button type="submit" class="btn btn-primary w-100" disabled="@_loading"
-                                    aria-busy="@(_loading ? "true" : "false")">
-                                @if (_loading) { <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span> }
-                                @L["auth.login.submit"]
-                            </button>
-                        </EditForm>
-
-                        <div class="text-center mt-2">
-                            <small><a href="/forgot-password">@L["auth.forgot.password"]</a></small>
-                        </div>
-                        <hr />
-                        <div class="text-center">
-                            <small>@L["auth.no.account"] <a href="/register">@L["auth.register"]</a></small>
-                        </div>
-                    </div>
-                </div>
-
-            </div>
-        </div>
-    </header>
-
-    <main id="main-content">
-        <section class="py-5 bg-body-secondary" aria-labelledby="features-heading">
-            <div class="container">
-                <h2 id="features-heading" class="text-center fw-bold mb-2">@L["landing.features.title"]</h2>
-                <p class="text-center text-muted mb-5">@L["landing.features.subtitle"]</p>
-
-                <div class="row g-4">
-                    <div class="col-sm-6 col-lg-4">
-                        <article class="landing-feature-card h-100">
-                            <div class="landing-feature-icon text-primary" aria-hidden="true">
-                                <i class="bi bi-broadcast"></i>
-                            </div>
-                            <h3 class="fs-5 fw-semibold">@L["landing.feature.rfid.title"]</h3>
-                            <p class="text-muted small mb-0">@L["landing.feature.rfid.desc"]</p>
-                        </article>
-                    </div>
-                    <div class="col-sm-6 col-lg-4">
-                        <article class="landing-feature-card h-100">
-                            <div class="landing-feature-icon text-success" aria-hidden="true">
-                                <i class="bi bi-database-fill-check"></i>
-                            </div>
-                            <h3 class="fs-5 fw-semibold">@L["landing.feature.materials.title"]</h3>
-                            <p class="text-muted small mb-0">@L["landing.feature.materials.desc"]</p>
-                        </article>
-                    </div>
-                    <div class="col-sm-6 col-lg-4">
-                        <article class="landing-feature-card h-100">
-                            <div class="landing-feature-icon text-warning" aria-hidden="true">
-                                <i class="bi bi-people-fill"></i>
-                            </div>
-                            <h3 class="fs-5 fw-semibold">@L["landing.feature.projects.title"]</h3>
-                            <p class="text-muted small mb-0">@L["landing.feature.projects.desc"]</p>
-                        </article>
-                    </div>
-                    <div class="col-sm-6 col-lg-4">
-                        <article class="landing-feature-card h-100">
-                            <div class="landing-feature-icon text-info" aria-hidden="true">
-                                <i class="bi bi-thermometer-half"></i>
-                            </div>
-                            <h3 class="fs-5 fw-semibold">@L["landing.feature.dryer.title"]</h3>
-                            <p class="text-muted small mb-0">@L["landing.feature.dryer.desc"]</p>
-                        </article>
-                    </div>
-                    <div class="col-sm-6 col-lg-4">
-                        <article class="landing-feature-card h-100">
-                            <div class="landing-feature-icon text-danger" aria-hidden="true">
-                                <i class="bi bi-arrow-left-right"></i>
-                            </div>
-                            <h3 class="fs-5 fw-semibold">@L["landing.feature.inventory.title"]</h3>
-                            <p class="text-muted small mb-0">@L["landing.feature.inventory.desc"]</p>
-                        </article>
-                    </div>
-                    <div class="col-sm-6 col-lg-4">
-                        <article class="landing-feature-card h-100">
-                            <div class="landing-feature-icon text-secondary" aria-hidden="true">
-                                <i class="bi bi-lightning-charge-fill"></i>
-                            </div>
-                            <h3 class="fs-5 fw-semibold">@L["landing.feature.selfhost.title"]</h3>
-                            <p class="text-muted small mb-0">@L["landing.feature.selfhost.desc"]</p>
-                        </article>
-                    </div>
-                </div>
-
-                <div class="mt-4 text-center">
-                    <p class="text-muted small mb-0">
-                        <i class="bi bi-android2 me-1 text-success" aria-hidden="true"></i>
-                        @L["landing.nfc.android.note"]
-                    </p>
-                </div>
-            </div>
-        </section>
-
-        <section class="py-4 border-top border-bottom" aria-labelledby="openspool-heading">
-            <div class="container">
-                <div class="row g-3">
-                    <div class="col-12 col-lg-4">
-                        <div class="border rounded p-3 h-100 text-center text-md-start">
-                            <i class="bi bi-broadcast text-primary mb-2 d-inline-block" style="font-size:2rem" aria-hidden="true"></i>
-                            <h3 id="openspool-heading" class="fs-5 fw-semibold mb-1">@L["landing.openspool.title"]</h3>
-                            <p class="text-muted small mb-2">@L["landing.openspool.desc"]</p>
-                            <a href="https://github.com/Bambu-Research-Group/RFID-Tag-Guide" target="_blank" rel="noopener noreferrer"
-                               class="btn btn-sm btn-outline-primary">
-                                <i class="bi bi-github me-1" aria-hidden="true"></i>@L["landing.openspool.github"]
-                            </a>
-                        </div>
-                    </div>
-
-                    <div class="col-12 col-lg-4">
-                        <div class="border rounded p-3 h-100 text-center text-md-start">
-                            <i class="bi bi-tags text-primary mb-2 d-inline-block" style="font-size:2rem" aria-hidden="true"></i>
-                            <h3 id="ntag-heading" class="fs-5 fw-semibold mb-1">@L["landing.ntag.title"]</h3>
-                            <p class="text-muted small mb-2">@L["landing.ntag.desc"]</p>
-                            <a href="https://amzn.to/46W8bpt" target="_blank" rel="noopener noreferrer"
-                               class="btn btn-sm btn-outline-primary">
-                                <i class="bi bi-box-arrow-up-right me-1" aria-hidden="true"></i>@L["landing.ntag.link"]
-                            </a>
-                        </div>
-                    </div>
-
-                    <div class="col-12 col-lg-4">
-                        <div class="border rounded p-3 h-100 text-center text-md-start">
-                            <i class="bi bi-code-slash text-primary mb-2 d-inline-block" style="font-size:2rem" aria-hidden="true"></i>
-                            <h3 id="opensource-heading" class="fs-5 fw-semibold mb-1">@L["landing.opensource.title"]</h3>
-                            <p class="text-muted small mb-2">@L["landing.opensource.desc"]</p>
-                            <a href="https://github.com/Fewiel/SpoolHero" target="_blank" rel="noopener noreferrer"
-                               class="btn btn-sm btn-outline-primary">
-                                <i class="bi bi-github me-1" aria-hidden="true"></i>@L["landing.opensource.github"]
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <section class="py-5 bg-body-secondary border-bottom" aria-labelledby="free-heading">
-            <div class="container text-center" style="max-width:700px">
-                <i class="bi bi-gift-fill text-success mb-3" style="font-size:2.5rem" aria-hidden="true"></i>
-                <h2 id="free-heading" class="fw-bold mb-3">@L["landing.free.title"]</h2>
-                <p class="text-muted mb-4">@L["landing.free.desc"]</p>
-                <div class="d-flex justify-content-center gap-3 flex-wrap">
-                    <span class="badge bg-success-subtle text-success-emphasis border border-success-subtle px-3 py-2 fs-6">
-                        <i class="bi bi-heart-fill me-1" aria-hidden="true"></i>@L["landing.free.funded.donations"]
-                    </span>
-                    <span class="badge bg-primary-subtle text-primary-emphasis border border-primary-subtle px-3 py-2 fs-6">
-                        <i class="bi bi-link-45deg me-1" aria-hidden="true"></i>@L["landing.free.funded.affiliate"]
-                    </span>
-                </div>
-            </div>
-        </section>
-
-        <section class="py-4" aria-labelledby="tos-heading">
-            <div class="container" style="max-width:800px">
-                <h2 id="tos-heading" class="fs-6 fw-semibold text-muted text-uppercase mb-3">
-                    <i class="bi bi-file-text me-1" aria-hidden="true"></i>@L["landing.tos.title"]
-                </h2>
-                <p class="text-muted small">@L["landing.tos.desc"]</p>
-                <a href="/terms" class="btn btn-sm btn-outline-secondary">@L["landing.tos.link"]</a>
-            </div>
-        </section>
-    </main>
-
-    <footer class="py-4 text-center text-muted small border-top" role="contentinfo">
-        <div class="container">
-            <p class="mb-1">
-                <a href="/privacy" class="text-muted me-3">@L["legal.privacy.title"]</a>
-                <a href="/imprint" class="text-muted me-3">@L["legal.imprint.title"]</a>
-                <a href="/terms" class="text-muted">@L["legal.terms.title"]</a>
-            </p>
-            <p class="mb-0">&copy; @DateTime.UtcNow.Year Phillip Weitkamp &middot; @L["app.name"]</p>
-        </div>
-    </footer>
-</div>
-
+            </section>
+        </ChildContent>
+    </PublicShell>
 }
-

@@ -1,0 +1,14 @@
+.sh-doc {
+    max-width: 900px;
+}
+
+.sh-doc-card {
+    padding: clamp(1.25rem, 1rem + 1.5vw, 2.25rem);
+}
+
+.sh-doc-related {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+    margin-top: 1.5rem;
+}

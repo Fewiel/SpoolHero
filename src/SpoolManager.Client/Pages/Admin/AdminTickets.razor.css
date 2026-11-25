@@ -1,0 +1,38 @@
+.at-placeholder { height: 2.5rem; border-radius: 8px; }
+
+.at-subject {
+    font-weight: 600;
+    color: var(--sh-text);
+    text-decoration: none;
+    overflow-wrap: anywhere;
+}
+
+.at-subject:hover { color: var(--sh-accent-text); text-decoration: underline; }
+
+.at-controls {
+    display: inline-flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    align-items: center;
+    gap: .35rem;
+}
+
+.at-status { width: auto; min-width: 140px; }
+
+.at-cards {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: .75rem;
+}
+
+.at-card {
+    display: flex;
+    flex-direction: column;
+    gap: .6rem;
+    padding: 1rem;
+}
+
+.at-card .at-controls { justify-content: flex-start; }
+.at-card .at-controls > * { flex: 1 1 140px; min-height: 44px; }

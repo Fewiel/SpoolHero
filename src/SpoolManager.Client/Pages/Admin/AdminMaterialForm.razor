@@ -1,140 +1,229 @@
 @page "/admin/materials/new"
 @page "/admin/materials/{Id:guid}/edit"
 
-<PageTitle>@(Id.HasValue ? L["material.edit"] : L["material.add"]) – @L["app.name"]</PageTitle>
+<PageTitle>@(Id.HasValue ? L["material.edit"] : L["admin.materials.add.title"]) – @L["app.name"]</PageTitle>
 
 @if (Auth.CurrentUser?.IsPlatformAdmin != true)
 {
-    <div class="alert alert-danger mt-3">@L["common.access.denied"]</div>
+    <AdminAccessDenied />
 }
 else
 {
+    <nav class="mb-2" aria-label="@L["common.breadcrumb"]">
+        <a href="/admin/materials" class="amf-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>@L["admin.materials.title"]</a>
+    </nav>
     <div class="page-header">
-        <h1><i class="bi bi-shield-check me-2"></i>@(Id.HasValue ? L["material.edit"] : L["material.add"])</h1>
+        <div>
+            <h1>@(Id.HasValue ? L["material.edit"] : L["admin.materials.add.title"])</h1>
+            <p class="page-subtitle">@L["admin.materials.form.subtitle"]</p>
+        </div>
     </div>
 
-    @if (_loading) { <div class="text-center py-5"><div class="spinner-border"></div></div> }
+    @if (_loading)
+    {
+        <div class="sh-card placeholder-glow" role="status">
+            <span class="placeholder col-6 mb-3"></span>
+            <span class="placeholder col-12 mb-2"></span>
+            <span class="placeholder col-10"></span>
+            <span class="visually-hidden">@L["common.loading"]</span>
+        </div>
+    }
+    else if (_notFound)
+    {
+        <div class="sh-empty">
+            <i class="bi bi-question-circle" aria-hidden="true"></i>
+            <h2>@L["admin.materials.notfound.title"]</h2>
+            <p>@L["admin.materials.notfound.text"]</p>
+            <a href="/admin/materials" class="btn btn-primary mt-2">@L["admin.materials.back"]</a>
+        </div>
+    }
     else
     {
-        <div class="row justify-content-center">
-            <div class="col-12 col-lg-8">
-                <div class="card">
-                    <div class="card-body">
-                        @if (_error != null) { <div class="alert alert-danger">@_error</div> }
+        <form class="amf-grid" @onsubmit="SaveAsync" @onsubmit:preventDefault novalidate>
+            <div class="amf-main">
+                @if (_error != null)
+                {
+                    <div class="alert alert-danger d-flex gap-2" role="alert">
+                        <i class="bi bi-exclamation-circle mt-1" aria-hidden="true"></i><span>@_error</span>
+                    </div>
+                }
 
-                        <div class="row g-3 mb-3">
-                            <div class="col-12 col-md-6">
-                                <label class="form-label">@L["material.type"] *</label>
-                                <input class="form-control" list="type-list" @bind="_form.Type" required />
-                                <datalist id="type-list">
-                                    <option value="PLA"/><option value="PETG"/><option value="ABS"/><option value="ASA"/>
-                                    <option value="TPU"/><option value="Nylon"/><option value="PC"/><option value="HIPS"/>
-                                    <option value="PVA"/><option value="Wood"/><option value="Metal"/>
-                                </datalist>
-                            </div>
-                            <div class="col-12 col-md-6">
-                                <label class="form-label">@L["material.brand"] *</label>
-                                <input class="form-control" @bind="_form.Brand" required />
-                            </div>
+                <section class="sh-card" aria-labelledby="amf-basics">
+                    <h2 id="amf-basics" class="sh-card-title">@L["admin.materials.section.basics"]</h2>
+                    <p class="sh-card-sub mb-3">@L["admin.materials.section.basics.hint"]</p>
+                    <div class="row g-3">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label" for="amfType">@L["material.type"] <span class="text-danger" aria-hidden="true">*</span></label>
+                            <input id="amfType" class="form-control @Invalid("type")" list="type-list" @bind="_form.Type" @bind:event="oninput" required placeholder="PLA" />
+                            <datalist id="type-list">
+                                @foreach (var t in CommonTypes)
+                                {
+                                    <option value="@t"></option>
+                                }
+                            </datalist>
+                            @if (_errors.ContainsKey("type")) { <div class="invalid-feedback">@_errors["type"]</div> }
                         </div>
-
-                        <div class="mb-2">
-                            <label class="form-label">@L["material.color.hex"] *</label>
-                            <div class="input-group">
-                                <input type="color" class="form-control form-control-color" value="@("#" + _form.ColorHex)" @oninput="OnColorPick" />
-                                <input class="form-control font-monospace text-uppercase" maxlength="6" @bind="_form.ColorHex" placeholder="FFFFFF" />
-                            </div>
-                        </div>
-                        <div class="d-flex flex-wrap gap-1 mb-3">
-                            @foreach (var (hex, name) in ColorPresets)
-                            {
-                                <button type="button" class="btn btn-sm p-0 border" style="width:1.8rem;height:1.8rem;background:#@hex;border-radius:4px"
-                                        title="@name" @onclick="() => _form.ColorHex = hex"></button>
-                            }
-                        </div>
-
-                        <div class="row g-3 mb-3">
-                            <div class="col-12 col-md-6">
-                                <label class="form-label">@L["material.color.name"] @L["common.optional"]</label>
-                                <input class="form-control" @bind="_form.ColorName" />
-                            </div>
-                            <div class="col-12 col-md-6">
-                                <label class="form-label">@L["material.diameter"]</label>
-                                <select class="form-select" @bind="_diameterStr">
-                                    <option value="1.75">1.75 mm</option>
-                                    <option value="2.85">2.85 mm</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="row g-3 mb-3">
-                            <div class="col-6 col-md-3">
-                                <label class="form-label">@L["material.min.temp"] *</label>
-                                <div class="input-group">
-                                    <input class="form-control" type="number" @bind="_form.MinTempCelsius" />
-                                    <span class="input-group-text">°C</span>
-                                </div>
-                            </div>
-                            <div class="col-6 col-md-3">
-                                <label class="form-label">@L["material.max.temp"] *</label>
-                                <div class="input-group">
-                                    <input class="form-control" type="number" @bind="_form.MaxTempCelsius" />
-                                    <span class="input-group-text">°C</span>
-                                </div>
-                            </div>
-                            <div class="col-6 col-md-3">
-                                <label class="form-label">@L["material.bed.temp"] @L["common.optional"]</label>
-                                <div class="input-group">
-                                    <input class="form-control" type="number" @bind="_form.BedTempCelsius" />
-                                    <span class="input-group-text">°C</span>
-                                </div>
-                            </div>
-                            <div class="col-6 col-md-3">
-                                <label class="form-label">@L["material.weight"] @L["common.optional"]</label>
-                                <div class="input-group">
-                                    <input class="form-control" type="number" @bind="_form.WeightGrams" />
-                                    <span class="input-group-text">g</span>
-                                </div>
-                            <div class="col-6 col-md-3">
-                                <label class="form-label">@L["material.spool.weight"] @L["common.optional"]</label>
-                                <div class="input-group">
-                                    <input class="form-control" type="number" min="0" @bind="_form.SpoolWeightGrams" />
-                                    <span class="input-group-text">g</span>
-                                </div>
-                                <div class="form-text">@L["material.spool.weight.hint"]</div>
-                            </div>
-                            </div>
-                        </div>
-
-                        <div class="row g-3 mb-3">
-                            <div class="col-12 col-md-6">
-                                <label class="form-label">@L["material.reorder"] @L["common.optional"]</label>
-                                <input class="form-control" type="url" @bind="_form.ReorderUrl" />
-                            </div>
-                            <div class="col-12 col-md-6">
-                                <label class="form-label">@L["material.price"] @L["common.optional"]</label>
-                                <div class="input-group">
-                                    <input class="form-control" type="number" step="0.01" min="0" @bind="_form.PricePerKg" />
-                                    <span class="input-group-text">€/kg</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="mb-4">
-                            <label class="form-label">@L["material.notes"] @L["common.optional"]</label>
-                            <textarea class="form-control" rows="2" @bind="_form.Notes"></textarea>
-                        </div>
-
-                        <div class="d-flex gap-2">
-                            <button class="btn btn-primary" @onclick="SaveAsync" disabled="@_saving">
-                                @if (_saving) { <span class="spinner-border spinner-border-sm me-2"></span> }
-                                @L["common.save"]
-                            </button>
-                            <a href="/admin/materials" class="btn btn-secondary">@L["common.cancel"]</a>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label" for="amfBrand">@L["material.brand"] <span class="text-danger" aria-hidden="true">*</span></label>
+                            <input id="amfBrand" class="form-control @Invalid("brand")" @bind="_form.Brand" @bind:event="oninput" required placeholder="Prusament" />
+                            @if (_errors.ContainsKey("brand")) { <div class="invalid-feedback">@_errors["brand"]</div> }
                         </div>
                     </div>
-                </div>
+                </section>
+
+                <section class="sh-card" aria-labelledby="amf-color">
+                    <h2 id="amf-color" class="sh-card-title">@L["admin.materials.section.color"]</h2>
+                    <p class="sh-card-sub mb-3">@L["admin.materials.section.color.hint"]</p>
+                    <div class="row g-3">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label" for="amfHex">@L["material.color.hex"] <span class="text-danger" aria-hidden="true">*</span></label>
+                            <div class="input-group @(_errors.ContainsKey("hex") ? "has-validation" : "")">
+                                <input type="color" class="form-control form-control-color amf-picker" value="@PickerValue" @oninput="OnColorPick" aria-label="@L["admin.materials.color.picker"]" />
+                                <span class="input-group-text">#</span>
+                                <input id="amfHex" class="form-control font-monospace text-uppercase @Invalid("hex")" maxlength="7" value="@_form.ColorHex" @oninput="OnHexInput" placeholder="FFFFFF" />
+                                @if (_errors.ContainsKey("hex")) { <div class="invalid-feedback">@_errors["hex"]</div> }
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label" for="amfColorName">@L["material.color.name"] <span class="text-muted fw-normal">@L["common.optional"]</span></label>
+                            <input id="amfColorName" class="form-control" @bind="_form.ColorName" @bind:event="oninput" placeholder="Galaxy Black" />
+                        </div>
+                        <div class="col-12">
+                            <span class="form-label d-block" id="amfPresetsLabel">@L["admin.materials.color.presets"]</span>
+                            <div class="amf-presets" role="group" aria-labelledby="amfPresetsLabel">
+                                @foreach (var (hex, key) in ColorPresets)
+                                {
+                                    <button type="button" class="amf-preset" style="background:#@hex" title="@L[key]" aria-label="@L[key]"
+                                            aria-pressed="@(string.Equals(_form.ColorHex, hex, StringComparison.OrdinalIgnoreCase) ? "true" : "false")"
+                                            @onclick="() => PickPreset(hex)"></button>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="sh-card" aria-labelledby="amf-print">
+                    <h2 id="amf-print" class="sh-card-title">@L["admin.materials.section.print"]</h2>
+                    <p class="sh-card-sub mb-3">@L["admin.materials.section.print.hint"]</p>
+                    <div class="row g-3">
+                        <div class="col-6 col-md-4">
+                            <label class="form-label" for="amfMin">@L["material.min.temp"] <span class="text-danger" aria-hidden="true">*</span></label>
+                            <input id="amfMin" class="form-control @Invalid("temp")" type="number" min="0" max="500" inputmode="numeric" @bind="_form.MinTempCelsius" />
+                        </div>
+                        <div class="col-6 col-md-4">
+                            <label class="form-label" for="amfMax">@L["material.max.temp"] <span class="text-danger" aria-hidden="true">*</span></label>
+                            <input id="amfMax" class="form-control @Invalid("temp")" type="number" min="0" max="500" inputmode="numeric" @bind="_form.MaxTempCelsius" />
+                        </div>
+                        <div class="col-6 col-md-4">
+                            <label class="form-label" for="amfBed">@L["material.bed.temp"] <span class="text-muted fw-normal">@L["common.optional"]</span></label>
+                            <input id="amfBed" class="form-control" type="number" min="0" max="200" inputmode="numeric" @bind="_form.BedTempCelsius" />
+                        </div>
+                        @if (_errors.ContainsKey("temp"))
+                        {
+                            <div class="col-12"><div class="amf-error" role="alert">@_errors["temp"]</div></div>
+                        }
+                        <div class="col-6 col-md-4">
+                            <label class="form-label" for="amfDiameter">@L["material.diameter"]</label>
+                            <select id="amfDiameter" class="form-select" @bind="_diameterStr">
+                                <option value="1.75">1.75 mm</option>
+                                <option value="2.85">2.85 mm</option>
+                            </select>
+                        </div>
+                        <div class="col-6 col-md-4">
+                            <label class="form-label" for="amfDensity">@L["material.density"] <span class="text-muted fw-normal">@L["common.optional"]</span></label>
+                            <input id="amfDensity" class="form-control" type="number" step="0.01" min="0" inputmode="decimal" @bind="_form.DensityGCm3" />
+                        </div>
+                    </div>
+                </section>
+
+                <section class="sh-card" aria-labelledby="amf-spool">
+                    <h2 id="amf-spool" class="sh-card-title">@L["admin.materials.section.spool"]</h2>
+                    <p class="sh-card-sub mb-3">@L["admin.materials.section.spool.hint"]</p>
+                    <div class="row g-3">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label" for="amfWeight">@L["admin.materials.filament.weight"] <span class="text-muted fw-normal">@L["common.optional"]</span></label>
+                            <div class="input-group">
+                                <input id="amfWeight" class="form-control" type="number" min="0" inputmode="numeric" @bind="_form.WeightGrams" placeholder="1000" />
+                                <span class="input-group-text">g</span>
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label" for="amfSpoolWeight">@L["material.spool.weight"] <span class="text-muted fw-normal">@L["common.optional"]</span></label>
+                            <div class="input-group">
+                                <input id="amfSpoolWeight" class="form-control" type="number" min="0" inputmode="numeric" @bind="_form.SpoolWeightGrams" aria-describedby="amfSpoolWeightHelp" />
+                                <span class="input-group-text">g</span>
+                            </div>
+                            <div id="amfSpoolWeightHelp" class="form-text">@L["material.spool.weight.hint"]</div>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label" for="amfDryTemp">@L["material.dry.temp"] <span class="text-muted fw-normal">@L["common.optional"]</span></label>
+                            <input id="amfDryTemp" class="form-control" type="number" min="0" max="150" inputmode="numeric" @bind="_form.DryTempCelsius" />
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label" for="amfDryTime">@L["material.dry.time"] <span class="text-muted fw-normal">@L["common.optional"]</span></label>
+                            <input id="amfDryTime" class="form-control" type="number" min="0" max="96" inputmode="numeric" @bind="_form.DryTimeHours" />
+                        </div>
+                    </div>
+                </section>
+
+                <section class="sh-card" aria-labelledby="amf-shop">
+                    <h2 id="amf-shop" class="sh-card-title">@L["admin.materials.section.shop"]</h2>
+                    <p class="sh-card-sub mb-3">@L["admin.materials.section.shop.hint"]</p>
+                    <div class="row g-3">
+                        <div class="col-12 col-md-8">
+                            <label class="form-label" for="amfUrl">@L["material.reorder"] <span class="text-muted fw-normal">@L["common.optional"]</span></label>
+                            <input id="amfUrl" class="form-control @Invalid("url")" type="url" inputmode="url" @bind="_form.ReorderUrl" placeholder="https://" />
+                            @if (_errors.ContainsKey("url")) { <div class="invalid-feedback">@_errors["url"]</div> }
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label" for="amfPrice">@L["admin.materials.price"] <span class="text-muted fw-normal">@L["common.optional"]</span></label>
+                            <div class="input-group">
+                                <input id="amfPrice" class="form-control" type="number" step="0.01" min="0" inputmode="decimal" @bind="_form.PricePerKg" />
+                                <span class="input-group-text">€/kg</span>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label" for="amfNotes">@L["material.notes"] <span class="text-muted fw-normal">@L["common.optional"]</span></label>
+                            <textarea id="amfNotes" class="form-control" rows="3" @bind="_form.Notes"></textarea>
+                        </div>
+                    </div>
+                </section>
             </div>
-        </div>
+
+            <aside class="amf-side" aria-label="@L["admin.materials.preview"]">
+                <div class="sh-card amf-preview">
+                    <p class="amf-preview-label">@L["admin.materials.preview"]</p>
+                    <SpoolRing ColorHex="@_form.ColorHex" Percent="100" Size="112" AriaLabel="@($"{_form.Brand} {_form.Type} #{_form.ColorHex}")" />
+                    <div class="amf-preview-name">@(string.IsNullOrWhiteSpace(_form.Brand) && string.IsNullOrWhiteSpace(_form.Type) ? L["admin.materials.preview.empty"] : $"{_form.Brand} {_form.Type}")</div>
+                    <div class="text-muted small">@(string.IsNullOrWhiteSpace(_form.ColorName) ? "#" + _form.ColorHex : $"{_form.ColorName} · #{_form.ColorHex}")</div>
+                    <div class="d-flex flex-wrap justify-content-center gap-1 mt-2">
+                        @if (_form.MinTempCelsius > 0 || _form.MaxTempCelsius > 0)
+                        {
+                            <span class="sh-chip sh-chip-sm"><i class="bi bi-thermometer-half" aria-hidden="true"></i>@_form.MinTempCelsius–@_form.MaxTempCelsius °C</span>
+                        }
+                        <span class="sh-chip sh-chip-sm">@_diameterStr mm</span>
+                        @if (_form.WeightGrams.HasValue)
+                        {
+                            <span class="sh-chip sh-chip-sm">@_form.WeightGrams g</span>
+                        }
+                    </div>
+                    <p class="small text-muted mt-3 mb-0">@L["admin.materials.preview.hint"]</p>
+                </div>
+                <div class="amf-actions">
+                    <button type="submit" class="btn btn-primary btn-lg" disabled="@_saving" aria-busy="@(_saving ? "true" : "false")">
+                        @if (_saving)
+                        {
+                            <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                        }
+                        else
+                        {
+                            <i class="bi bi-check-lg" aria-hidden="true"></i>
+                        }
+                        @(Id.HasValue ? L["admin.materials.save.changes"] : L["admin.materials.create"])
+                    </button>
+                    <a href="/admin/materials" class="btn btn-outline-secondary btn-lg">@L["common.cancel"]</a>
+                </div>
+            </aside>
+        </form>
     }
 }

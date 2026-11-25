@@ -4,130 +4,156 @@
 
 @if (Auth.CurrentUser?.IsPlatformAdmin != true)
 {
-    <div class="alert alert-danger mt-3">@L["common.access.denied"]</div>
+    <AdminAccessDenied />
 }
 else
 {
     <div class="page-header">
-        <h1><i class="bi bi-speedometer2 me-2"></i>@L["admin.dashboard.title"]</h1>
+        <div>
+            <h1>@L["admin.dashboard.title"]</h1>
+            <p class="page-subtitle">@L["admin.dashboard.subtitle"]</p>
+        </div>
+        <div class="page-actions">
+            <button type="button" class="btn btn-outline-secondary" @onclick="LoadAsync" disabled="@_loading">
+                <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>@L["common.refresh"]
+            </button>
+        </div>
     </div>
 
     @if (_loading)
     {
-        <div class="text-center py-5"><div class="spinner-border"></div></div>
-    }
-    else if (_stats != null)
-    {
-        <div class="row row-cols-2 row-cols-md-3 g-3 mb-4">
-            <div class="col">
-                <div class="card text-center h-100">
-                    <div class="card-body">
-                        <div class="fs-1 fw-bold text-primary">@_stats.TotalUsers</div>
-                        <div class="text-muted small">@L["admin.stats.users.total"]</div>
-                    </div>
-                </div>
-            </div>
-            <div class="col">
-                <div class="card text-center h-100">
-                    <div class="card-body">
-                        <div class="fs-1 fw-bold text-success">@_stats.ActiveUsersLast15Min</div>
-                        <div class="text-muted small">@L["admin.stats.users.active"]</div>
-                    </div>
-                </div>
-            </div>
-            <div class="col">
-                <div class="card text-center h-100">
-                    <div class="card-body">
-                        <div class="fs-1 fw-bold text-info">@_stats.NewUsersThisMonth</div>
-                        <div class="text-muted small">@L["admin.stats.users.new"]</div>
-                    </div>
-                </div>
-            </div>
-            <div class="col">
-                <div class="card text-center h-100">
-                    <div class="card-body">
-                        <div class="fs-1 fw-bold text-secondary">@_stats.TotalProjects</div>
-                        <div class="text-muted small">@L["admin.stats.projects"]</div>
-                    </div>
-                </div>
-            </div>
-            <div class="col">
-                <div class="card text-center h-100">
-                    <div class="card-body">
-                        <div class="fs-1 fw-bold text-secondary">@_stats.ProjectsWithSpools</div>
-                        <div class="text-muted small">@L["admin.stats.projects.active"]</div>
-                    </div>
-                </div>
-            </div>
-            <div class="col">
-                <div class="card text-center h-100">
-                    <div class="card-body">
-                        <div class="fs-1 fw-bold text-secondary">@_stats.TotalSpools</div>
-                        <div class="text-muted small">@L["admin.stats.spools"]</div>
-                    </div>
-                </div>
-            </div>
-            <div class="col">
-                <div class="card text-center h-100">
-                    <div class="card-body">
-                        <div class="fs-1 fw-bold text-warning">@_stats.OpenTickets</div>
-                        <div class="text-muted small">@L["admin.stats.open.tickets"]</div>
-                    </div>
-                </div>
-            </div>
-            <div class="col">
-                <div class="card text-center h-100">
-                    <div class="card-body">
-                        <div class="fs-1 fw-bold text-primary">@_stats.InProgressTickets</div>
-                        <div class="text-muted small">@L["admin.stats.inprogress.tickets"]</div>
-                    </div>
-                </div>
-            </div>
-            <div class="col">
-                <div class="card text-center h-100">
-                    <div class="card-body">
-                        <div class="fs-1 fw-bold text-success">@_stats.TotalReorderClicks</div>
-                        <div class="text-muted small">@L["admin.stats.link.clicks"]</div>
-                    </div>
-                </div>
-            </div>
+        <div class="ad-stats" role="status">
+            @for (var i = 0; i < 8; i++)
+            {
+                <div class="sh-stat placeholder-glow"><span class="placeholder col-4"></span><span class="placeholder col-8"></span></div>
+            }
+            <span class="visually-hidden">@L["common.loading"]</span>
         </div>
-
-        @if (_stats.TopClickedMaterials.Count > 0)
+    }
+    else if (_stats == null)
+    {
+        <div class="sh-empty">
+            <i class="bi bi-cloud-slash" aria-hidden="true"></i>
+            <h2>@L["admin.load.failed.title"]</h2>
+            <p>@L["admin.load.failed.text"]</p>
+            <button type="button" class="btn btn-primary mt-2" @onclick="LoadAsync"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i>@L["common.retry"]</button>
+        </div>
+    }
+    else
+    {
+        @if (_stats.OpenTickets > 0 || _pendingSuggestions > 0)
         {
-            <div class="card">
-                <div class="card-header fw-semibold">
-                    <i class="bi bi-bar-chart me-2"></i>@L["admin.stats.top.clicked"]
-                </div>
-                <div class="card-body p-0">
-                    <table class="table table-hover mb-0">
-                        <thead>
-                            <tr>
-                                <th>@L["material.brand"]</th>
-                                <th>@L["material.type"]</th>
-                                <th>@L["material.color.hex"]</th>
-                                <th>@L["material.reorder.clicks"]</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var m in _stats.TopClickedMaterials)
-                            {
-                                <tr>
-                                    <td>@m.Brand</td>
-                                    <td>@m.Type</td>
-                                    <td>
-                                        <div class="d-flex align-items-center gap-2">
-                                            <div style="width:1.2em;height:1.2em;background:#@m.ColorHex;border-radius:50%;border:1px solid var(--bs-border-color);flex-shrink:0"></div>
-                                            <small class="font-monospace">#@m.ColorHex</small>
-                                        </div>
-                                    </td>
-                                    <td><strong>@m.ClickCount</strong></td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
+            <h2 class="sh-section-title mb-3">@L["admin.dashboard.attention"]</h2>
+            <div class="ad-attention mb-4">
+                @if (_stats.OpenTickets > 0)
+                {
+                    <div class="sh-attention">
+                        <div class="d-flex align-items-center gap-3">
+                            <span class="ad-att-icon ad-att-warn" aria-hidden="true"><i class="bi bi-ticket-perforated"></i></span>
+                            <div>
+                                <span class="sh-chip sh-chip-warn sh-chip-sm">@L["admin.dashboard.attention.tickets.chip"]</span>
+                                <p class="fw-semibold mb-0 mt-1">@L.Format("admin.dashboard.attention.tickets", _stats.OpenTickets)</p>
+                            </div>
+                        </div>
+                        <a href="/admin/tickets" class="btn btn-outline-secondary mt-auto">@L["admin.dashboard.attention.tickets.action"]<i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+                    </div>
+                }
+                @if (_pendingSuggestions > 0)
+                {
+                    <div class="sh-attention">
+                        <div class="d-flex align-items-center gap-3">
+                            <span class="ad-att-icon" aria-hidden="true"><i class="bi bi-lightbulb"></i></span>
+                            <div>
+                                <span class="sh-chip sh-chip-accent sh-chip-sm">@L["admin.dashboard.attention.suggestions.chip"]</span>
+                                <p class="fw-semibold mb-0 mt-1">@L.Format("admin.dashboard.attention.suggestions", _pendingSuggestions)</p>
+                            </div>
+                        </div>
+                        <a href="/admin/suggestions" class="btn btn-outline-secondary mt-auto">@L["admin.dashboard.attention.suggestions.action"]<i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+                    </div>
+                }
             </div>
         }
+
+        <section class="mb-4" aria-labelledby="ad-users">
+            <h2 id="ad-users" class="sh-section-title mb-3">@L["admin.dashboard.section.users"]</h2>
+            <div class="ad-stats">
+                <div class="sh-stat"><span class="sh-stat-value">@_stats.TotalUsers</span><span class="sh-stat-label">@L["admin.stats.users.total"]</span></div>
+                <div class="sh-stat"><span class="sh-stat-value">@_stats.ActiveUsersLast15Min</span><span class="sh-stat-label">@L["admin.stats.users.active"]</span></div>
+                <div class="sh-stat"><span class="sh-stat-value">@_stats.NewUsersThisMonth</span><span class="sh-stat-label">@L["admin.stats.users.new"]</span></div>
+                <a class="sh-stat ad-stat-link" href="/admin/users">
+                    <span class="sh-stat-value"><i class="bi bi-people" aria-hidden="true"></i></span>
+                    <span class="sh-stat-label">@L["admin.dashboard.manage.users"] <i class="bi bi-arrow-right" aria-hidden="true"></i></span>
+                </a>
+            </div>
+        </section>
+
+        <section class="mb-4" aria-labelledby="ad-content">
+            <h2 id="ad-content" class="sh-section-title mb-3">@L["admin.dashboard.section.content"]</h2>
+            <div class="ad-stats">
+                <div class="sh-stat"><span class="sh-stat-value">@_stats.TotalProjects</span><span class="sh-stat-label">@L["admin.stats.projects"]</span></div>
+                <div class="sh-stat">
+                    <span class="sh-stat-value">@_stats.ProjectsWithSpools</span>
+                    <span class="sh-stat-label">@L["admin.stats.projects.active"]</span>
+                    <div class="sh-progress mt-2" role="img" aria-label="@L.Format("admin.dashboard.share", ActiveProjectShare)"><span style="width:@(ActiveProjectShare)%"></span></div>
+                </div>
+                <div class="sh-stat"><span class="sh-stat-value">@_stats.TotalSpools</span><span class="sh-stat-label">@L["admin.stats.spools"]</span></div>
+                <div class="sh-stat"><span class="sh-stat-value">@_stats.TotalGlobalMaterials</span><span class="sh-stat-label">@L["admin.stats.global.materials"]</span></div>
+            </div>
+        </section>
+
+        <section class="mb-4" aria-labelledby="ad-support">
+            <h2 id="ad-support" class="sh-section-title mb-3">@L["admin.dashboard.section.support"]</h2>
+            <div class="ad-stats">
+                <div class="sh-stat"><span class="sh-stat-value">@_stats.OpenTickets</span><span class="sh-stat-label">@L["admin.stats.open.tickets"]</span></div>
+                <div class="sh-stat"><span class="sh-stat-value">@_stats.InProgressTickets</span><span class="sh-stat-label">@L["admin.stats.inprogress.tickets"]</span></div>
+                <div class="sh-stat"><span class="sh-stat-value">@_pendingSuggestions</span><span class="sh-stat-label">@L["admin.stats.pending.suggestions"]</span></div>
+                <div class="sh-stat"><span class="sh-stat-value">@_stats.TotalReorderClicks</span><span class="sh-stat-label">@L["admin.stats.link.clicks"]</span></div>
+            </div>
+        </section>
+
+        <section class="sh-card mb-4" aria-labelledby="ad-top">
+            <h2 id="ad-top" class="sh-card-title">@L["admin.stats.top.clicked"]</h2>
+            <p class="sh-card-sub mb-3">@L["admin.dashboard.top.hint"]</p>
+            @if (_stats.TopClickedMaterials.Count == 0)
+            {
+                <p class="text-muted mb-0">@L["admin.dashboard.top.empty"]</p>
+            }
+            else
+            {
+                <ol class="ad-top">
+                    @foreach (var m in _stats.TopClickedMaterials)
+                    {
+                        <li class="ad-top-row">
+                            <SpoolRing ColorHex="@m.ColorHex" Percent="100" Size="40" />
+                            <div class="ad-top-main">
+                                <div class="d-flex justify-content-between gap-2">
+                                    <span class="fw-semibold text-truncate">@m.Brand @m.Type</span>
+                                    <span class="fw-semibold">@m.ClickCount</span>
+                                </div>
+                                <div class="sh-progress mt-1" aria-hidden="true"><span style="width:@(BarWidth(m.ClickCount))%"></span></div>
+                                <span class="small text-muted font-monospace">#@m.ColorHex</span>
+                            </div>
+                        </li>
+                    }
+                </ol>
+            }
+        </section>
+
+        <section aria-labelledby="ad-areas">
+            <h2 id="ad-areas" class="sh-section-title mb-3">@L["admin.dashboard.areas"]</h2>
+            <div class="ad-areas">
+                @foreach (var a in Areas)
+                {
+                    <a class="ad-area" href="@a.Href">
+                        <span class="ad-area-icon" aria-hidden="true"><i class="bi @a.Icon"></i></span>
+                        <span class="ad-area-text">
+                            <span class="fw-semibold">@L[a.TitleKey]</span>
+                            <span class="small text-muted">@L[a.DescKey]</span>
+                        </span>
+                        <i class="bi bi-chevron-right text-muted" aria-hidden="true"></i>
+                    </a>
+                }
+            </div>
+        </section>
     }
 }
