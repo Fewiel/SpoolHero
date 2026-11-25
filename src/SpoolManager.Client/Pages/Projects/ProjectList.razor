@@ -3,111 +3,128 @@
 <PageTitle>@L["project.title"] – @L["app.name"]</PageTitle>
 
 <div class="page-header">
-    <h1><i class="bi bi-diagram-3 me-2"></i>@L["project.title"]</h1>
-    <a href="/projects/new" class="btn btn-primary">
-        <i class="bi bi-plus-lg me-1"></i>@L["project.create"]
-    </a>
+    <div>
+        <h1>@L["project.title"]</h1>
+        <p class="page-subtitle">@L["project.list.subtitle"]</p>
+    </div>
+    <div class="page-actions">
+        <a href="/projects/new" class="btn btn-primary">
+            <i class="bi bi-plus-lg" aria-hidden="true"></i>@L["project.create"]
+        </a>
+    </div>
 </div>
 
 @if (_loading)
 {
-    <div class="text-center py-5"><div class="spinner-border"></div></div>
+    <div class="text-center py-5" role="status">
+        <div class="spinner-border text-primary" aria-hidden="true"></div>
+        <span class="visually-hidden">@L["common.loading"]</span>
+    </div>
 }
 else
 {
-    <div class="row g-4">
-        <div class="col-12 col-lg-8">
-            @if (_projects.Count == 0)
+    <div class="projects-layout">
+        <section aria-labelledby="projects-mine">
+            <h2 class="sh-section-title" id="projects-mine">@L["project.list.mine"]</h2>
+            @if (_loadError)
             {
-                <div class="text-center py-5 text-muted">
-                    <i class="bi bi-diagram-3 fs-1"></i>
-                    <p class="mt-2">@L["project.no.project"]</p>
-                    <a href="/projects/new" class="btn btn-primary mt-2">
-                        <i class="bi bi-plus-lg me-1"></i>@L["project.create"]
+                <div class="alert alert-danger" role="alert">@L["project.load.error"]</div>
+            }
+            else if (_projects.Count == 0)
+            {
+                <div class="sh-empty">
+                    <i class="bi bi-diagram-3" aria-hidden="true"></i>
+                    <h2>@L["project.empty.title"]</h2>
+                    <p>@L["project.empty.text"]</p>
+                    <a href="/projects/new" class="btn btn-primary">
+                        <i class="bi bi-plus-lg" aria-hidden="true"></i>@L["project.create"]
                     </a>
                 </div>
             }
             else
             {
-                <div class="row g-3">
+                <div class="project-grid">
                     @foreach (var p in _projects)
                     {
-                        <div class="col-12 col-md-6">
-                            <div class="card h-100 @(p.Id == Project.CurrentProject?.Id ? "border-primary" : "")">
-                                <div class="card-body">
-                                    <div class="d-flex align-items-start justify-content-between gap-2">
-                                        <div>
-                                            <h5 class="card-title mb-1">
-                                                @p.Name
-                                                @if (p.Id == Project.CurrentProject?.Id)
-                                                {
-                                                    <span class="badge bg-primary ms-2 small">Aktiv</span>
-                                                }
-                                            </h5>
-                                            @if (p.Description != null)
-                                            {
-                                                <p class="text-muted small mb-2">@p.Description</p>
-                                            }
-                                            <small class="text-muted">
-                                                <i class="bi bi-person me-1"></i>@L[$"project.role.{p.MyRole}"]
-                                            </small>
-                                        </div>
-                                        <div class="d-flex gap-1 flex-shrink-0">
-                                            @if (p.Id != Project.CurrentProject?.Id)
-                                            {
-                                                <button class="btn btn-sm btn-primary" @onclick="() => SwitchAsync(p)">
-                                                    <i class="bi bi-box-arrow-in-right"></i>
-                                                </button>
-                                            }
-                                            @if (p.MyRole == "admin" || p.MyRole == "manager")
-                                            {
-                                                <a href="/projects/@p.Id/settings" class="btn btn-sm btn-outline-secondary">
-                                                    <i class="bi bi-gear"></i>
-                                                </a>
-                                            }
-                                        </div>
+                        var isCurrent = p.Id == Project.CurrentProject?.Id;
+                        <article class="sh-card project-card @(isCurrent ? "is-current" : "")" aria-labelledby="project-@p.Id">
+                            <div class="project-card-head">
+                                <span class="project-avatar" aria-hidden="true">@Initial(p.Name)</span>
+                                <div class="min-w-0 flex-grow-1">
+                                    <h3 class="sh-card-title" id="project-@p.Id">@p.Name</h3>
+                                    <div class="d-flex flex-wrap gap-1">
+                                        @if (isCurrent)
+                                        {
+                                            <span class="sh-chip sh-chip-sm sh-chip-accent"><i class="bi bi-check-lg" aria-hidden="true"></i>@L["project.current"]</span>
+                                        }
+                                        <span class="sh-chip sh-chip-sm">@L[$"project.role.{p.MyRole}"]</span>
                                     </div>
                                 </div>
                             </div>
-                        </div>
+                            <p class="project-desc">@(string.IsNullOrWhiteSpace(p.Description) ? L["project.no.description"] : p.Description)</p>
+                            <div class="project-actions">
+                                @if (!isCurrent)
+                                {
+                                    <button type="button" class="btn btn-outline-secondary" @onclick="() => SwitchAsync(p)" disabled="@(_switchingId == p.Id)">
+                                        @if (_switchingId == p.Id) { <span class="spinner-border spinner-border-sm" aria-hidden="true"></span> }
+                                        else { <i class="bi bi-box-arrow-in-right" aria-hidden="true"></i> }
+                                        @L["project.open"]
+                                    </button>
+                                }
+                                else
+                                {
+                                    <a class="btn btn-outline-secondary" href="/"><i class="bi bi-house" aria-hidden="true"></i>@L["project.to.dashboard"]</a>
+                                }
+                                <a href="/projects/@p.Id/settings" class="btn btn-outline-secondary" aria-label="@L.Format("project.settings.for", p.Name)">
+                                    <i class="bi bi-gear" aria-hidden="true"></i>@L["project.settings.short"]
+                                </a>
+                            </div>
+                        </article>
                     }
                 </div>
             }
-        </div>
+        </section>
 
-        <div class="col-12 col-lg-4">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title"><i class="bi bi-envelope-open me-2"></i>@L["project.invite.join"]</h5>
-                    <p class="text-muted small">@L["project.invite.join.hint"]</p>
-                    @if (_joinError != null)
-                    {
-                        <div class="alert alert-danger py-2">@_joinError</div>
-                    }
-                    @if (_joinInfo != null)
-                    {
-                        <div class="alert alert-info py-2 mb-2">
-                            <strong>@_joinInfo.ProjectName</strong><br />
-                            <small>@L["project.role"]: @L[$"project.role.{_joinInfo.Role}"]</small><br />
-                            <small>@L["project.invite.by"]: @_joinInfo.InvitedByUsername</small>
-                        </div>
-                        <button class="btn btn-success w-100" @onclick="AcceptInviteAsync" disabled="@_joining">
-                            @if (_joining) { <span class="spinner-border spinner-border-sm me-2"></span> }
+        <aside aria-labelledby="projects-join">
+            <div class="sh-card">
+                <h2 class="sh-card-title" id="projects-join">@L["project.invite.join"]</h2>
+                <p class="sh-card-sub mb-3">@L["project.invite.join.hint"]</p>
+                @if (_joinError != null)
+                {
+                    <div class="alert alert-danger py-2" role="alert">@_joinError</div>
+                }
+                @if (_joinInfo != null)
+                {
+                    <dl class="join-info">
+                        <dt>@L["project.join.project"]</dt>
+                        <dd>@_joinInfo.ProjectName</dd>
+                        <dt>@L["project.role"]</dt>
+                        <dd>@L[$"project.role.{_joinInfo.Role}"]</dd>
+                        <dt>@L["project.invite.by"]</dt>
+                        <dd>@_joinInfo.InvitedByUsername</dd>
+                    </dl>
+                    <div class="d-flex flex-wrap gap-2">
+                        <button type="button" class="btn btn-primary flex-grow-1" @onclick="AcceptInviteAsync" disabled="@_joining">
+                            @if (_joining) { <span class="spinner-border spinner-border-sm" aria-hidden="true"></span> }
                             @L["project.invite.accept"]
                         </button>
-                    }
-                    else
-                    {
-                        <div class="input-group">
-                            <input class="form-control" placeholder="@L["project.invite.code"]" @bind="_token" @bind:event="oninput" />
-                            <button class="btn btn-outline-primary" @onclick="LookupTokenAsync" disabled="@(string.IsNullOrWhiteSpace(_token))">
-                                <i class="bi bi-search"></i>
-                            </button>
-                        </div>
-                    }
-                </div>
+                        <button type="button" class="btn btn-outline-secondary" @onclick="ResetJoin">@L["common.cancel"]</button>
+                    </div>
+                }
+                else
+                {
+                    <form @onsubmit="LookupTokenAsync" @onsubmit:preventDefault>
+                        <label class="form-label" for="invite-code">@L["project.invite.code.label"]</label>
+                        <input id="invite-code" class="form-control font-monospace mb-2" placeholder="@L["project.invite.code"]"
+                               @bind="_token" @bind:event="oninput" autocomplete="off" />
+                        <button type="submit" class="btn btn-outline-secondary w-100" disabled="@(string.IsNullOrWhiteSpace(_token) || _checking)">
+                            @if (_checking) { <span class="spinner-border spinner-border-sm" aria-hidden="true"></span> }
+                            else { <i class="bi bi-search" aria-hidden="true"></i> }
+                            @L["project.invite.check"]
+                        </button>
+                    </form>
+                }
             </div>
-        </div>
+        </aside>
     </div>
 }
-

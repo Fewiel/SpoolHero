@@ -17,6 +17,32 @@ public partial class AccountSettings
     private bool _onboardingSuccess;
     private string? _onboardingMessage;
 
+    private string Initials
+    {
+        get
+        {
+            var name = Auth.CurrentUser?.Username ?? "?";
+            var parts = name.Split([' ', '.', '_', '-'], StringSplitOptions.RemoveEmptyEntries);
+            return parts.Length >= 2 ? $"{parts[0][0]}{parts[1][0]}" : name[..Math.Min(2, name.Length)];
+        }
+    }
+
+    private void OpenDelete()
+    {
+        _deletePassword = string.Empty;
+        _deleteModalError = null;
+        _showDeleteModal = true;
+    }
+
+    private void CloseDelete()
+    {
+        if (_deleting)
+            return;
+        _showDeleteModal = false;
+        _deletePassword = string.Empty;
+        _deleteModalError = null;
+    }
+
     private async Task ShowOnboardingAgainAsync()
     {
         _onboardingLoading = true;

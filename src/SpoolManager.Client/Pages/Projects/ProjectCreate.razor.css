@@ -1,0 +1,27 @@
+.project-create {
+    max-width: 720px;
+}
+
+.project-create-facts {
+    list-style: none;
+    margin: 0 0 1.5rem;
+    padding: 1rem;
+    border-radius: var(--sh-radius);
+    background: var(--sh-surface-2);
+    display: flex;
+    flex-direction: column;
+    gap: .6rem;
+    color: var(--sh-muted);
+    font-size: .92rem;
+}
+
+.project-create-facts li {
+    display: flex;
+    gap: .6rem;
+    align-items: flex-start;
+}
+
+.project-create-facts .bi {
+    color: var(--sh-accent-text);
+    margin-top: .1rem;
+}

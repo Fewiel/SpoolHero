@@ -1,102 +1,92 @@
 @page "/settings/account"
 
-<PageTitle>@L["settings.account.title"] – @L["app.name"]</PageTitle>
-
-<div class="page-header">
-    <h1><i class="bi bi-person-gear me-2"></i>@L["settings.account.title"]</h1>
-</div>
-
-@if (Auth.CurrentUser == null)
-{
-    <div class="text-center py-5"><div class="spinner-border text-secondary"></div></div>
-}
-else
-{
-    <div class="card mb-4">
-        <div class="card-header fw-semibold">
-            <i class="bi bi-info-circle me-2"></i>@L["settings.account.info.title"]
+<SettingsShell Title="@L["settings.account.title"]" Subtitle="@L["settings.account.subtitle"]">
+    @if (Auth.CurrentUser == null)
+    {
+        <div class="text-center py-5" role="status">
+            <div class="spinner-border text-primary" aria-hidden="true"></div>
+            <span class="visually-hidden">@L["common.loading"]</span>
         </div>
-        <div class="card-body">
-            <dl class="row mb-0">
-                <dt class="col-sm-3">@L["auth.username"]</dt>
-                <dd class="col-sm-9">@Auth.CurrentUser.Username</dd>
-                <dt class="col-sm-3">@L["auth.email"]</dt>
-                <dd class="col-sm-9">@Auth.CurrentUser.Email</dd>
-                <dt class="col-sm-3">@L["settings.account.member.since"]</dt>
-                <dd class="col-sm-9">@Auth.CurrentUser.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy")</dd>
-            </dl>
-        </div>
-    </div>
+    }
+    else
+    {
+        <section class="settings-section" aria-labelledby="acc-info">
+            <h2 id="acc-info">@L["settings.account.info.title"]</h2>
+            <p class="settings-section-text">@L["settings.account.info.text"]</p>
+            <div class="account-profile">
+                <span class="account-avatar" aria-hidden="true">@Initials</span>
+                <dl class="sh-kv flex-grow-1 mb-0">
+                    <div>
+                        <dt>@L["auth.username"]</dt>
+                        <dd>@Auth.CurrentUser.Username</dd>
+                    </div>
+                    <div>
+                        <dt>@L["auth.email"]</dt>
+                        <dd>@Auth.CurrentUser.Email</dd>
+                    </div>
+                    <div>
+                        <dt>@L["settings.account.member.since"]</dt>
+                        <dd>@Auth.CurrentUser.CreatedAt.ToLocalTime().ToString("d")</dd>
+                    </div>
+                </dl>
+            </div>
+            <div class="settings-actions">
+                <a class="btn btn-outline-secondary" href="/settings/password">
+                    <i class="bi bi-key" aria-hidden="true"></i>@L["auth.change.password"]
+                </a>
+            </div>
+        </section>
 
-    <div class="card mb-4">
-        <div class="card-header fw-semibold">
-            <i class="bi bi-signpost-split me-2"></i>@L["settings.account.onboarding.title"]
-        </div>
-        <div class="card-body">
-            <p class="text-muted">@L["settings.account.onboarding.hint"]</p>
-
+        <section class="settings-section" aria-labelledby="acc-onboarding">
+            <h2 id="acc-onboarding">@L["settings.account.onboarding.title"]</h2>
+            <p class="settings-section-text">@L["settings.account.onboarding.hint"]</p>
             @if (_onboardingMessage != null)
             {
-                <div class="alert @(_onboardingSuccess ? "alert-success" : "alert-danger") py-2">
-                    @_onboardingMessage
-                </div>
+                <div class="alert @(_onboardingSuccess ? "alert-success" : "alert-danger") py-2" role="status">@_onboardingMessage</div>
             }
-
-            <button class="btn btn-outline-primary" @onclick="ShowOnboardingAgainAsync" disabled="@_onboardingLoading">
-                @if (_onboardingLoading) { <span class="spinner-border spinner-border-sm me-1"></span> }
-                <i class="bi bi-arrow-counterclockwise me-1"></i>@L["settings.account.onboarding.show.again"]
+            <button type="button" class="btn btn-outline-secondary" @onclick="ShowOnboardingAgainAsync" disabled="@_onboardingLoading">
+                @if (_onboardingLoading) { <span class="spinner-border spinner-border-sm" aria-hidden="true"></span> }
+                else { <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i> }
+                @L["settings.account.onboarding.show.again"]
             </button>
-        </div>
-    </div>
+        </section>
 
-    <div class="card border-danger">
-        <div class="card-header fw-semibold text-danger">
-            <i class="bi bi-exclamation-triangle me-2"></i>@L["settings.account.delete.title"]
-        </div>
-        <div class="card-body">
-            <p class="text-muted">@L["settings.account.delete.warning"]</p>
-
-            <button class="btn btn-outline-danger" @onclick="() => _showDeleteModal = true" disabled="@(Auth.CurrentUser.IsSuperAdmin)">
-                <i class="bi bi-trash me-1"></i>@L["settings.account.delete.button"]
-            </button>
+        <section class="settings-section is-danger" aria-labelledby="acc-delete">
+            <h2 id="acc-delete">@L["settings.account.delete.title"]</h2>
+            <p class="settings-section-text">@L["settings.account.delete.warning"]</p>
             @if (Auth.CurrentUser.IsSuperAdmin)
             {
-                <div class="form-text text-muted mt-1">@L["settings.account.delete.superadmin"]</div>
+                <p class="form-text mt-0 mb-2">@L["settings.account.delete.superadmin"]</p>
             }
-        </div>
-    </div>
-}
+            <button type="button" class="btn btn-outline-danger" @onclick="OpenDelete" disabled="@(Auth.CurrentUser.IsSuperAdmin)">
+                <i class="bi bi-trash" aria-hidden="true"></i>@L["settings.account.delete.button"]
+            </button>
+        </section>
+    }
+</SettingsShell>
 
 @if (_showDeleteModal)
 {
-    <div class="modal fade show d-block" tabindex="-1" style="background:rgba(0,0,0,.5)">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header border-danger">
-                    <h5 class="modal-title text-danger"><i class="bi bi-exclamation-triangle me-2"></i>@L["settings.account.delete.title"]</h5>
-                    <button type="button" class="btn-close" @onclick="() => _showDeleteModal = false"></button>
-                </div>
-                <div class="modal-body">
-                    <p>@L["settings.account.delete.warning"]</p>
-                    <label class="form-label fw-semibold">@L["settings.account.delete.confirm"]</label>
-                    <input type="password" class="form-control" @bind="_deletePassword" @bind:event="oninput"
-                           placeholder="@L["auth.password"]" aria-label="@L["auth.password"]" />
-                    @if (_deleteModalError != null)
-                    {
-                        <div class="text-danger small mt-1">@_deleteModalError</div>
-                    }
-                </div>
-                <div class="modal-footer">
-                    <button class="btn btn-secondary" @onclick="() => { _showDeleteModal = false; _deletePassword = string.Empty; _deleteModalError = null; }">
-                        @L["common.cancel"]
-                    </button>
-                    <button class="btn btn-danger" @onclick="DeleteAccountAsync" disabled="@(_deleting || string.IsNullOrWhiteSpace(_deletePassword))">
-                        @if (_deleting) { <span class="spinner-border spinner-border-sm me-1"></span> }
+    <div class="modal-backdrop-custom" @onclick="CloseDelete">
+        <div class="modal-box" role="alertdialog" aria-modal="true" aria-labelledby="acc-delete-title" @onclick:stopPropagation>
+            <form @onsubmit="DeleteAccountAsync" @onsubmit:preventDefault>
+                <h5 id="acc-delete-title" class="text-danger">@L["settings.account.delete.title"]</h5>
+                <p>@L["settings.account.delete.warning"]</p>
+                <label class="form-label" for="acc-delete-pw">@L["settings.account.delete.confirm"]</label>
+                <input id="acc-delete-pw" type="password" class="form-control" @bind="_deletePassword" @bind:event="oninput"
+                       autocomplete="current-password" />
+                @if (_deleteModalError != null)
+                {
+                    <div class="text-danger small mt-2" role="alert">@_deleteModalError</div>
+                }
+                <div class="d-flex gap-2 justify-content-end flex-wrap mt-3">
+                    <button type="button" class="btn btn-outline-secondary" @onclick="CloseDelete">@L["common.cancel"]</button>
+                    <button type="submit" class="btn btn-danger" disabled="@(_deleting || string.IsNullOrWhiteSpace(_deletePassword))">
+                        @if (_deleting) { <span class="spinner-border spinner-border-sm" aria-hidden="true"></span> }
                         @L["settings.account.delete.button"]
                     </button>
                 </div>
-            </div>
+            </form>
         </div>
     </div>
 }
-

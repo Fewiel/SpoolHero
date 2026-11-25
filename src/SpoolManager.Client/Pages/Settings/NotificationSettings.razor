@@ -1,50 +1,71 @@
 @page "/settings/notifications"
 
-<PageTitle>@L["settings.notifications.title"] – @L["app.name"]</PageTitle>
-
-<div class="page-header">
-    <h1><i class="bi bi-bell me-2"></i>@L["settings.notifications.title"]</h1>
-</div>
-
-@if (_loading)
-{
-    <div class="text-center py-5"><div class="spinner-border"></div></div>
-}
-else if (_prefs != null)
-{
-    @if (_saved)
+<SettingsShell Title="@L["settings.notifications.title"]" Subtitle="@L["settings.notifications.subtitle"]">
+    @if (_loading)
     {
-        <div class="alert alert-success py-2">@L["common.success"]</div>
-    }
-
-    <div class="card" style="max-width:500px">
-        <div class="card-body">
-            <p class="text-muted small mb-3">@L["settings.notifications.hint"]</p>
-
-            <div class="form-check form-switch mb-3">
-                <input class="form-check-input" type="checkbox" id="notifySpoolLow" @bind="_prefs.NotifySpoolLow" />
-                <label class="form-check-label" for="notifySpoolLow">
-                    <i class="bi bi-exclamation-triangle me-1 text-warning"></i>@L["settings.notifications.spool.low"]
-                </label>
-            </div>
-            <div class="form-check form-switch mb-3">
-                <input class="form-check-input" type="checkbox" id="notifyDryerDone" @bind="_prefs.NotifyDryerDone" />
-                <label class="form-check-label" for="notifyDryerDone">
-                    <i class="bi bi-thermometer-half me-1 text-success"></i>@L["settings.notifications.dryer.done"]
-                </label>
-            </div>
-            <div class="form-check form-switch mb-4">
-                <input class="form-check-input" type="checkbox" id="notifyTicketReply" @bind="_prefs.NotifyTicketReply" />
-                <label class="form-check-label" for="notifyTicketReply">
-                    <i class="bi bi-ticket-perforated me-1 text-primary"></i>@L["settings.notifications.ticket.reply"]
-                </label>
-            </div>
-
-            <button class="btn btn-primary" @onclick="SaveAsync" disabled="@_saving">
-                @if (_saving) { <span class="spinner-border spinner-border-sm me-1"></span> }
-                <i class="bi bi-floppy me-1"></i>@L["common.save"]
-            </button>
+        <div class="text-center py-5" role="status">
+            <div class="spinner-border text-primary" aria-hidden="true"></div>
+            <span class="visually-hidden">@L["common.loading"]</span>
         </div>
-    </div>
-}
+    }
+    else if (_prefs == null)
+    {
+        <div class="alert alert-danger" role="alert">@L["settings.notifications.load.error"]</div>
+    }
+    else
+    {
+        <section class="settings-section" aria-labelledby="notify-email">
+            <h2 id="notify-email">@L["settings.notifications.email.title"]</h2>
+            <p class="settings-section-text">@L.Format("settings.notifications.email.text", Auth.CurrentUser?.Email ?? "")</p>
 
+            <form @onsubmit="SaveAsync" @onsubmit:preventDefault>
+                <div class="form-check form-switch settings-toggle">
+                    <input class="form-check-input" type="checkbox" role="switch" id="notifySpoolLow" @bind="_prefs.NotifySpoolLow" @bind:after="MarkDirty" />
+                    <label class="settings-toggle-label" for="notifySpoolLow">
+                        <strong>@L["settings.notifications.spool.low"]</strong>
+                        <span>@L["settings.notifications.spool.low.hint"]</span>
+                    </label>
+                </div>
+                <div class="form-check form-switch settings-toggle">
+                    <input class="form-check-input" type="checkbox" role="switch" id="notifyDryerDone" @bind="_prefs.NotifyDryerDone" @bind:after="MarkDirty" />
+                    <label class="settings-toggle-label" for="notifyDryerDone">
+                        <strong>@L["settings.notifications.dryer.done"]</strong>
+                        <span>@L["settings.notifications.dryer.done.hint"]</span>
+                    </label>
+                </div>
+                <div class="form-check form-switch settings-toggle">
+                    <input class="form-check-input" type="checkbox" role="switch" id="notifyTicketReply" @bind="_prefs.NotifyTicketReply" @bind:after="MarkDirty" />
+                    <label class="settings-toggle-label" for="notifyTicketReply">
+                        <strong>@L["settings.notifications.ticket.reply"]</strong>
+                        <span>@L["settings.notifications.ticket.reply.hint"]</span>
+                    </label>
+                </div>
+
+                <div class="settings-actions">
+                    <button type="submit" class="btn btn-primary" disabled="@(_saving || !_dirty)">
+                        @if (_saving) { <span class="spinner-border spinner-border-sm" aria-hidden="true"></span> }
+                        @L["common.save"]
+                    </button>
+                    <span role="status" class="small">
+                        @if (_saveError)
+                        {
+                            <span class="text-danger"><i class="bi bi-x-circle" aria-hidden="true"></i> @L["settings.notifications.save.error"]</span>
+                        }
+                        else if (_saved)
+                        {
+                            <span class="text-success"><i class="bi bi-check-circle" aria-hidden="true"></i> @L["settings.notifications.saved"]</span>
+                        }
+                    </span>
+                </div>
+            </form>
+        </section>
+
+        <section class="settings-section" aria-labelledby="notify-chat">
+            <h2 id="notify-chat">@L["settings.notifications.chat.title"]</h2>
+            <p class="settings-section-text">@L["settings.notifications.chat.text"]</p>
+            <a class="btn btn-outline-secondary" href="/webhooks">
+                <i class="bi bi-broadcast-pin" aria-hidden="true"></i>@L["settings.notifications.chat.action"]
+            </a>
+        </section>
+    }
+</SettingsShell>

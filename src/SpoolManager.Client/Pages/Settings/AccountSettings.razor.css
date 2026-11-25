@@ -1,0 +1,21 @@
+.account-profile {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    flex-wrap: wrap;
+}
+
+.account-avatar {
+    flex: 0 0 auto;
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: var(--sh-accent-soft);
+    color: var(--sh-accent-text);
+    font-family: var(--sh-font-display);
+    font-weight: 700;
+    font-size: 1.4rem;
+    text-transform: uppercase;
+}
