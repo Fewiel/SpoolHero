@@ -1386,3 +1386,6 @@ button.sh-chip[aria-pressed="true"], a.sh-chip.active {
 /* area-c: the enlarged switch (2.4em) overlapped Bootstrap's 2.5em label indent – keep a gap */
 .form-switch { padding-left: 3.1em; }
 .form-switch .form-check-input { margin-left: -3.1em; }
+
+/* Headings receive programmatic focus after navigation (FocusOnNavigate) for screen readers – no visible ring */
+h1:focus, h1:focus-visible, [tabindex="-1"]:focus, [tabindex="-1"]:focus-visible { outline: none; }
