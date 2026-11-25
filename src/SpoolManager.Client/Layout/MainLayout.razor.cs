@@ -21,6 +21,29 @@ public partial class MainLayout
     private List<ProjectDto> _projects = [];
     private bool _initialLoad = true;
     private bool _projectsLoaded;
+    private string _search = string.Empty;
+
+    private string Initials
+    {
+        get
+        {
+            var name = Auth.CurrentUser?.Username ?? "?";
+            var parts = name.Split([' ', '.', '_', '-'], StringSplitOptions.RemoveEmptyEntries);
+            return parts.Length >= 2 ? $"{parts[0][0]}{parts[1][0]}" : name[..Math.Min(2, name.Length)];
+        }
+    }
+
+    private void SearchAsync()
+    {
+        var q = _search.Trim();
+        Nav.NavigateTo(string.IsNullOrEmpty(q) ? "/spools" : $"/spools?search={Uri.EscapeDataString(q)}");
+    }
+
+    private async Task SwitchFromMenuAsync(ProjectDto p)
+    {
+        await CloseOffcanvas();
+        await SwitchProjectAsync(p);
+    }
 
     protected override async Task OnInitializedAsync()
     {

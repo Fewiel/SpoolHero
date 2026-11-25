@@ -3,7 +3,7 @@
 @if (_initialLoad)
 {
     <div class="d-flex justify-content-center align-items-center vh-100">
-        <div class="spinner-border text-primary" role="status"></div>
+        <div class="spinner-border text-primary" role="status"><span class="visually-hidden">@L["common.loading"]</span></div>
     </div>
 }
 else if (!Auth.IsAuthenticated)
@@ -12,303 +12,198 @@ else if (!Auth.IsAuthenticated)
 }
 else
 {
-    <a href="#main-content" class="visually-hidden-focusable position-absolute top-0 start-0 p-2 bg-primary text-white" style="z-index:9999">Zum Hauptinhalt springen</a>
+    <a href="#main-content" class="visually-hidden-focusable sh-skip-link">@L["nav.skip"]</a>
 
-    <nav class="navbar navbar-expand-lg bg-body-tertiary fixed-top shadow-sm" role="navigation" aria-label="@L["app.name"] Navigation">
-        <div class="container-fluid">
-            <a class="navbar-brand fw-bold" href="/" aria-label="@L["app.name"] – @L["nav.dashboard"]">
+    <div class="sh-shell">
+        <aside class="sh-sidebar" aria-label="@L["nav.main"]">
+            <a class="sh-brand" href="/" aria-label="@L["app.name"] – @L["nav.dashboard"]">
                 @if (!string.IsNullOrEmpty(Branding.LogoDataUrl))
                 {
-                    <img src="@Branding.LogoDataUrl"
-                         class="logo-light me-1"
-                         alt="@L["app.name"]"
-                         style="max-height:32px;max-width:160px;object-fit:contain" />
-                    <img src="@(string.IsNullOrEmpty(Branding.LogoDarkDataUrl) ? Branding.LogoDataUrl : Branding.LogoDarkDataUrl)"
-                         class="logo-dark me-1"
-                         alt="@L["app.name"]"
-                         style="max-height:32px;max-width:160px;object-fit:contain" />
+                    <img src="@Branding.LogoDataUrl" class="logo-light" alt="@L["app.name"]" />
+                    <img src="@(string.IsNullOrEmpty(Branding.LogoDarkDataUrl) ? Branding.LogoDataUrl : Branding.LogoDarkDataUrl)" class="logo-dark" alt="@L["app.name"]" />
                 }
                 else
                 {
-                    <i class="bi bi-layers-half me-2" aria-hidden="true"></i>@L["app.name"]
+                    <svg class="sh-logo-mark" width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="12.5" fill="none" stroke="var(--sh-accent)" stroke-width="5"></circle><circle cx="16" cy="16" r="4.5" fill="currentColor"></circle></svg>
+                    <span>@L["app.name"]</span>
                 }
             </a>
 
             @if (Project.CurrentProject != null)
             {
-                <div class="dropdown me-2 d-none d-lg-block">
-                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                        <i class="bi bi-diagram-3 me-1"></i>@Project.CurrentProject.Name
-                    </button>
-                    <ul class="dropdown-menu">
-                        @foreach (var p in _projects)
-                        {
-                            <li>
-                                <a class="dropdown-item @(p.Id == Project.CurrentProject?.Id ? "active" : "")"
-                                   href="#" @onclick="() => SwitchProjectAsync(p)" @onclick:preventDefault>
-                                    @p.Name
-                                    @if (p.Id == Project.CurrentProject?.Id) { <i class="bi bi-check ms-1"></i> }
-                                </a>
-                            </li>
-                        }
-                        <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item" href="/projects"><i class="bi bi-gear me-1"></i>@L["project.title"]</a></li>
-                    </ul>
-                </div>
-            }
-
-            <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#navOffcanvas"
-                    aria-controls="navOffcanvas" aria-label="Navigation öffnen">
-                <span class="navbar-toggler-icon" aria-hidden="true"></span>
-            </button>
-
-            <div class="collapse navbar-collapse">
-                <ul class="navbar-nav ms-auto align-items-center gap-1">
-                    <li class="nav-item">
-                        <NavLink class="nav-link" href="/" Match="NavLinkMatch.All">
-                            <i class="bi bi-house me-1"></i>@L["nav.dashboard"]
-                        </NavLink>
-                    </li>
-
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" @onclick:preventDefault>
-                            <i class="bi bi-archive me-1"></i>@L["nav.group.spools"]
-                        </a>
-                        <ul class="dropdown-menu">
-                            <li><NavLink class="dropdown-item" href="/overview"><i class="bi bi-grid me-2"></i>@L["nav.overview"]</NavLink></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><NavLink class="dropdown-item" href="/spools"><i class="bi bi-archive me-2"></i>@L["nav.spools"]</NavLink></li>
-                            <li><NavLink class="dropdown-item" href="/materials"><i class="bi bi-database me-2"></i>@L["nav.materials"]</NavLink></li>
-                            <li><NavLink class="dropdown-item" href="/materials/orca"><i class="bi bi-box-seam me-2"></i>@L["nav.orca"]</NavLink></li>
-                            <li><NavLink class="dropdown-item" href="/inventory"><i class="bi bi-arrow-left-right me-2"></i>@L["nav.inventory"]</NavLink></li>
-                            <li><NavLink class="dropdown-item" href="/tags"><i class="bi bi-tags me-2"></i>@L["nav.tags"]</NavLink></li>
-                        </ul>
-                    </li>
-
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" @onclick:preventDefault>
-                            <i class="bi bi-geo-alt me-1"></i>@L["nav.group.locations"]
-                        </a>
-                        <ul class="dropdown-menu">
-                            <li><NavLink class="dropdown-item" href="/printers"><i class="bi bi-printer me-2"></i>@L["nav.printers"]</NavLink></li>
-                            <li><NavLink class="dropdown-item" href="/storage"><i class="bi bi-box me-2"></i>@L["nav.storage"]</NavLink></li>
-                            <li><NavLink class="dropdown-item" href="/dryers"><i class="bi bi-thermometer-half me-2"></i>@L["nav.dryers"]</NavLink></li>
-                        </ul>
-                    </li>
-
-                    <li class="nav-item">
-                        <NavLink class="nav-link" href="/tickets">
-                            <i class="bi bi-headset me-1"></i>@L["nav.tickets"]
-                        </NavLink>
-                    </li>
-
-                    @if (Auth.CurrentUser?.IsPlatformAdmin == true)
-                    {
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" @onclick:preventDefault>
-                                <i class="bi bi-shield-check me-1"></i>@L["nav.group.admin"]
-                            </a>
-                            <ul class="dropdown-menu dropdown-menu-end">
-                                <li><NavLink class="dropdown-item" href="/admin" Match="NavLinkMatch.All"><i class="bi bi-speedometer2 me-2"></i>@L["nav.admin.dashboard"]</NavLink></li>
-                                <li><NavLink class="dropdown-item" href="/admin/users"><i class="bi bi-people me-2"></i>@L["nav.admin.users"]</NavLink></li>
-                                <li><NavLink class="dropdown-item" href="/admin/materials"><i class="bi bi-database me-2"></i>@L["nav.admin"]</NavLink></li>
-                                <li><NavLink class="dropdown-item" href="/admin/suggestions"><i class="bi bi-lightbulb me-2"></i>@L["admin.suggestions"]</NavLink></li>
-                                <li><NavLink class="dropdown-item" href="/admin/tickets"><i class="bi bi-ticket-perforated me-2"></i>@L["nav.admin.tickets"]</NavLink></li>
-                                <li><NavLink class="dropdown-item" href="/admin/audit"><i class="bi bi-journal-text me-2"></i>@L["admin.audit.title"]</NavLink></li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li><NavLink class="dropdown-item" href="/admin/settings"><i class="bi bi-gear me-2"></i>@L["admin.settings.title"]</NavLink></li>
-                            </ul>
-                        </li>
-                    }
-
-                    <li class="nav-item ms-1"><ThemeToggle /></li>
-                    <li class="nav-item"><LanguageSelector /></li>
-
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" @onclick:preventDefault>
-                            <i class="bi bi-person-circle me-1"></i><span class="d-none d-xl-inline">@Auth.CurrentUser?.Username</span>
-                        </a>
-                        <ul class="dropdown-menu dropdown-menu-end">
-                            <li><a class="dropdown-item" href="/settings/account"><i class="bi bi-person-gear me-2"></i>@L["nav.settings.account"]</a></li>
-                            <li><a class="dropdown-item" href="/settings/password"><i class="bi bi-key me-2"></i>@L["auth.change.password"]</a></li>
-                            <li><a class="dropdown-item" href="/settings/notifications"><i class="bi bi-bell me-2"></i>@L["settings.notifications.title"]</a></li>
-                            <li><a class="dropdown-item" href="/webhooks"><i class="bi bi-broadcast-pin me-2"></i>@L["nav.webhooks"]</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li>
-                                <button class="dropdown-item text-danger" @onclick="LogoutAsync">
-                                    <i class="bi bi-box-arrow-right me-2"></i>@L["nav.logout"]
-                                </button>
-                            </li>
-                        </ul>
-                    </li>
-                </ul>
-            </div>
-        </div>
-    </nav>
-
-    <div class="offcanvas offcanvas-start" id="navOffcanvas">
-        <div class="offcanvas-header">
-            <h5 class="offcanvas-title">
-                @if (!string.IsNullOrEmpty(Branding.LogoDataUrl))
-                {
-                    <img src="@Branding.LogoDataUrl"
-                         class="logo-light"
-                         alt="@L["app.name"]"
-                         style="max-height:28px;max-width:140px;object-fit:contain" />
-                    <img src="@(string.IsNullOrEmpty(Branding.LogoDarkDataUrl) ? Branding.LogoDataUrl : Branding.LogoDarkDataUrl)"
-                         class="logo-dark"
-                         alt="@L["app.name"]"
-                         style="max-height:28px;max-width:140px;object-fit:contain" />
-                }
-                else
-                {
-                    <i class="bi bi-layers-half me-2"></i>@L["app.name"]
-                }
-            </h5>
-            <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
-        </div>
-        <div class="offcanvas-body">
-            @if (Project.CurrentProject != null)
-            {
-                <div class="dropdown mb-3">
-                    <button class="btn btn-outline-secondary w-100 dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                        <i class="bi bi-diagram-3 me-1"></i>@Project.CurrentProject.Name
+                <div class="dropdown">
+                    <button class="sh-project-switch dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <span class="overflow-hidden">
+                            <span class="sh-label">@L["nav.project"]</span>
+                            <span class="sh-value">@Project.CurrentProject.Name</span>
+                        </span>
+                        <i class="bi bi-chevron-expand text-muted" aria-hidden="true"></i>
                     </button>
                     <ul class="dropdown-menu w-100">
                         @foreach (var p in _projects)
                         {
                             <li>
-                                <a class="dropdown-item @(p.Id == Project.CurrentProject?.Id ? "active" : "")"
-                                   href="#" @onclick="() => SwitchProjectAsync(p)" @onclick:preventDefault>
-                                    @p.Name
-                                </a>
+                                <button type="button" class="dropdown-item @(p.Id == Project.CurrentProject?.Id ? "active" : "")" @onclick="() => SwitchProjectAsync(p)">
+                                    <span class="flex-grow-1 text-truncate">@p.Name</span>
+                                    @if (p.Id == Project.CurrentProject?.Id) { <i class="bi bi-check-lg" aria-hidden="true"></i> }
+                                </button>
                             </li>
                         }
                         <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item" href="/projects" @onclick="CloseOffcanvas"><i class="bi bi-gear me-1"></i>@L["project.title"]</a></li>
+                        <li><a class="dropdown-item" href="/projects"><i class="bi bi-gear" aria-hidden="true"></i>@L["project.title"]</a></li>
                     </ul>
                 </div>
             }
 
-            <ul class="navbar-nav gap-1">
-                <li class="nav-item">
-                    <NavLink class="nav-link" href="/" Match="NavLinkMatch.All" @onclick="CloseOffcanvas">
-                        <i class="bi bi-house me-2"></i>@L["nav.dashboard"]
-                    </NavLink>
-                </li>
+            <AppNav />
 
-                <li class="nav-item mt-2">
-                    <small class="text-muted fw-semibold text-uppercase px-2" style="font-size:.7rem">@L["nav.group.spools"]</small>
-                </li>
-                <li class="nav-item"><NavLink class="nav-link py-1" href="/overview" @onclick="CloseOffcanvas"><i class="bi bi-grid me-2"></i>@L["nav.overview"]</NavLink></li>
-                <li class="nav-item"><NavLink class="nav-link py-1" href="/spools" @onclick="CloseOffcanvas"><i class="bi bi-archive me-2"></i>@L["nav.spools"]</NavLink></li>
-                <li class="nav-item"><NavLink class="nav-link py-1" href="/materials" @onclick="CloseOffcanvas"><i class="bi bi-database me-2"></i>@L["nav.materials"]</NavLink></li>
-                <li class="nav-item"><NavLink class="nav-link py-1" href="/materials/orca" @onclick="CloseOffcanvas"><i class="bi bi-box-seam me-2"></i>@L["nav.orca"]</NavLink></li>
-                <li class="nav-item"><NavLink class="nav-link py-1" href="/inventory" @onclick="CloseOffcanvas"><i class="bi bi-arrow-left-right me-2"></i>@L["nav.inventory"]</NavLink></li>
-                <li class="nav-item"><NavLink class="nav-link py-1" href="/tags" @onclick="CloseOffcanvas"><i class="bi bi-tags me-2"></i>@L["nav.tags"]</NavLink></li>
-
-                <li class="nav-item mt-2">
-                    <small class="text-muted fw-semibold text-uppercase px-2" style="font-size:.7rem">@L["nav.group.locations"]</small>
-                </li>
-                <li class="nav-item"><NavLink class="nav-link py-1" href="/printers" @onclick="CloseOffcanvas"><i class="bi bi-printer me-2"></i>@L["nav.printers"]</NavLink></li>
-                <li class="nav-item"><NavLink class="nav-link py-1" href="/storage" @onclick="CloseOffcanvas"><i class="bi bi-box me-2"></i>@L["nav.storage"]</NavLink></li>
-                <li class="nav-item"><NavLink class="nav-link py-1" href="/dryers" @onclick="CloseOffcanvas"><i class="bi bi-thermometer-half me-2"></i>@L["nav.dryers"]</NavLink></li>
-
-                <li class="nav-item mt-2">
-                    <NavLink class="nav-link" href="/tickets" @onclick="CloseOffcanvas">
-                        <i class="bi bi-headset me-2"></i>@L["nav.tickets"]
-                    </NavLink>
-                </li>
-
-                @if (Auth.CurrentUser?.IsPlatformAdmin == true)
-                {
-                    <li class="nav-item mt-2">
-                        <small class="text-muted fw-semibold text-uppercase px-2" style="font-size:.7rem">@L["nav.group.admin"]</small>
-                    </li>
-                    <li class="nav-item"><NavLink class="nav-link py-1" href="/admin" Match="NavLinkMatch.All" @onclick="CloseOffcanvas"><i class="bi bi-speedometer2 me-2"></i>@L["nav.admin.dashboard"]</NavLink></li>
-                    <li class="nav-item"><NavLink class="nav-link py-1" href="/admin/users" @onclick="CloseOffcanvas"><i class="bi bi-people me-2"></i>@L["nav.admin.users"]</NavLink></li>
-                    <li class="nav-item"><NavLink class="nav-link py-1" href="/admin/materials" @onclick="CloseOffcanvas"><i class="bi bi-database me-2"></i>@L["nav.admin"]</NavLink></li>
-                    <li class="nav-item"><NavLink class="nav-link py-1" href="/admin/suggestions" @onclick="CloseOffcanvas"><i class="bi bi-lightbulb me-2"></i>@L["admin.suggestions"]</NavLink></li>
-                    <li class="nav-item"><NavLink class="nav-link py-1" href="/admin/tickets" @onclick="CloseOffcanvas"><i class="bi bi-ticket-perforated me-2"></i>@L["nav.admin.tickets"]</NavLink></li>
-                    <li class="nav-item"><NavLink class="nav-link py-1" href="/admin/audit" @onclick="CloseOffcanvas"><i class="bi bi-journal-text me-2"></i>@L["admin.audit.title"]</NavLink></li>
-                    <li class="nav-item"><NavLink class="nav-link py-1" href="/admin/settings" @onclick="CloseOffcanvas"><i class="bi bi-gear me-2"></i>@L["admin.settings.title"]</NavLink></li>
-                }
-
-                <li class="nav-item mt-2">
-                    <small class="text-muted fw-semibold text-uppercase px-2" style="font-size:.7rem">@L["nav.group.account"]</small>
-                </li>
-                <li class="nav-item mt-1"><ThemeToggle /></li>
-                <li class="nav-item mt-1"><LanguageSelector /></li>
-                <li class="nav-item mt-1">
-                    <a class="btn btn-outline-secondary w-100" href="/settings/account" @onclick="CloseOffcanvas">
-                        <i class="bi bi-person-gear me-2"></i>@L["nav.settings.account"]
-                    </a>
-                </li>
-                <li class="nav-item mt-1">
-                    <a class="btn btn-outline-secondary w-100" href="/settings/password" @onclick="CloseOffcanvas">
-                        <i class="bi bi-key me-2"></i>@L["auth.change.password"]
-                    </a>
-                </li>
-                <li class="nav-item mt-1">
-                    <a class="btn btn-outline-secondary w-100" href="/settings/notifications" @onclick="CloseOffcanvas">
-                        <i class="bi bi-bell me-2"></i>@L["settings.notifications.title"]
-                    </a>
-                </li>
-                <li class="nav-item mt-1">
-                    <a class="btn btn-outline-secondary w-100" href="/webhooks" @onclick="CloseOffcanvas">
-                        <i class="bi bi-broadcast-pin me-2"></i>@L["nav.webhooks"]
-                    </a>
-                </li>
-                <li class="nav-item mt-2">
-                    <button class="btn btn-outline-danger w-100" @onclick="LogoutAsync">
-                        <i class="bi bi-box-arrow-right me-2"></i>@L["nav.logout"]
+            <div class="sh-sidebar-footer">
+                <ThemeToggle />
+                <LanguageSelector />
+                <div class="dropup">
+                    <button class="sh-user-btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <span class="sh-avatar" aria-hidden="true">@Initials</span>
+                        <span class="d-flex flex-column overflow-hidden">
+                            <span class="fw-semibold text-truncate">@Auth.CurrentUser?.Username</span>
+                            <span class="small text-muted text-truncate">@Auth.CurrentUser?.Email</span>
+                        </span>
+                        <i class="bi bi-three-dots-vertical ms-auto text-muted" aria-hidden="true"></i>
                     </button>
-                </li>
-            </ul>
+                    <ul class="dropdown-menu w-100">
+                        <li><a class="dropdown-item" href="/settings/account"><i class="bi bi-person-gear" aria-hidden="true"></i>@L["nav.settings.account"]</a></li>
+                        <li><a class="dropdown-item" href="/settings/password"><i class="bi bi-key" aria-hidden="true"></i>@L["auth.change.password"]</a></li>
+                        <li><a class="dropdown-item" href="/settings/notifications"><i class="bi bi-bell" aria-hidden="true"></i>@L["settings.notifications.title"]</a></li>
+                        <li><a class="dropdown-item" href="/webhooks"><i class="bi bi-broadcast-pin" aria-hidden="true"></i>@L["nav.webhooks"]</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><button type="button" class="dropdown-item text-danger" @onclick="LogoutAsync"><i class="bi bi-box-arrow-right" aria-hidden="true"></i>@L["nav.logout"]</button></li>
+                    </ul>
+                </div>
+            </div>
+        </aside>
+
+        <div class="sh-content">
+            <header class="sh-topbar">
+                <a class="sh-brand d-lg-none px-0" href="/" aria-label="@L["app.name"] – @L["nav.dashboard"]">
+                    @if (!string.IsNullOrEmpty(Branding.LogoDataUrl))
+                    {
+                        <img src="@Branding.LogoDataUrl" class="logo-light" alt="@L["app.name"]" style="max-width:110px" />
+                        <img src="@(string.IsNullOrEmpty(Branding.LogoDarkDataUrl) ? Branding.LogoDataUrl : Branding.LogoDarkDataUrl)" class="logo-dark" alt="@L["app.name"]" style="max-width:110px" />
+                    }
+                    else
+                    {
+                        <svg class="sh-logo-mark" width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="12.5" fill="none" stroke="var(--sh-accent)" stroke-width="5"></circle><circle cx="16" cy="16" r="4.5" fill="currentColor"></circle></svg>
+                    }
+                </a>
+
+                <form class="sh-search" role="search" @onsubmit="SearchAsync" @onsubmit:preventDefault>
+                    <i class="bi bi-search" aria-hidden="true"></i>
+                    <label for="sh-search-input" class="visually-hidden">@L["nav.search"]</label>
+                    <input id="sh-search-input" type="search" placeholder="@L["nav.search.placeholder"]" @bind="_search" autocomplete="off" />
+                    <kbd class="sh-kbd" aria-hidden="true">Ctrl K</kbd>
+                </form>
+
+                <div class="sh-topbar-actions">
+                    <a class="btn btn-outline-secondary d-none d-md-inline-flex" href="/tags/read">
+                        <i class="bi bi-broadcast" aria-hidden="true"></i>@L["nav.scan"]
+                    </a>
+                    <a class="btn btn-primary d-none d-sm-inline-flex" href="/spools/new">
+                        <i class="bi bi-plus-lg" aria-hidden="true"></i><span class="d-none d-xl-inline">@L["spool.add"]</span>
+                    </a>
+                    <a class="sh-icon-btn d-sm-none" href="/spools/new" aria-label="@L["spool.add"]">
+                        <i class="bi bi-plus-lg" aria-hidden="true"></i>
+                    </a>
+                </div>
+            </header>
+
+            <main id="main-content" class="sh-main" tabindex="-1">
+                <div @key="_languageKey">@Body</div>
+            </main>
+
+            <footer class="sh-footer">
+                <a href="/changelog">@L["nav.changelog"]</a>
+                <a href="/privacy">@L["legal.privacy.title"]</a>
+                <a href="/imprint">@L["legal.imprint.title"]</a>
+                <a href="/terms">@L["legal.terms.title"]</a>
+            </footer>
         </div>
     </div>
 
-    <main id="main-content" class="main-content with-mobile-quick-actions container-fluid py-4 mt-navbar" tabindex="-1">
-        <div @key="_languageKey">@Body</div>
-    </main>
+    <nav class="sh-bottomnav" aria-label="@L["mobile.quick.actions"]">
+        <NavLink class="sh-bottomnav-link" href="/" Match="NavLinkMatch.All">
+            <i class="bi bi-house" aria-hidden="true"></i><span>@L["nav.dashboard"]</span>
+        </NavLink>
+        <NavLink class="sh-bottomnav-link" href="/spools">
+            <i class="bi bi-record-circle" aria-hidden="true"></i><span>@L["nav.spools"]</span>
+        </NavLink>
+        <NavLink class="sh-bottomnav-scan" href="/tags/read" aria-label="@L["nav.scan"]">
+            <i class="bi bi-broadcast" aria-hidden="true"></i>
+        </NavLink>
+        <NavLink class="sh-bottomnav-link" href="/overview">
+            <i class="bi bi-geo-alt" aria-hidden="true"></i><span>@L["nav.group.locations"]</span>
+        </NavLink>
+        <button type="button" class="sh-bottomnav-link" data-bs-toggle="offcanvas" data-bs-target="#navOffcanvas" aria-controls="navOffcanvas">
+            <i class="bi bi-list" aria-hidden="true"></i><span>@L["nav.more"]</span>
+        </button>
+    </nav>
 
-    @if (!_showCookieBanner)
-    {
-        <nav class="mobile-quick-actions d-lg-none" role="navigation" aria-label="@L["mobile.quick.actions"]">
-            <NavLink class="mobile-quick-action" href="/" Match="NavLinkMatch.All">
-                <i class="bi bi-house" aria-hidden="true"></i>
-                <span>@L["nav.dashboard"]</span>
-            </NavLink>
-            <NavLink class="mobile-quick-action" href="/inventory">
-                <i class="bi bi-arrow-left-right" aria-hidden="true"></i>
-                <span>@L["nav.inventory"]</span>
-            </NavLink>
-            <NavLink class="mobile-quick-action" href="/spools/new">
-                <i class="bi bi-plus-circle" aria-hidden="true"></i>
-                <span>@L["spool.add"]</span>
-            </NavLink>
-            <NavLink class="mobile-quick-action" href="/tags/read">
-                <i class="bi bi-upc-scan" aria-hidden="true"></i>
-                <span>@L["tag.read"]</span>
-            </NavLink>
-        </nav>
-    }
+    <div class="offcanvas offcanvas-end" id="navOffcanvas" tabindex="-1" aria-labelledby="navOffcanvasLabel">
+        <div class="offcanvas-header">
+            <h2 class="offcanvas-title h5 mb-0" id="navOffcanvasLabel">@L["nav.menu"]</h2>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="@L["common.close"]"></button>
+        </div>
+        <div class="offcanvas-body d-flex flex-column gap-3">
+            @if (Project.CurrentProject != null)
+            {
+                <div class="dropdown">
+                    <button class="sh-project-switch dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <span class="overflow-hidden">
+                            <span class="sh-label">@L["nav.project"]</span>
+                            <span class="sh-value">@Project.CurrentProject.Name</span>
+                        </span>
+                        <i class="bi bi-chevron-expand text-muted" aria-hidden="true"></i>
+                    </button>
+                    <ul class="dropdown-menu w-100">
+                        @foreach (var p in _projects)
+                        {
+                            <li>
+                                <button type="button" class="dropdown-item @(p.Id == Project.CurrentProject?.Id ? "active" : "")" @onclick="() => SwitchFromMenuAsync(p)">
+                                    <span class="flex-grow-1 text-truncate">@p.Name</span>
+                                </button>
+                            </li>
+                        }
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="/projects" @onclick="CloseOffcanvas"><i class="bi bi-gear" aria-hidden="true"></i>@L["project.title"]</a></li>
+                    </ul>
+                </div>
+            }
 
-    <footer class="text-center text-muted py-3" style="font-size:.8rem; border-top: 1px solid var(--bs-border-color);">
-        <a href="/changelog" class="text-muted me-3">@L["nav.changelog"]</a>
-        <a href="/privacy" class="text-muted me-3">@L["legal.privacy.title"]</a>
-        <a href="/imprint" class="text-muted me-3">@L["legal.imprint.title"]</a>
-        <a href="/terms" class="text-muted">@L["legal.terms.title"]</a>
-    </footer>
+            <AppNav OnNavigate="CloseOffcanvas" />
+
+            <div class="sh-nav">
+                <div class="sh-nav-section">@L["nav.group.account"]</div>
+                <a class="sh-nav-link" href="/settings/account" @onclick="CloseOffcanvas"><i class="bi bi-person-gear" aria-hidden="true"></i>@L["nav.settings.account"]</a>
+                <a class="sh-nav-link" href="/settings/password" @onclick="CloseOffcanvas"><i class="bi bi-key" aria-hidden="true"></i>@L["auth.change.password"]</a>
+                <a class="sh-nav-link" href="/settings/notifications" @onclick="CloseOffcanvas"><i class="bi bi-bell" aria-hidden="true"></i>@L["settings.notifications.title"]</a>
+                <a class="sh-nav-link" href="/webhooks" @onclick="CloseOffcanvas"><i class="bi bi-broadcast-pin" aria-hidden="true"></i>@L["nav.webhooks"]</a>
+                <a class="sh-nav-link" href="/changelog" @onclick="CloseOffcanvas"><i class="bi bi-stars" aria-hidden="true"></i>@L["nav.changelog"]</a>
+            </div>
+
+            <ThemeToggle />
+            <LanguageSelector />
+
+            <button type="button" class="btn btn-outline-danger w-100" @onclick="LogoutAsync">
+                <i class="bi bi-box-arrow-right" aria-hidden="true"></i>@L["nav.logout"]
+            </button>
+        </div>
+    </div>
 
     @if (_showCookieBanner)
     {
-        <div class="position-fixed bottom-0 start-0 end-0 p-3" style="z-index:1060; background:var(--bs-body-bg); border-top:1px solid var(--bs-border-color);">
-            <div class="container-fluid d-flex align-items-center gap-3 flex-wrap">
+        <div class="position-fixed bottom-0 start-0 end-0 p-3" style="z-index:1060">
+            <div class="sh-card d-flex align-items-center gap-3 flex-wrap mx-auto" style="max-width:960px;box-shadow:var(--sh-shadow-lg)">
                 <span class="flex-grow-1 small">@L["cookie.banner.text"] <a href="/privacy">@L["legal.privacy.title"]</a></span>
                 <button class="btn btn-primary btn-sm" @onclick="DismissCookieBanner">@L["cookie.banner.ok"]</button>
             </div>
         </div>
     }
 }
-

@@ -9,21 +9,19 @@ public partial class ThemeToggle
     [Inject] private IJSRuntime JS { get; set; } = default!;
     [Inject] private LocalizationService L { get; set; } = default!;
 
-    private bool _isDark;
+    private string _pref = "auto";
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender)
-        {
-            var theme = await JS.InvokeAsync<string>("themeHelper.getTheme");
-            _isDark = theme == "dark";
-            StateHasChanged();
-        }
+        if (!firstRender)
+            return;
+        _pref = await JS.InvokeAsync<string>("themeHelper.getPreference");
+        StateHasChanged();
     }
 
-    private async Task ToggleAsync()
+    private async Task SetAsync(string pref)
     {
-        _isDark = !_isDark;
-        await JS.InvokeVoidAsync("themeHelper.setTheme", _isDark ? "dark" : "light");
+        _pref = pref;
+        await JS.InvokeVoidAsync("themeHelper.setTheme", pref);
     }
 }
