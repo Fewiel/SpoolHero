@@ -1382,3 +1382,7 @@ button.sh-chip[aria-pressed="true"], a.sh-chip.active {
 
     .nfc-pulse-icon { animation: none; }
 }
+
+/* area-c: the enlarged switch (2.4em) overlapped Bootstrap's 2.5em label indent – keep a gap */
+.form-switch { padding-left: 3.1em; }
+.form-switch .form-check-input { margin-left: -3.1em; }
